@@ -116,13 +116,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
   // Accountability
   {
     id: 'accountability-overview',
-    title: 'Accountability that helps you complete',
+    title: 'Staying on track—without guilt',
     summary: 'Set goals, get nudges, and track progress.',
     body: [
-      'Set daily or weekly word goals. We\'ll nudge you gently (or firmly) based on your preference.',
-      'Choose your style: Gentle (encouraging), Balanced (regular check-ins), or Structured (firm reminders).',
+      'Set daily or weekly word goals. We\'ll nudge you gently (or more firmly) based on your preference.',
+      'Choose your style: Gentle (encouraging), Balanced (regular check-ins), or Structured (clear expectations).',
       'We send recovery nudges when you\'ve been away. No guilt—just a friendly "ready when you are."',
-      'Track progress on the Accountability page. See streaks, milestones, and word counts.',
+      'Track progress on the My progress page. See streaks, milestones, and word counts.',
     ],
     tags: ['accountability', 'goals'],
   },
@@ -131,7 +131,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: 'Setting word goals',
     summary: 'Daily or weekly targets that work for you.',
     body: [
-      'Go to Dashboard → Accountability to set your goal.',
+      'Go to Home → My progress to set your goal.',
       'Daily: e.g. 500 words/day. Weekly: e.g. 3,500 words/week.',
       'We count words from your manuscript. Notes and outlines don\'t count.',
       'Adjust anytime. Life happens—we\'ll help you get back on track.',
@@ -189,7 +189,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       '2. Add a book. Choose a template or start from scratch.',
       '3. Add chapters to your outline. One sentence per chapter is enough to start.',
       '4. Open a chapter and start writing. Or use Ghostwriter to generate a draft.',
-      '5. Set a word goal in Accountability if you want gentle nudges.',
+      '5. Set a word goal in My progress if you want gentle nudges.',
     ],
     tags: ['getting-started'],
   },
@@ -213,7 +213,7 @@ export const HELP_CATEGORIES = [
   { id: 'fiction', label: 'Fiction writing', icon: '📖' },
   { id: 'non-fiction', label: 'Non-fiction writing', icon: '📚' },
   { id: 'ai', label: 'AI features', icon: '✨' },
-  { id: 'accountability', label: 'Accountability', icon: '🎯' },
+  { id: 'accountability', label: 'Staying on track', icon: '🎯' },
   { id: 'export', label: 'Exporting', icon: '📤' },
   { id: 'publishing', label: 'Publishing prep', icon: '📝' },
 ] as const;

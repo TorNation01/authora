@@ -115,7 +115,7 @@ export default function JourneyPage() {
       <div className="p-6 lg:p-8 max-w-5xl">
         <PageHeader
           title="Your writing journey"
-          description="Create a personalized roadmap from idea to finished book"
+          description="A gentle roadmap from idea to finished book"
         />
         <Card variant="sanctuary" className="max-w-md">
           <CardHeader>
@@ -124,14 +124,14 @@ export default function JourneyPage() {
             </div>
             <CardTitle className="text-xl font-serif">Start your journey</CardTitle>
             <CardDescription>
-              Complete onboarding to get a personalized roadmap. We&apos;ll guide you through each phase of writing your book.
+              Take a quick tour to get your personalized roadmap. We&apos;ll guide you through each phase—no rush.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
               <Link href="/onboarding">
                 <Sparkles className="h-4 w-4 mr-2" />
-                Go to onboarding
+                Take the tour
               </Link>
             </Button>
           </CardContent>
@@ -164,9 +164,9 @@ export default function JourneyPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-2">
               <Check className="h-7 w-7" />
             </div>
-            <CardTitle className="text-2xl font-serif">Journey complete!</CardTitle>
+            <CardTitle className="text-2xl font-serif">You did it!</CardTitle>
             <CardDescription className="text-base">
-              You&apos;ve finished all phases. Your book is ready for export and publishing.
+              You&apos;ve finished all phases. Your book is ready for export and publishing. Celebrate.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -220,7 +220,7 @@ export default function JourneyPage() {
                   ) : (
                     <Check className="h-4 w-4 mr-2" />
                   )}
-                  Mark complete
+                  Done
                 </Button>
               </CardContent>
             </Card>

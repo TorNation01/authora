@@ -44,6 +44,14 @@ async def create_project(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create project."""
+    from authora.services.billing_service import check_project_limit
+
+    allowed, current, limit = await check_project_limit(db, current_user.id)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Project limit reached ({current}/{limit}). Upgrade to Premium for more.",
+        )
     project = Project(user_id=current_user.id, name=data.name)
     db.add(project)
     await db.flush()

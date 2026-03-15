@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
 from authora.models import Book, Chapter, ChapterVersion, Project
+from authora.services.finish_mode import get_finish_mode_stats, update_finish_mode_settings
 from authora.schemas.book import (
     BookCreate,
     BookResponse,
@@ -80,7 +82,15 @@ async def create_book(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create book in project."""
+    from authora.services.billing_service import check_book_limit
+
     await get_project_or_404(db, project_id, current_user.id)
+    allowed, current, limit = await check_book_limit(db, current_user.id)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Book limit reached ({current}/{limit}). Upgrade to Premium for more.",
+        )
     book = Book(
         project_id=project_id,
         title=data.title,
@@ -275,3 +285,46 @@ async def delete_chapter(
     if not chapter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chapter not found")
     await db.delete(chapter)
+
+
+# Finish Mode
+@router.get("/{book_id}/finish-mode")
+async def get_finish_mode(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get finish mode stats and settings."""
+    stats = await get_finish_mode_stats(db, book_id, current_user.id)
+    if not stats:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    return stats
+
+
+class FinishModeUpdate(BaseModel):
+    """Finish mode settings update."""
+
+    enabled: bool | None = None
+    target_date: str | None = None
+    words_per_day: int | None = None
+
+
+@router.patch("/{book_id}/finish-mode")
+async def patch_finish_mode(
+    book_id: uuid.UUID,
+    data: FinishModeUpdate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Enable, disable, or update finish mode settings."""
+    stats = await update_finish_mode_settings(
+        db,
+        book_id,
+        current_user.id,
+        enabled=data.enabled,
+        target_date=data.target_date,
+        words_per_day=data.words_per_day,
+    )
+    if not stats:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    return stats

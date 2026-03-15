@@ -70,7 +70,7 @@ export function ReferencePanel({
           <div className="space-y-4">
             {!lookupWord ? (
               <p className="text-sm text-muted-foreground">
-                Select a word or right-click to look up.
+                Select a word or right-click to look up definitions and synonyms.
               </p>
             ) : loading && !lookupResult ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

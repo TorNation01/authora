@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { api } from '@/lib/api';
+import { getToken } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import {
   FileDown,
@@ -55,6 +56,13 @@ export default function ExportCenterPage() {
   const [includeToc, setIncludeToc] = useState(true);
   const [authorName, setAuthorName] = useState('');
   const [formatStyle, setFormatStyle] = useState<'manuscript' | 'print' | 'ebook'>('manuscript');
+  const [dedication, setDedication] = useState('');
+  const [epigraph, setEpigraph] = useState('');
+  const [copyrightNotice, setCopyrightNotice] = useState('');
+  const [authorBio, setAuthorBio] = useState('');
+  const [frontMatter, setFrontMatter] = useState('');
+  const [backMatter, setBackMatter] = useState('');
+  const [acknowledgements, setAcknowledgements] = useState('');
 
   useEffect(() => {
     api<Project[]>('/api/v1/projects').then(setProjects).catch(() => setProjects([]));
@@ -79,16 +87,29 @@ export default function ExportCenterPage() {
       .finally(() => setLoading(false));
   }, [selectedBook?.id]);
 
+  const buildExportParams = () => {
+    const p = new URLSearchParams({
+      include_title_page: String(includeTitlePage),
+      include_toc: String(includeToc),
+      format_style: formatStyle,
+    });
+    if (authorName.trim()) p.set('author_name', authorName.trim());
+    if (dedication.trim()) p.set('dedication', dedication.trim());
+    if (epigraph.trim()) p.set('epigraph', epigraph.trim());
+    if (copyrightNotice.trim()) p.set('copyright_notice', copyrightNotice.trim());
+    if (authorBio.trim()) p.set('author_bio', authorBio.trim());
+    if (frontMatter.trim()) p.set('front_matter', frontMatter.trim());
+    if (backMatter.trim()) p.set('back_matter', backMatter.trim());
+    if (acknowledgements.trim()) p.set('acknowledgements', acknowledgements.trim());
+    return p;
+  };
+
   const handleExport = async (format: string) => {
     if (!selectedBook) return;
     setExporting(format);
     try {
-      const token = localStorage.getItem('access_token');
-      const params = new URLSearchParams({
-        include_title_page: String(includeTitlePage),
-        include_toc: String(includeToc),
-      });
-      if (authorName.trim()) params.set('author_name', authorName.trim());
+      const token = getToken();
+      const params = buildExportParams();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/${format}?${params}`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
@@ -113,7 +134,7 @@ export default function ExportCenterPage() {
     if (!selectedBook) return;
     setExporting('outline');
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getToken();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/outline`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
@@ -134,11 +155,61 @@ export default function ExportCenterPage() {
     }
   };
 
+  const handleFormatPreview = async () => {
+    if (!selectedBook) return;
+    setExporting('preview');
+    try {
+      const token = getToken();
+      const params = buildExportParams();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/format-preview?${params}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) throw new Error('Preview failed');
+      const html = await res.text();
+      const win = window.open('', '_blank', 'noopener');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+      }
+    } catch (e) {
+      toast({ title: 'Preview failed', variant: 'destructive' });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handlePackageExport = async (path: string, filename: string) => {
+    if (!selectedBook) return;
+    setExporting(path);
+    try {
+      const token = getToken();
+      const p = authorName.trim() ? `?author_name=${encodeURIComponent(authorName.trim())}` : '';
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/packages/${path}${p}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Package downloaded' });
+    } catch (e) {
+      toast({ title: 'Failed', description: e instanceof Error ? e.message : 'AI may not be configured.', variant: 'destructive' });
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleExportChapters = async () => {
     if (!selectedBook) return;
     setExporting('chapters');
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getToken();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/chapters?format=docx&as_zip=true`,
         { headers: token ? { Authorization: `Bearer ${token}` } : {} }
@@ -162,8 +233,8 @@ export default function ExportCenterPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
-        title="Export center"
-        description="Export your book in multiple formats. Preview before download."
+        title="Export"
+        description="Download your book in DOCX, PDF, EPUB, or plain text. Preview before you download."
         actions={
           <HelpIcon
             content="Export to DOCX, PDF, EPUB, or plain text. One click to share with beta readers or publish."
@@ -188,9 +259,9 @@ export default function ExportCenterPage() {
           <div className="text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="font-medium">No books yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Create a project and book to export.</p>
+            <p className="text-sm text-muted-foreground mt-1">Create a project and book first. We'll be ready when you are.</p>
             <Button asChild className="mt-4">
-              <Link href="/dashboard">Go to dashboard</Link>
+              <Link href="/dashboard">Go to Home</Link>
             </Button>
           </div>
         </Card>
@@ -266,6 +337,83 @@ export default function ExportCenterPage() {
                         className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm"
                       />
                     </div>
+                    <details className="group mt-2">
+                      <summary className="text-sm font-medium cursor-pointer text-muted-foreground hover:text-foreground">
+                        Front & back matter (optional)
+                      </summary>
+                      <div className="mt-3 space-y-2 pl-2 border-l-2 border-muted">
+                        <div>
+                          <label className="text-xs block mb-1">Dedication</label>
+                          <input
+                            type="text"
+                            value={dedication}
+                            onChange={(e) => setDedication(e.target.value)}
+                            placeholder="For..."
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Epigraph</label>
+                          <input
+                            type="text"
+                            value={epigraph}
+                            onChange={(e) => setEpigraph(e.target.value)}
+                            placeholder="Quote and attribution"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Copyright notice</label>
+                          <input
+                            type="text"
+                            value={copyrightNotice}
+                            onChange={(e) => setCopyrightNotice(e.target.value)}
+                            placeholder="© 2025 Author Name"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Author bio</label>
+                          <textarea
+                            value={authorBio}
+                            onChange={(e) => setAuthorBio(e.target.value)}
+                            placeholder="Short author biography"
+                            rows={2}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Front matter (extra)</label>
+                          <textarea
+                            value={frontMatter}
+                            onChange={(e) => setFrontMatter(e.target.value)}
+                            placeholder="Additional front matter"
+                            rows={2}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Acknowledgements</label>
+                          <textarea
+                            value={acknowledgements}
+                            onChange={(e) => setAcknowledgements(e.target.value)}
+                            placeholder="Thank you to..."
+                            rows={2}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs block mb-1">Back matter (extra)</label>
+                          <textarea
+                            value={backMatter}
+                            onChange={(e) => setBackMatter(e.target.value)}
+                            placeholder="Appendix, glossary, etc."
+                            rows={2}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                          />
+                        </div>
+                      </div>
+                    </details>
                   </CardContent>
                 </Card>
                 <Card variant="soft">
@@ -313,6 +461,10 @@ export default function ExportCenterPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={handleFormatPreview} disabled={!!exporting}>
+                  {exporting === 'preview' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+                  Preview formatting
+                </Button>
                 <Button variant="outline" onClick={handleExportOutline} disabled={!!exporting}>
                   {exporting === 'outline' ? <Loader2 className="h-4 w-4 animate-spin" /> : <List className="h-4 w-4" />}
                   Export outline
@@ -329,6 +481,51 @@ export default function ExportCenterPage() {
                   </Button>
                 )}
               </div>
+
+              <Card variant="soft" className="p-4">
+                <h3 className="font-medium mb-2">Publishing packages</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Pre-built bundles for beta readers, editors, and client handoff. Requires AI.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePackageExport('beta-reader', `${selectedBook?.title || 'book'}_beta_package.zip`)}
+                    disabled={!!exporting}
+                  >
+                    {exporting === 'beta-reader' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    Beta reader package
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePackageExport('ghostwriter-handoff', `${selectedBook?.title || 'book'}_handoff.zip`)}
+                    disabled={!!exporting}
+                  >
+                    {exporting === 'ghostwriter-handoff' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    Ghostwriter handoff
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePackageExport('chapter-summary-sheet', `${selectedBook?.title || 'book'}_chapter_summaries.docx`)}
+                    disabled={!!exporting}
+                  >
+                    {exporting === 'chapter-summary-sheet' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    Chapter summary sheet
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePackageExport('synopsis', `${selectedBook?.title || 'book'}_synopsis.docx`)}
+                    disabled={!!exporting}
+                  >
+                    {exporting === 'synopsis' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    Synopsis
+                  </Button>
+                </div>
+              </Card>
             </>
           )}
         </div>
@@ -361,7 +558,7 @@ export default function ExportCenterPage() {
                 if (!projectId) return;
                 setExporting('notes');
                 try {
-                  const token = localStorage.getItem('access_token');
+                  const token = getToken();
                   const res = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/projects/${projectId}/notes`,
                     { headers: token ? { Authorization: `Bearer ${token}` } : {} }

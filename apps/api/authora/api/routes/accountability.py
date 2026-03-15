@@ -18,15 +18,24 @@ from authora.models import (
     ChapterTarget,
     Goal,
     Milestone,
+    Notification,
+    NotificationDeliveryLog,
     Project,
     RecoveryPlan,
     StreakLog,
+    User,
     UserStats,
     WritingPlan,
 )
 from authora.services.reminder_service import (
+    process_chapter_target_reminders,
     process_daily_reminders,
+    process_finish_date_risk_alerts,
+    process_milestone_reminders,
     process_overdue_and_recovery,
+    process_overdue_nudges,
+    process_resume_reminders,
+    process_streak_reminders,
     process_stuck_detection,
     process_weekly_reminders,
 )
@@ -52,6 +61,12 @@ class AccountabilitySettingsUpdate(BaseModel):
     accountability_style: str | None = None
     reminder_enabled: bool | None = None
     reminder_times: list[str] | None = None
+    timezone: str | None = None
+    quiet_hours_start: str | None = None
+    quiet_hours_end: str | None = None
+    email_reminders_enabled: bool | None = None
+    reminder_cadence: str | None = None
+    reminder_types: list[str] | None = None
     plan_paused: bool | None = None
 
 
@@ -61,6 +76,12 @@ class AccountabilitySettingsResponse(BaseModel):
     accountability_style: str
     reminder_enabled: bool
     reminder_times: list[str] | None
+    timezone: str | None
+    quiet_hours_start: str | None
+    quiet_hours_end: str | None
+    email_reminders_enabled: bool
+    reminder_cadence: str
+    reminder_types: list[str] | None
     plan_paused: bool
     paused_at: datetime | None
 
@@ -120,6 +141,20 @@ async def update_settings(
         settings.reminder_enabled = data.reminder_enabled
     if data.reminder_times is not None:
         settings.reminder_times = data.reminder_times
+    if data.timezone is not None:
+        settings.timezone = data.timezone
+    if data.quiet_hours_start is not None:
+        settings.quiet_hours_start = data.quiet_hours_start
+    if data.quiet_hours_end is not None:
+        settings.quiet_hours_end = data.quiet_hours_end
+    if data.email_reminders_enabled is not None:
+        settings.email_reminders_enabled = data.email_reminders_enabled
+    if data.reminder_cadence is not None:
+        if data.reminder_cadence not in ("daily", "weekly", "both"):
+            raise HTTPException(status_code=400, detail="Invalid reminder cadence")
+        settings.reminder_cadence = data.reminder_cadence
+    if data.reminder_types is not None:
+        settings.reminder_types = data.reminder_types
     if data.plan_paused is not None:
         settings.plan_paused = data.plan_paused
         settings.paused_at = datetime.now(timezone.utc) if data.plan_paused else None
@@ -351,6 +386,116 @@ async def get_motivational_message(
     return {"style": style, "message": msg}
 
 
+# --- Notifications ---
+
+@router.get("/notifications")
+async def list_notifications(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 50,
+    unread_only: bool = False,
+):
+    """List in-app notifications for the current user."""
+    q = select(Notification).where(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).limit(limit)
+    if unread_only:
+        q = q.where(Notification.read_at.is_(None))
+    result = await db.execute(q)
+    notifications = result.scalars().all()
+    return [
+        {
+            "id": str(n.id),
+            "type": n.type,
+            "title": n.title,
+            "body": n.body,
+            "read_at": n.read_at.isoformat() if n.read_at else None,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in notifications
+    ]
+
+
+@router.post("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mark a notification as read."""
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
+    )
+    n = result.scalar_one_or_none()
+    if not n:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    n.read_at = datetime.now(timezone.utc)
+    await db.flush()
+    return {"ok": True}
+
+
+@router.post("/notifications/test")
+async def send_test_notification(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Send a test notification (in-app and optionally email) to verify the flow."""
+    from authora.infrastructure.notifications.factory import get_notification_service
+
+    settings = await get_or_create_settings(db, current_user.id)
+    user_result = await db.execute(select(User).where(User.id == current_user.id))
+    user = user_result.scalar_one_or_none()
+    email = user.email if user else ""
+
+    svc = get_notification_service(db)
+    msg = "This is a test notification. Your reminder settings are working."
+    results = await svc.send_reminder(
+        str(current_user.id),
+        email,
+        "test_notification",
+        "Test notification",
+        msg,
+        in_app=True,
+        email=settings.email_reminders_enabled,
+    )
+    await db.commit()
+    return {
+        "in_app_sent": results["in_app"],
+        "email_sent": results["email"],
+        "message": "Test notification sent.",
+    }
+
+
+@router.get("/delivery-logs")
+async def list_delivery_logs(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 50,
+):
+    """List notification delivery logs for the current user."""
+    result = await db.execute(
+        select(NotificationDeliveryLog)
+        .where(NotificationDeliveryLog.user_id == current_user.id)
+        .order_by(NotificationDeliveryLog.created_at.desc())
+        .limit(limit)
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "id": str(l.id),
+            "notification_type": l.notification_type,
+            "channel": l.channel,
+            "status": l.status,
+            "error_message": l.error_message,
+            "retry_count": l.retry_count,
+            "created_at": l.created_at.isoformat(),
+            "sent_at": l.sent_at.isoformat() if l.sent_at else None,
+        }
+        for l in logs
+    ]
+
+
 # --- Scheduler / Cron endpoint (internal) ---
 
 @router.post("/cron/reminders")
@@ -361,6 +506,12 @@ async def run_reminder_jobs(
 
     daily = await process_daily_reminders(db)
     weekly = await process_weekly_reminders(db)
+    milestone = await process_milestone_reminders(db)
+    streak = await process_streak_reminders(db)
+    overdue_nudges = await process_overdue_nudges(db)
+    finish_risk = await process_finish_date_risk_alerts(db)
+    resume = await process_resume_reminders(db)
+    chapter_target = await process_chapter_target_reminders(db)
     stuck = await process_stuck_detection(db)
     recovery = await process_overdue_and_recovery(db)
     await db.commit()
@@ -368,6 +519,12 @@ async def run_reminder_jobs(
     return {
         "daily_reminders": daily,
         "weekly_reminders": weekly,
+        "milestone_reminders": milestone,
+        "streak_reminders": streak,
+        "overdue_nudges": overdue_nudges,
+        "finish_date_risk_alerts": finish_risk,
+        "resume_reminders": resume,
+        "chapter_target_reminders": chapter_target,
         "stuck_nudges": stuck,
         "recovery_plans_created": recovery,
     }

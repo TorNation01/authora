@@ -1,4 +1,4 @@
-/** Onboarding copy for the setup flow. */
+/** Onboarding copy for the setup flow. Warm, low-pressure, clear. */
 
 export interface OnboardingStepCopy {
   title: string;
@@ -10,48 +10,48 @@ export interface OnboardingStepCopy {
 
 export const ONBOARDING_COPY: Record<string, OnboardingStepCopy> = {
   welcome: {
-    title: 'Welcome to AUTHORA',
-    subtitle: 'Your guided writing journey from idea to finished book',
+    title: 'Welcome to your writing sanctuary',
+    subtitle: 'From idea to finished book—we\'ll guide you every step',
     description:
-      "We'll ask a few questions to personalize your experience. You can change these anytime.",
+      "We'll ask a few quick questions to personalize your experience. You can change these anytime.",
   },
   book_type: {
-    title: 'Fiction or non-fiction?',
-    description: 'This helps us suggest the right structure and tools.',
+    title: 'What are you writing?',
+    description: 'This helps us show you the right tools and structure.',
     fiction_label: 'Fiction',
     fiction_desc: 'Novels, stories, creative writing',
     nonfiction_label: 'Non-fiction',
     nonfiction_desc: 'Memoir, how-to, business, academic',
   },
   writing_mode: {
-    title: 'How do you want to write?',
-    description: 'Choose the level of AI assistance that feels right.',
-    solo_label: 'Write myself',
-    solo_desc: 'I write alone, AI assists when I ask',
+    title: 'How would you like to write?',
+    description: 'Choose the level of AI help that feels right. You can change this anytime.',
+    solo_label: 'Mostly on my own',
+    solo_desc: 'I write; AI helps when I ask',
     cowrite_label: 'Co-write with AI',
-    cowrite_desc: 'AI suggests and drafts, I edit and steer',
-    ghostwriter_label: 'Ghostwriter mode',
-    ghostwriter_desc: 'AI drafts heavily, I guide and refine',
+    cowrite_desc: 'AI suggests and drafts; I edit and steer',
+    ghostwriter_label: 'Heavy AI assistance',
+    ghostwriter_desc: 'AI drafts; I guide and refine',
   },
   writing_goals: {
-    title: 'What are your writing goals?',
+    title: 'What matters most to you?',
     placeholder:
       'e.g. finish my first draft, publish by next year, build a daily habit',
   },
   target_timeline: {
-    title: 'Target completion',
+    title: 'When do you hope to finish?',
     description:
-      'When do you hope to finish? No pressure—you can change this.',
+      'No pressure—this helps us suggest a pace. You can change it anytime.',
   },
   writing_schedule: {
     title: 'When do you usually write?',
-    description: "We'll use this for gentle reminders if you want them.",
+    description: "We'll use this for gentle reminders—only if you want them.",
   },
   accountability: {
-    title: 'Encouragement style',
-    description: 'How do you like to be nudged?',
+    title: 'How do you like to be encouraged?',
+    description: 'We adapt to your style. No guilt, ever.',
     gentle_label: 'Gentle',
-    gentle_desc: 'Soft reminders, no pressure',
+    gentle_desc: 'Soft nudges, no pressure',
     structured_label: 'Structured',
     structured_desc: 'Clear goals and check-ins',
     buddy_label: 'Buddy',
@@ -65,7 +65,7 @@ export const ONBOARDING_COPY: Record<string, OnboardingStepCopy> = {
     moderate_label: 'Moderate',
     moderate_desc: 'Suggestions and prompts',
     full_label: 'Full',
-    full_desc: 'AI drafting, rewriting, expansion',
+    full_desc: 'Drafting, rewriting, expansion',
   },
   genre: {
     title: 'Genre or topic',
@@ -73,9 +73,9 @@ export const ONBOARDING_COPY: Record<string, OnboardingStepCopy> = {
   },
   complete: {
     title: "You're all set",
-    subtitle: 'Your journey starts now',
+    subtitle: 'Your journey begins now',
     description:
-      "Create a project and add your first book. We'll guide you through each step.",
+      "Create a project and add your first book. We'll walk you through each step—no rush.",
     cta: 'Create your first project',
   },
 };

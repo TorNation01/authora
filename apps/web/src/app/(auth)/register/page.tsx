@@ -73,7 +73,7 @@ export default function RegisterPage() {
                 <Label htmlFor="displayName">Display name (optional)</Label>
                 <Input
                   id="displayName"
-                  placeholder="How should we call you?"
+                  placeholder="Your name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="h-11"
@@ -84,7 +84,7 @@ export default function RegisterPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="Your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

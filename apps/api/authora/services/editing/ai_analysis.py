@@ -1,9 +1,12 @@
 """AI-powered analysis: grammar, clarity, structure, fiction/nonfiction hints."""
 
 import json
+import logging
 from typing import Any
 
 from authora.infrastructure.ai_provider.factory import get_ai_provider
+
+logger = logging.getLogger(__name__)
 
 
 async def analyze_grammar_clarity(text: str, book_type: str = "fiction") -> dict:
@@ -39,7 +42,7 @@ Keep issues to the 5 most important. Use exact text excerpts."""
             data["ai_available"] = True
             return data
     except Exception:
-        pass
+        logger.exception("AI grammar/clarity analysis failed")
     return {"issues": [], "suggestions": [], "clarity_score": 0, "ai_available": False}
 
 
@@ -74,7 +77,7 @@ Respond with JSON:
             data["ai_available"] = True
             return data
     except Exception:
-        pass
+        logger.exception("AI structure analysis failed")
     return {"opening_strength": 0, "ending_strength": 0, "suggestions": [], "ai_available": False}
 
 
@@ -142,5 +145,5 @@ Respond with JSON:
             data["ai_available"] = True
             return data
     except Exception:
-        pass
+        logger.exception("AI nonfiction hints analysis failed")
     return {"teaching_flow": "", "argument_strength": "", "actionability": "", "suggestions": [], "ai_available": False}

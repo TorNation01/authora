@@ -30,8 +30,8 @@ export default function NotesPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
-        title="Notes & research"
-        description="Your research, ideas, and scratch notes. Pick a project to get started."
+        title="Notes"
+        description="Your ideas, research, and scratch notes. Pick a project to begin."
       />
 
       {loading ? (
@@ -39,9 +39,9 @@ export default function NotesPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           icon={<StickyNote className="h-6 w-6" />}
-          title="No projects yet"
-          description="Create a project and book first. Notes live with your projects."
-          action={{ label: 'Go to dashboard', href: '/dashboard' }}
+          title="Create a project first"
+          description="Notes live with your projects. Create one to get started."
+          action={{ label: 'Go to Home', href: '/dashboard' }}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

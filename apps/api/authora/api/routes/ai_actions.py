@@ -84,12 +84,28 @@ async def run_action_stream(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Run an AI action and stream the response."""
+    from authora.config import get_settings as get_cfg
+    from authora.services.billing_service import check_ai_action_limit, has_feature, record_usage
+
     settings = get_settings()
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AI not configured",
         )
+
+    if get_cfg().feature_billing:
+        if not await has_feature(db, current_user.id, "ai"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="AI features require Premium. Upgrade at /pricing.",
+            )
+        allowed, used, limit = await check_ai_action_limit(db, current_user.id)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"AI action limit reached ({used}/{limit} this month). Upgrade for more.",
+            )
 
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(
@@ -144,6 +160,9 @@ async def run_action_stream(
         BookType(data.book_type),
         workspace_context=workspace_context,
     )
+
+    if get_cfg().feature_billing:
+        await record_usage(db, current_user.id, "ai_actions", 1)
 
     async def generate():
         async for chunk in complete_with_retry(

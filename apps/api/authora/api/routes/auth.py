@@ -135,6 +135,7 @@ async def me(current_user: CurrentUser):
         email=current_user.email,
         display_name=current_user.display_name,
         created_at=current_user.created_at,
+        is_admin=current_user.is_admin,
     )
 
 
@@ -165,6 +166,7 @@ async def update_me(
         email=user.email,
         display_name=user.display_name,
         created_at=user.created_at,
+        is_admin=user.is_admin,
     )
 
 

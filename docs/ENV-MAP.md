@@ -24,9 +24,13 @@
 | `ANTHROPIC_API_KEY` | api | If Anthropic | - | Anthropic key |
 | `AI_MODEL` | api | No | gpt-4o-mini | Model name |
 | **Notifications** |
-| `NOTIFICATION_EMAIL_PROVIDER` | api, worker | No | none | smtp \| sendgrid \| ses |
-| `SMTP_HOST` | worker | If SMTP | - | SMTP host |
-| `SENDGRID_API_KEY` | worker | If SendGrid | - | SendGrid key |
+| `NOTIFICATION_EMAIL_PROVIDER` | api | No | none | smtp \| sendgrid \| none |
+| `SMTP_HOST` | api | If SMTP | - | SMTP host |
+| `SMTP_PORT` | api | No | 587 | SMTP port |
+| `SMTP_USER` | api | If SMTP auth | - | SMTP username |
+| `SMTP_PASSWORD` | api | If SMTP auth | - | SMTP password |
+| `SMTP_FROM_EMAIL` | api | No | - | From address for emails |
+| `SENDGRID_API_KEY` | api | If SendGrid | - | SendGrid API key |
 | **Telemetry** |
 | `TELEMETRY_ENABLED` | api, worker | No | false | Enable OTLP |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | api, worker | If telemetry | - | OTLP endpoint |
@@ -39,6 +43,12 @@
 | `API_PUBLIC_URL` | api, web | Prod | - | Public API URL |
 | `NEXT_PUBLIC_API_URL` | web | No | - | API URL for browser |
 | `NEXT_PUBLIC_WEB_URL` | web | No | - | Web URL for emails |
+| `LEADS_STORAGE_PATH` | web | No | ./storage/leads.jsonl | Fallback path when API unavailable |
+| **Billing** |
+| `FEATURE_BILLING` | api | No | false | Enable plan limits and usage metering |
+| `STRIPE_SECRET_KEY` | api | If Stripe | - | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | api | If Stripe | - | Stripe webhook signing secret |
+| `STRIPE_PREMIUM_PRICE_ID` | api | If Stripe | - | Stripe Price ID for Premium |
 
 *Redis optional in minimal standalone (no worker, no queues)
 

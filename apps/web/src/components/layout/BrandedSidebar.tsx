@@ -14,9 +14,12 @@ import {
   Map,
   StickyNote,
   HelpCircle,
+  Shield,
 } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { useUser } from '@/contexts/UserContext';
 
 interface NavItem {
   href: string;
@@ -25,11 +28,11 @@ interface NavItem {
 }
 
 const mainNav: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/dashboard/notes', label: 'Notes', icon: StickyNote },
-  { href: '/dashboard/journey', label: 'Journey', icon: Map },
-  { href: '/dashboard/accountability', label: 'Accountability', icon: Target },
-  { href: '/dashboard/gamification', label: 'Rewards', icon: Trophy },
+  { href: '/dashboard/journey', label: 'Your journey', icon: Map },
+  { href: '/dashboard/accountability', label: 'My progress', icon: Target },
+  { href: '/dashboard/gamification', label: 'Celebrations', icon: Trophy },
   { href: '/dashboard/export', label: 'Export', icon: FileText },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
@@ -44,6 +47,12 @@ export function BrandedSidebar({
   const pathname = usePathname();
   const { branding } = useConfig();
   const { openHelpCenter } = useHelp();
+  const user = useUser();
+
+  const navItems = [
+    ...mainNav,
+    ...(user?.is_admin ? [{ href: '/dashboard/admin', label: 'Admin', icon: Shield }] : []),
+  ];
 
   return (
     <aside className="flex w-56 flex-col border-r border-border/60 bg-card/50">
@@ -56,9 +65,10 @@ export function BrandedSidebar({
             {branding.product_name}
           </span>
         </Link>
+        <NotificationBell />
       </div>
       <nav className="flex-1 space-y-0.5 p-3">
-        {mainNav.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link

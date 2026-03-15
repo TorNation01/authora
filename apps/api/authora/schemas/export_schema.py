@@ -12,9 +12,13 @@ class ExportOptions(BaseModel):
     include_title_page: bool = True
     include_toc: bool = True
     include_acknowledgements: bool = False
-    front_matter: str | None = None  # Dedication, epigraph, etc.
-    back_matter: str | None = None  # About the author, etc.
+    front_matter: str | None = None
+    back_matter: str | None = None
     acknowledgements: str | None = None
+    dedication: str | None = None
+    epigraph: str | None = None
+    copyright_notice: str | None = None
+    author_bio: str | None = None
     author_name: str | None = None
     format_style: str = Field(default="manuscript", pattern="^(manuscript|print|ebook)$")
 

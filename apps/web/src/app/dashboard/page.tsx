@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { Progress } from '@/components/ui/progress';
 import { GamificationWidgets } from '@/components/gamification/GamificationWidgets';
 import { FirstUseBanner } from '@/components/help';
+import { UsageDisplay } from '@/components/billing/UsageDisplay';
 
 interface Project {
   id: string;
@@ -56,8 +57,8 @@ export default function DashboardPage() {
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
       <PageHeader
-        title="Dashboard"
-        description="Your writing projects and next steps"
+        title="Home"
+        description="Your writing projects and what's next"
         actions={
           <Button asChild>
             <Link href="/dashboard/projects/new">
@@ -69,21 +70,22 @@ export default function DashboardPage() {
       />
 
       <FirstUseBanner />
+      <UsageDisplay />
       <GamificationWidgets />
 
       {showJourneyPrompt && (
         <Card variant="soft" className="mb-6">
           <div className="p-4 flex flex-row items-center justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-medium">Create your writing journey</p>
+              <p className="font-medium">Get your personalized roadmap</p>
               <p className="text-sm text-muted-foreground">
-                Get a personalized roadmap from idea to finished book.
+                A gentle guide from idea to finished book. Takes a few minutes.
               </p>
             </div>
             <Button asChild variant="outline" size="sm">
               <Link href="/onboarding">
                 <Sparkles className="h-4 w-4 mr-2" />
-                Start onboarding
+                Take the quick tour
               </Link>
             </Button>
           </div>
@@ -107,7 +109,7 @@ export default function DashboardPage() {
                 />
               </div>
               <Button variant="ghost" size="sm">
-                View journey
+                See journey
               </Button>
             </div>
           </Card>
@@ -119,7 +121,7 @@ export default function DashboardPage() {
           <div className="p-4">
             <p className="text-muted-foreground">{journey.nudge.message}</p>
             <Button asChild variant="link" size="sm" className="mt-2 p-0 h-auto">
-              <Link href="/dashboard/journey">View your journey</Link>
+              <Link href="/dashboard/journey">View journey</Link>
             </Button>
           </div>
         </Card>
@@ -127,19 +129,19 @@ export default function DashboardPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Loading your space...</p>
         </div>
       ) : projects.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="h-6 w-6" />}
-          title="No projects yet"
-          description="Create your first project to start your writing journey. We'll guide you through planning and writing."
+          title="Your writing space is ready"
+          description="Create your first project to begin. We'll guide you through planning and writing—no rush."
           action={{ label: 'Create project', href: '/dashboard/projects/new' }}
         />
       ) : (
         <>
           <p className="text-sm text-muted-foreground mb-4">
-            Your next step: open a project and start writing, or create a new one.
+            Open a project to start writing, or create a new one. We're here when you're ready.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
@@ -154,7 +156,7 @@ export default function DashboardPage() {
                     Created {new Date(p.created_at).toLocaleDateString()}
                   </p>
                   <p className="text-sm text-primary font-medium mt-3 flex items-center gap-1">
-                    Open project
+                    Open and write
                     <PenLine className="h-3 w-3" />
                   </p>
                 </Card>

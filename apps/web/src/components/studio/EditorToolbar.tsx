@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   Sparkles,
   FileDown,
@@ -34,14 +34,18 @@ interface EditorToolbarProps {
   chapterTitle: string;
   chapterWordCount: number;
   totalWordCount: number;
+  bookId?: string | null;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  lastSaved?: Date | null;
+  hasPending?: boolean;
+  onRetry?: () => void;
   distractionFree: boolean;
   darkMode: boolean;
   panelMode: PanelMode;
   onToggleDistractionFree: () => void;
   onToggleDarkMode: () => void;
   onTogglePanel: (mode: PanelMode) => void;
-  onExport: (format: string) => void;
+  onExport: (format: string, backupFilename?: boolean) => void;
   onHistory?: () => void;
   onFindReplace?: () => void;
   onQuickInsert?: () => void;
@@ -50,11 +54,24 @@ interface EditorToolbarProps {
   showAi?: boolean;
 }
 
+function formatLastSaved(d: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 60_000) return 'just now';
+  if (diffMs < 3600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 86400_000) return `${Math.floor(diffMs / 3600_000)}h ago`;
+  return d.toLocaleDateString();
+}
+
 export function EditorToolbar({
   chapterTitle,
   chapterWordCount,
   totalWordCount,
+  bookId,
   saveStatus,
+  lastSaved,
+  hasPending,
+  onRetry,
   distractionFree,
   darkMode,
   panelMode,
@@ -69,12 +86,21 @@ export function EditorToolbar({
   sectionStatus,
   showAi = true,
 }: EditorToolbarProps) {
+  const showRetry = saveStatus === 'error' && onRetry;
   const [exportOpen, setExportOpen] = useState(false);
+  const sprintStartWordsRef = useRef(0);
+  const onSprintStart = useCallback(() => {
+    sprintStartWordsRef.current = totalWordCount;
+  }, [totalWordCount]);
+  const getSprintWordsWritten = useCallback(
+    () => Math.max(0, totalWordCount - sprintStartWordsRef.current),
+    [totalWordCount]
+  );
 
   return (
     <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
       <div className="flex min-w-0 items-center gap-3">
-        <h2 className="truncate font-semibold">{chapterTitle || 'Select a chapter'}</h2>
+        <h2 className="truncate font-semibold">{chapterTitle || 'Choose a chapter'}</h2>
         {onStatusChange && (
           <select
             value={sectionStatus ?? 'draft'}
@@ -93,15 +119,31 @@ export function EditorToolbar({
           <span className="text-xs text-muted-foreground">Saving...</span>
         )}
         {saveStatus === 'saved' && (
-          <span className="text-xs text-green-600 dark:text-green-500">Saved</span>
+          <span className="text-xs text-green-600 dark:text-green-500" title={lastSaved ? `Saved ${formatLastSaved(lastSaved)}` : undefined}>
+            Saved{lastSaved ? ` ${formatLastSaved(lastSaved)}` : ''}
+          </span>
         )}
         {saveStatus === 'error' && (
-          <span className="text-xs text-destructive">Failed to save</span>
+          <span className="flex items-center gap-1">
+            <span className="text-xs text-destructive">Failed to save</span>
+            {showRetry && (
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </span>
+        )}
+        {saveStatus === 'idle' && hasPending && (
+          <span className="text-xs text-muted-foreground">Unsaved changes</span>
         )}
       </div>
 
       <div className="flex items-center gap-1">
-        <WritingSprintTimer />
+        <WritingSprintTimer
+          bookId={bookId}
+          getWordsWritten={getSprintWordsWritten}
+          onStart={onSprintStart}
+        />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -116,7 +158,7 @@ export function EditorToolbar({
           )}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{getTooltip('distraction_free') ?? (distractionFree ? 'Exit focus mode' : 'Focus mode')}</TooltipContent>
+          <TooltipContent>{getTooltip('distraction_free') ?? (distractionFree ? 'Exit focus mode' : 'Hide distractions')}</TooltipContent>
         </Tooltip>
         <Button
           variant="ghost"
@@ -199,7 +241,7 @@ export function EditorToolbar({
                 className="fixed inset-0 z-10"
                 onClick={() => setExportOpen(false)}
               />
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[120px] rounded-lg border bg-popover py-1 shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border bg-popover py-1 shadow-lg">
                 {['docx', 'pdf', 'epub', 'txt'].map((f) => (
                   <button
                     key={f}
@@ -213,6 +255,17 @@ export function EditorToolbar({
                     .{f.toUpperCase()}
                   </button>
                 ))}
+                <div className="my-1 border-t" />
+                <button
+                  type="button"
+                  className="block w-full px-4 py-2 text-left text-sm hover:bg-muted font-medium"
+                  onClick={() => {
+                    onExport('backup', true);
+                    setExportOpen(false);
+                  }}
+                >
+                  Backup (.txt)
+                </button>
               </div>
             </>
           )}

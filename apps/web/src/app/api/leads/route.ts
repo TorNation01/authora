@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // Server-side API URL (use API_URL for Docker internal, NEXT_PUBLIC_API_URL for public)
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || '';
+const LEADS_STORAGE_PATH =
+  process.env.LEADS_STORAGE_PATH ||
+  path.join(process.cwd(), 'storage', 'leads.jsonl');
+
+async function persistLeadToFile(payload: Record<string, unknown>): Promise<void> {
+  const dir = path.dirname(LEADS_STORAGE_PATH);
+  await fs.mkdir(dir, { recursive: true });
+  const line = JSON.stringify({
+    ...payload,
+    captured_at: new Date().toISOString(),
+  }) + '\n';
+  await fs.appendFile(LEADS_STORAGE_PATH, line, 'utf8');
+}
 
 /**
  * Lead capture API - newsletter, waitlist, demo requests.
- * Proxies to backend API when available; otherwise returns success (form still works).
+ * Proxies to backend API when available; otherwise persists to file (LEADS_STORAGE_PATH).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +61,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, id: data.id });
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Leads] Captured (no API):', payload);
+    // API unavailable: persist to file so leads are not lost
+    try {
+      await persistLeadToFile(payload);
+    } catch (e) {
+      console.error('[Leads] Failed to persist to file:', e);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Leads] Captured (fallback failed):', payload);
+      }
     }
     return NextResponse.json({ success: true });
   } catch {

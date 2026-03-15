@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     # Export
     max_export_size_mb: int = 50
 
+    # Notifications (email)
+    notification_email_provider: str = "none"  # none | smtp | sendgrid
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
+    sendgrid_api_key: Optional[str] = None
+
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 

@@ -64,8 +64,8 @@ export default function GamificationPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
-        title="Rewards"
-        description="Celebrate your progress. Every word counts."
+        title="Celebrations"
+        description="Celebrate your progress. Every word counts—we're cheering you on."
       />
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

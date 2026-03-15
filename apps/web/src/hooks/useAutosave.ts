@@ -1,12 +1,17 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { saveDraft, clearDraft } from '@/lib/draft-storage';
 
 interface UseAutosaveOptions<T> {
   onSave: (data: T) => Promise<void>;
   delayMs?: number;
   onError?: (err: Error) => void;
   maxRetries?: number;
+  /** Chapter ID for draft backup (enables localStorage recovery) */
+  draftKey?: string;
+  /** Extract content for draft backup */
+  getDraftPayload?: (data: T) => { content: Record<string, unknown>; wordCount: number };
 }
 
 export function useAutosave<T>({
@@ -14,9 +19,12 @@ export function useAutosave<T>({
   delayMs = 2000,
   onError,
   maxRetries = 3,
+  draftKey,
+  getDraftPayload,
 }: UseAutosaveOptions<T>) {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasPending, setHasPending] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<T | null>(null);
   const retryCountRef = useRef(0);
@@ -25,6 +33,7 @@ export function useAutosave<T>({
     if (pendingRef.current === null) return;
     const data = pendingRef.current;
     pendingRef.current = null;
+    setHasPending(false);
     retryCountRef.current = 0;
 
     setStatus('saving');
@@ -32,22 +41,30 @@ export function useAutosave<T>({
       await onSave(data);
       setStatus('saved');
       setLastSaved(new Date());
+      if (draftKey) clearDraft(draftKey);
     } catch (err) {
       setStatus('error');
+      pendingRef.current = data;
+      setHasPending(true);
       onError?.(err instanceof Error ? err : new Error(String(err)));
     }
-  }, [onSave, onError]);
+  }, [onSave, onError, draftKey]);
 
   const scheduleSave = useCallback(
     (data: T) => {
       pendingRef.current = data;
+      setHasPending(true);
+      if (draftKey && getDraftPayload) {
+        const { content, wordCount } = getDraftPayload(data);
+        saveDraft(draftKey, content, wordCount);
+      }
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
         timeoutRef.current = null;
         flush();
       }, delayMs);
     },
-    [delayMs, flush]
+    [delayMs, flush, draftKey, getDraftPayload]
   );
 
   const saveNow = useCallback(
@@ -57,6 +74,7 @@ export function useAutosave<T>({
         timeoutRef.current = null;
       }
       pendingRef.current = data;
+      setHasPending(true);
       await flush();
     },
     [flush]
@@ -80,5 +98,31 @@ export function useAutosave<T>({
     await flush();
   }, [flush]);
 
-  return { scheduleSave, saveNow, status, lastSaved, retry, flushPending };
+  const discardPending = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    pendingRef.current = null;
+    setHasPending(false);
+    setStatus('idle');
+    if (draftKey) clearDraft(draftKey);
+  }, [draftKey]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  return {
+    scheduleSave,
+    saveNow,
+    status,
+    lastSaved,
+    hasPending,
+    retry,
+    flushPending,
+    discardPending,
+  };
 }

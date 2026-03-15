@@ -47,3 +47,6 @@ htmlcov/
 # Secrets
 *.pem
 secrets/
+
+# Local storage (leads fallback when API unavailable)
+storage/

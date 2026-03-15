@@ -1,4 +1,4 @@
-/** Empty state copy for UI. */
+/** Empty state copy for UI. Warm, supportive, low-friction. */
 
 export interface EmptyStateCopy {
   title: string;
@@ -8,63 +8,63 @@ export interface EmptyStateCopy {
 
 export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
   no_projects: {
-    title: 'No projects yet',
+    title: 'Your writing space is ready',
     description:
-      'Create a project to organize your books. A project can hold one book or a series.',
+      'Create your first project to begin. A project holds one book or a series—whatever fits your story.',
     action: 'Create project',
   },
   no_books: {
-    title: 'No books yet',
+    title: 'Add your first book',
     description:
-      'Add your first book to this project. Choose a template or start from scratch.',
+      'Choose a template that fits your genre, or start from a blank page. You can always change things later.',
     action: 'Add book',
   },
   no_chapters: {
-    title: 'No chapters yet',
+    title: 'Your first chapter awaits',
     description:
-      'Add your first chapter to start writing. You can reorder and add more anytime.',
+      'Add a chapter to start writing. You can reorder and add more anytime—there\'s no wrong way to begin.',
     action: 'Add chapter',
   },
   no_notes: {
-    title: 'No notes yet',
+    title: 'Capture your ideas',
     description:
-      'Capture ideas, research, and quotes. Link notes to chapters for easy reference.',
+      'Jot down research, quotes, and inspiration here. Link notes to chapters so they\'re easy to find while writing.',
     action: 'Add note',
   },
   no_highlights: {
-    title: 'No highlights',
-    description: 'Select text to highlight. Highlights help you track important passages.',
+    title: 'No highlights yet',
+    description: 'Select text in your chapter to highlight. Great for marking passages you want to revisit.',
   },
   no_versions: {
-    title: 'No version history',
-    description: 'Versions are saved as you write. Edit this chapter to build history.',
+    title: 'Your history will appear here',
+    description: 'As you write, we\'ll save versions automatically. Come back anytime to restore a previous draft.',
   },
   no_achievements: {
-    title: 'No achievements yet',
+    title: 'Your first badge is close',
     description:
-      'Write consistently to earn badges and XP. Your first achievement is just a few words away.',
+      'Write a little each day and watch your progress grow. Every word counts—we\'re cheering you on.',
   },
   no_goals: {
-    title: 'No goals set',
+    title: 'Set a gentle goal',
     description:
-      "Set a daily or weekly word goal to stay on track. We'll nudge you when you want.",
+      'A daily or weekly word count can help you stay on track. We\'ll nudge you kindly—no pressure, just support.',
     action: 'Set goal',
   },
   no_exports: {
-    title: 'No exports yet',
+    title: 'Ready when you are',
     description:
-      'Export your manuscript when you\'re ready. We support DOCX, PDF, EPUB, and more.',
+      'When your manuscript feels ready, export to DOCX, PDF, EPUB, or plain text. One click, no fuss.',
     action: 'Export',
   },
   empty_chapter: {
-    title: 'Start writing',
+    title: 'Begin here',
     description:
-      "This chapter is empty. Type here or use AI to generate a draft from your outline.",
+      'Start typing, or use AI to generate a draft from your outline. Your voice, your pace.',
   },
   empty_editor: {
-    title: 'Your manuscript',
+    title: 'Choose a chapter',
     description:
-      'Select a chapter from the sidebar to start writing. Or add a new chapter.',
+      'Pick a chapter from the sidebar to start writing, or add a new one. Take your time—we\'re here when you\'re ready.',
   },
 };
 

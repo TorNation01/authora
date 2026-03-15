@@ -8,6 +8,9 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { getToken, getRefreshToken, clearTokens } from '@/lib/auth';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { UserProvider, type UserInfo } from '@/contexts/UserContext';
+import { HelpProvider } from '@/contexts/HelpContext';
+import { HelpCenter, Walkthrough } from '@/components/help';
 
 export default function DashboardLayout({
   children,
@@ -18,6 +21,7 @@ export default function DashboardLayout({
   const { toast } = useToast();
   const config = useConfig();
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
 
   const loginPath = config.feature_flags.sso_ready ? '/sso' : '/login';
 
@@ -27,14 +31,20 @@ export default function DashboardLayout({
       router.replace(loginPath);
       return;
     }
-    api('/api/v1/auth/me')
+    api<{ id: string; email: string; display_name: string | null; is_admin: boolean }>('/api/v1/auth/me')
+      .then((data) => setUser({
+        id: data.id,
+        email: data.email,
+        display_name: data.display_name,
+        is_admin: data.is_admin ?? false,
+      }))
       .catch(() => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         router.replace('/login');
       })
       .finally(() => setReady(true));
-  }, [router]);
+  }, [router, loginPath]);
 
   async function handleLogout() {
     try {
@@ -57,18 +67,20 @@ export default function DashboardLayout({
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Loading your space...</p>
       </div>
     );
   }
 
   return (
     <ErrorBoundary>
-      <HelpProvider>
-        <AppShell onLogout={handleLogout}>{children}</AppShell>
-        <HelpCenter />
-        <Walkthrough />
-      </HelpProvider>
+      <UserProvider user={user}>
+        <HelpProvider>
+          <AppShell onLogout={handleLogout}>{children}</AppShell>
+          <HelpCenter />
+          <Walkthrough />
+        </HelpProvider>
+      </UserProvider>
     </ErrorBoundary>
   );
 }

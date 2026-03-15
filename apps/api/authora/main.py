@@ -1,12 +1,15 @@
 """AUTHORA API main application."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, ai, ai_actions, auth, books, config, content, dictionary, editing, export, fiction, ghostwriter, goals, gamification, journey, leads, nonfiction, notes, projects, reference, setup
+from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, config, content, dictionary, editing, export, fiction, ghostwriter, goals, gamification, journey, leads, nonfiction, notes, projects, reference, setup
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.security import SecurityMiddleware
@@ -40,6 +43,8 @@ app.add_middleware(
 )
 
 app.include_router(config.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
+app.include_router(billing.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
@@ -81,7 +86,7 @@ async def health_ready():
             await db.execute(text("SELECT 1"))
         checks["database"] = True
     except Exception:
-        pass
+        logger.exception("Readiness check: database failed")
     try:
         from redis.asyncio import Redis
         from authora.config import get_settings
@@ -91,7 +96,7 @@ async def health_ready():
         await r.aclose()
         checks["redis"] = True
     except Exception:
-        pass
+        logger.exception("Readiness check: redis failed")
 
     ready = all(checks.values())
     status_code = 200 if ready else 503

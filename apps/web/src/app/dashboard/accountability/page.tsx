@@ -54,6 +54,12 @@ interface AccountabilitySettings {
   accountability_style: string;
   reminder_enabled: boolean;
   reminder_times: string[] | null;
+  timezone: string | null;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  email_reminders_enabled: boolean;
+  reminder_cadence: string;
+  reminder_types: string[] | null;
   plan_paused: boolean;
   paused_at: string | null;
 }
@@ -69,10 +75,10 @@ interface RecoveryPlan {
 
 const STYLES = [
   { value: 'gentle', label: 'Gentle', desc: 'Soft nudges, no pressure' },
-  { value: 'balanced', label: 'Balanced', desc: 'Supportive but clear' },
+  { value: 'balanced', label: 'Balanced', desc: 'Supportive check-ins' },
   { value: 'firm', label: 'Firm', desc: 'Clear expectations' },
-  { value: 'coach', label: 'Coach-like', desc: 'Motivating and strategic' },
-  { value: 'structured', label: 'Highly structured', desc: 'Schedules and milestones' },
+  { value: 'coach', label: 'Coach', desc: 'Motivating and strategic' },
+  { value: 'structured', label: 'Structured', desc: 'Schedules and milestones' },
 ];
 
 export default function AccountabilityPage() {
@@ -83,6 +89,7 @@ export default function AccountabilityPage() {
   const [recoveryPlans, setRecoveryPlans] = useState<RecoveryPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [testingNotification, setTestingNotification] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -127,6 +134,28 @@ export default function AccountabilityPage() {
     [load, toast]
   );
 
+  const sendTestNotification = useCallback(async () => {
+    setTestingNotification(true);
+    try {
+      const res = await api<{ in_app_sent: boolean; email_sent: boolean }>(
+        '/api/v1/accountability/notifications/test',
+        { method: 'POST' }
+      );
+      toast({
+        title: 'Test sent',
+        description: res.in_app_sent
+          ? res.email_sent
+            ? 'Check your inbox and the bell icon.'
+            : 'Check the bell icon for your notification.'
+          : 'Notification may not have been delivered.',
+      });
+    } catch {
+      toast({ title: 'Test failed', variant: 'destructive' });
+    } finally {
+      setTestingNotification(false);
+    }
+  }, [toast]);
+
   const acknowledgeRecovery = useCallback(
     async (id: string) => {
       try {
@@ -145,7 +174,7 @@ export default function AccountabilityPage() {
   if (loading) {
     return (
       <div className="p-6 lg:p-8 max-w-4xl">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Loading your progress...</p>
       </div>
     );
   }
@@ -154,12 +183,12 @@ export default function AccountabilityPage() {
     <div className="p-6 lg:p-8 max-w-4xl space-y-8">
       <div className="flex items-start justify-between">
         <PageHeader
-          title="Accountability"
-          description="Goals that support you—never punish. We adapt to your patterns and help you finish."
+          title="My progress"
+          description="Goals that support you—never punish. We adapt to your pace and help you finish."
           actions={
             <div className="flex items-center gap-2">
               <HelpIcon
-                content="Set daily or weekly word goals. We'll nudge you gently (or firmly) based on your preference."
+                content="Set daily or weekly word goals. We'll nudge you gently—or more firmly—based on what you prefer."
                 articleId="accountability-overview"
               />
               <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
@@ -174,14 +203,14 @@ export default function AccountabilityPage() {
       {showSettings && settings && (
         <Card variant="sanctuary">
           <CardHeader>
-            <CardTitle>Reminder & style</CardTitle>
+            <CardTitle>Reminders & encouragement</CardTitle>
             <CardDescription>
-              Choose how AUTHORA supports you. Your style affects reminder tone and recovery plans.
+              Choose how we support you. Your style shapes our reminders and recovery plans.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Accountability style</label>
+              <label className="text-sm font-medium">Encouragement style</label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {STYLES.map((s) => (
                   <Button
@@ -195,7 +224,7 @@ export default function AccountabilityPage() {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -204,6 +233,142 @@ export default function AccountabilityPage() {
                 />
                 Enable reminders
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.email_reminders_enabled}
+                  onChange={(e) => updateSettings({ email_reminders_enabled: e.target.checked })}
+                />
+                Email reminders
+              </label>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Reminder times (your timezone)</label>
+              <p className="text-xs text-muted-foreground mb-1">
+                e.g. 09:00, 14:00. We send at these times in your timezone.
+              </p>
+              <input
+                type="text"
+                className="rounded border px-2 py-1 w-full max-w-xs"
+                placeholder="09:00, 14:00"
+                value={(settings.reminder_times ?? []).join(', ')}
+                onChange={(e) => {
+                  const raw = e.target.value.split(',').map((t) => t.trim());
+                  const times = raw
+                    .map((t) => {
+                      const m = t.match(/^(\d{1,2}):(\d{2})$/);
+                      return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
+                    })
+                    .filter((t): t is string => t !== null);
+                  updateSettings({ reminder_times: times.length ? times : null });
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Timezone</label>
+              <select
+                className="rounded border px-2 py-1 mt-1 w-full max-w-xs"
+                value={settings.timezone ?? 'UTC'}
+                onChange={(e) => updateSettings({ timezone: e.target.value || null })}
+              >
+                <option value="UTC">UTC</option>
+                <option value="America/New_York">Eastern</option>
+                <option value="America/Chicago">Central</option>
+                <option value="America/Denver">Mountain</option>
+                <option value="America/Los_Angeles">Pacific</option>
+                <option value="Europe/London">London</option>
+                <option value="Europe/Paris">Paris</option>
+                <option value="Asia/Tokyo">Tokyo</option>
+                <option value="Australia/Sydney">Sydney</option>
+              </select>
+            </div>
+            <div className="flex gap-4">
+              <div>
+                <label className="text-sm font-medium">Quiet hours start</label>
+                <input
+                  type="time"
+                  className="rounded border px-2 py-1 mt-1 block"
+                  value={settings.quiet_hours_start ?? ''}
+                  onChange={(e) => updateSettings({ quiet_hours_start: e.target.value || null })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Quiet hours end</label>
+                <input
+                  type="time"
+                  className="rounded border px-2 py-1 mt-1 block"
+                  value={settings.quiet_hours_end ?? ''}
+                  onChange={(e) => updateSettings({ quiet_hours_end: e.target.value || null })}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No reminders during quiet hours (e.g. 22:00–07:00).
+            </p>
+            <div>
+              <label className="text-sm font-medium">Reminder cadence</label>
+              <select
+                className="rounded border px-2 py-1 mt-1"
+                value={settings.reminder_cadence ?? 'daily'}
+                onChange={(e) => updateSettings({ reminder_cadence: e.target.value })}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Reminder types</label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Choose which reminders you want. Leave all checked for full support.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { id: 'daily_reminder', label: 'Daily goal' },
+                  { id: 'weekly_reminder', label: 'Weekly check-in' },
+                  { id: 'milestone_reminder', label: 'Milestone ahead' },
+                  { id: 'streak_reminder', label: 'Streak reminder' },
+                  { id: 'overdue_nudge', label: 'Overdue nudge' },
+                  { id: 'finish_date_risk', label: 'Finish date risk' },
+                  { id: 'resume_reminder', label: 'Resume writing' },
+                  { id: 'chapter_target_reminder', label: 'Chapter target' },
+                  { id: 'stuck_nudge', label: 'We miss you' },
+                ].map(({ id, label }) => {
+                  const types = settings.reminder_types ?? [
+                    'daily_reminder', 'weekly_reminder', 'milestone_reminder', 'streak_reminder',
+                    'overdue_nudge', 'finish_date_risk', 'resume_reminder', 'chapter_target_reminder', 'stuck_nudge',
+                  ];
+                  const checked = types.includes(id);
+                  return (
+                    <label key={id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? types.filter((t) => t !== id)
+                            : [...types, id];
+                          updateSettings({ reminder_types: next.length ? next : null });
+                        }}
+                      />
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sendTestNotification}
+                disabled={testingNotification || !settings.reminder_enabled}
+              >
+                {testingNotification ? 'Sending...' : 'Send test notification'}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sends in-app and email (if enabled) to verify your settings.
+              </p>
             </div>
             <div className="flex gap-2">
               <label className="text-sm">Daily goal (words)</label>
@@ -252,8 +417,8 @@ export default function AccountabilityPage() {
       )}
 
       <HowThisWorks
-        title="How accountability works"
-        summary="Set goals, get nudges, and track progress. We adapt to your patterns—no guilt."
+        title="How this works"
+        summary="Set goals, get nudges, and track progress. We adapt to your pace—no guilt."
         articleId="accountability-overview"
       >
         <p>Set daily or weekly word goals in settings. We count words from your manuscript (notes and outlines don&apos;t count).</p>
@@ -330,7 +495,7 @@ export default function AccountabilityPage() {
           <CardContent className="flex items-start gap-4 pt-6">
             <BookOpen className="h-8 w-8 text-primary shrink-0" />
             <div>
-              <h3 className="font-semibold">Next best action</h3>
+              <h3 className="font-semibold">Suggested next step</h3>
               <p className="mt-1 text-sm text-muted-foreground">{overview.next_action}</p>
             </div>
           </CardContent>
@@ -345,7 +510,7 @@ export default function AccountabilityPage() {
               Recovery plans
             </CardTitle>
             <CardDescription>
-              You missed some goals. Here are supportive plans to get back on track.
+              Life happens. Here are gentle plans to help you get back on track—no judgment.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -396,8 +561,8 @@ export default function AccountabilityPage() {
           {goals.length === 0 ? (
             <EmptyState
               icon={<Target className="h-6 w-6" />}
-              title="No goals yet"
-              description="Set a word count goal or deadline. We'll gently remind you—no guilt, just support."
+              title="Set a gentle goal"
+              description="A daily or weekly word count can help you stay on track. We'll nudge you kindly—no pressure."
               action={{ label: 'Set a goal', href: '/dashboard' }}
             />
           ) : (
@@ -449,6 +614,7 @@ export default function AccountabilityPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               We adapt to your writing patterns. Miss a day? No problem. We&apos;ll suggest
               recovery plans and help you resume where you left off. Pause anytime in settings.
+              Check the bell icon in the sidebar for in-app notifications.
             </p>
           </div>
         </CardContent>

@@ -6,6 +6,10 @@ import { WritingStudioEditor } from '@/components/editor/WritingStudioEditor';
 import { EditorReferenceContextMenu } from '@/components/editor/EditorReferenceContextMenu';
 import { ManuscriptSidebar } from '@/components/studio/ManuscriptSidebar';
 import { EditorToolbar } from '@/components/studio/EditorToolbar';
+import { FinishModeSidebar } from '@/components/studio/FinishModeSidebar';
+import { FinishModePanel, type FinishModeStats } from '@/components/studio/FinishModePanel';
+import { FinishModeSettingsDialog } from '@/components/studio/FinishModeSettingsDialog';
+import { RecoveryBanner } from '@/components/studio/RecoveryBanner';
 import { AIWritingPanel } from '@/components/studio/AIWritingPanel';
 import { NotesPanel } from '@/components/studio/NotesPanel';
 import { ReferencePanel } from '@/components/studio/ReferencePanel';
@@ -15,6 +19,8 @@ import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
 import { api, apiStream } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAutosave } from '@/hooks/useAutosave';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { loadDraft, clearDraft, isStorageAvailable } from '@/lib/draft-storage';
 import { cn } from '@/lib/utils';
 import { tiptapToPlainText, replaceInTiptapJson } from '@/lib/tiptap-utils';
 
@@ -62,8 +68,16 @@ export default function BookStudioPage() {
   const [editorSelection, setEditorSelection] = useState('');
   const [lookupWord, setLookupWord] = useState<string | null>(null);
   const [activeReferenceTab, setActiveReferenceTab] = useState<'lookup' | 'analysis'>('lookup');
+  const [finishModeStats, setFinishModeStats] = useState<FinishModeStats | null>(null);
+  const [showFinishModeSettings, setShowFinishModeSettings] = useState(false);
   const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
   const { toast } = useToast();
+
+  const fetchFinishMode = useCallback(() => {
+    api<FinishModeStats>(`/api/v1/projects/${projectId}/books/${bookId}/finish-mode`)
+      .then(setFinishModeStats)
+      .catch(() => setFinishModeStats(null));
+  }, [projectId, bookId]);
 
   useEffect(() => {
     api<Book>(`/api/v1/projects/${projectId}/books/${bookId}`)
@@ -75,6 +89,10 @@ export default function BookStudioPage() {
       })
       .catch(() => router.push('/dashboard'));
   }, [projectId, bookId, router]);
+
+  useEffect(() => {
+    if (bookId) fetchFinishMode();
+  }, [bookId, fetchFinishMode]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -102,7 +120,7 @@ export default function BookStudioPage() {
     [activeChapter, book, projectId, bookId]
   );
 
-  const { scheduleSave, status, flushPending } = useAutosave<{
+  const { scheduleSave, saveNow, status, lastSaved, hasPending, retry, flushPending } = useAutosave<{
     content: Record<string, unknown>;
     wordCount: number;
   }>({
@@ -110,7 +128,69 @@ export default function BookStudioPage() {
     delayMs: 2000,
     onError: () => toast({ title: 'Failed to save', variant: 'destructive' }),
     maxRetries: 3,
+    draftKey: activeChapter?.id,
+    getDraftPayload: (d) => ({ content: d.content, wordCount: d.wordCount }),
   });
+
+  useUnsavedChangesGuard(hasPending);
+
+  const [recoveryDraft, setRecoveryDraft] = useState<{ content: Record<string, unknown>; wordCount: number } | null>(null);
+  const [showSyncFailedBanner, setShowSyncFailedBanner] = useState(false);
+  const storageAvailable = isStorageAvailable();
+
+  useEffect(() => {
+    if (!activeChapter?.id) {
+      setRecoveryDraft(null);
+      return;
+    }
+    const draft = loadDraft(activeChapter.id);
+    if (!draft) {
+      setRecoveryDraft(null);
+      return;
+    }
+    const serverContent = activeChapter.content;
+    const draftContent = draft.content;
+    const serverJson = JSON.stringify(serverContent ?? {});
+    const draftJson = JSON.stringify(draftContent ?? {});
+    if (draftJson !== serverJson) {
+      setRecoveryDraft({ content: draftContent, wordCount: draft.wordCount });
+    } else {
+      clearDraft(activeChapter.id);
+      setRecoveryDraft(null);
+    }
+  }, [activeChapter?.id, activeChapter?.content]);
+
+  useEffect(() => {
+    if (status === 'error') setShowSyncFailedBanner(true);
+  }, [status]);
+
+  const handleRestoreDraft = useCallback(() => {
+    if (!recoveryDraft || !activeChapter) return;
+    setActiveChapter((prev) =>
+      prev ? { ...prev, content: recoveryDraft.content, word_count: recoveryDraft.wordCount } : null
+    );
+    if (book) {
+      setBook({
+        ...book,
+        chapters: book.chapters.map((c) =>
+          c.id === activeChapter.id
+            ? { ...c, content: recoveryDraft.content, word_count: recoveryDraft.wordCount }
+            : c
+        ),
+      });
+    }
+    saveNow({ content: recoveryDraft.content, wordCount: recoveryDraft.wordCount });
+    clearDraft(activeChapter.id);
+    setRecoveryDraft(null);
+    toast({ title: 'Draft restored' });
+  }, [recoveryDraft, activeChapter, book, saveNow, toast]);
+
+  const handleDismissRecovery = useCallback(() => {
+    if (recoveryDraft && activeChapter) clearDraft(activeChapter.id);
+    setRecoveryDraft(null);
+  }, [recoveryDraft, activeChapter?.id]);
+
+  const handleDismissSyncFailed = useCallback(() => setShowSyncFailedBanner(false), []);
 
   const handleChapterChange = useCallback(
     (content: Record<string, unknown>, wordCount: number) => {
@@ -121,11 +201,12 @@ export default function BookStudioPage() {
   );
 
   const handleExport = useCallback(
-    async (format: string) => {
+    async (format: string, backupFilename?: boolean) => {
       try {
         const token = localStorage.getItem('access_token');
+        const exportFormat = format === 'backup' ? 'txt' : format;
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${bookId}/${format}`,
+          `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${bookId}/${exportFormat}`,
           { headers: token ? { Authorization: `Bearer ${token}` } : {} }
         );
         if (!res.ok) throw new Error('Export failed');
@@ -133,10 +214,13 @@ export default function BookStudioPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${book?.title || 'book'}.${format}`;
+        const base = book?.title || 'book';
+        a.download = backupFilename
+          ? `${base}-backup-${new Date().toISOString().slice(0, 10)}.${exportFormat}`
+          : `${base}.${exportFormat}`;
         a.click();
         URL.revokeObjectURL(url);
-        toast({ title: 'Export started' });
+        toast({ title: backupFilename ? 'Backup downloaded' : 'Export started' });
       } catch {
         toast({ title: 'Export failed', variant: 'destructive' });
       }
@@ -205,11 +289,65 @@ export default function BookStudioPage() {
             ),
           });
         }
+        fetchFinishMode();
       } catch {
         toast({ title: 'Failed to update status', variant: 'destructive' });
       }
     },
-    [activeChapter, book, projectId, bookId, toast]
+    [activeChapter, book, projectId, bookId, toast, fetchFinishMode]
+  );
+
+  const handleEnterFinishMode = useCallback(async () => {
+    try {
+      const updated = await api<FinishModeStats>(
+        `/api/v1/projects/${projectId}/books/${bookId}/finish-mode`,
+        { method: 'PATCH', body: JSON.stringify({ enabled: true }) }
+      );
+      setFinishModeStats(updated);
+      toast({ title: 'Finish Mode on', description: 'Focus on crossing the finish line.' });
+    } catch {
+      toast({ title: 'Failed to enable', variant: 'destructive' });
+    }
+  }, [projectId, bookId, toast]);
+
+  const handleExitFinishMode = useCallback(async () => {
+    try {
+      const updated = await api<FinishModeStats>(
+        `/api/v1/projects/${projectId}/books/${bookId}/finish-mode`,
+        { method: 'PATCH', body: JSON.stringify({ enabled: false }) }
+      );
+      setFinishModeStats(updated);
+      toast({ title: 'Finish Mode off' });
+    } catch {
+      toast({ title: 'Failed to disable', variant: 'destructive' });
+    }
+  }, [projectId, bookId, toast]);
+
+  const handleFinishModeSettingsSave = useCallback(
+    async (targetDate: string | null, wordsPerDay: number) => {
+      try {
+        const updated = await api<FinishModeStats>(
+          `/api/v1/projects/${projectId}/books/${bookId}/finish-mode`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ target_date: targetDate, words_per_day: wordsPerDay }),
+          }
+        );
+        setFinishModeStats(updated);
+        toast({ title: 'Settings saved' });
+      } catch {
+        toast({ title: 'Failed to save', variant: 'destructive' });
+      }
+    },
+    [projectId, bookId, toast]
+  );
+
+  const handleJumpToNextChapter = useCallback(
+    (chapterId: string) => {
+      const ch = sortedChapters.find((c) => c.id === chapterId);
+      if (ch) setActiveChapter(ch);
+    },
+    [sortedChapters]
   );
 
   const handleRestoreVersion = useCallback(
@@ -225,6 +363,7 @@ export default function BookStudioPage() {
         });
       }
       await saveChapter({ content: version.content, wordCount: version.word_count });
+      clearDraft(activeChapter.id);
       setShowHistory(false);
       toast({ title: 'Version restored' });
     },
@@ -288,9 +427,19 @@ export default function BookStudioPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [editorSelection, handleLookup]);
 
+  const finishModeActive = finishModeStats?.enabled ?? false;
+  const sprintStartWordsRef = useRef(0);
+  const onSprintStart = useCallback(() => {
+    sprintStartWordsRef.current = totalWords;
+  }, [totalWords]);
+  const getSprintWordsWritten = useCallback(
+    () => Math.max(0, totalWords - sprintStartWordsRef.current),
+    [totalWords]
+  );
+
   return (
     <div className={cn('flex h-[calc(100vh-0px)]', darkMode && 'dark')}>
-      {!distractionFree && (
+      {!distractionFree && !finishModeActive && (
         <ManuscriptSidebar
           bookTitle={book?.title ?? 'Book'}
           bookType={book?.type}
@@ -301,16 +450,60 @@ export default function BookStudioPage() {
           onSelectChapter={handleSelectChapter}
           onReorder={handleReorder}
           onAddChapter={handleAddChapter}
+          canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
+          onEnterFinishMode={handleEnterFinishMode}
+        />
+      )}
+      {!distractionFree && finishModeActive && finishModeStats && (
+        <FinishModeSidebar
+          bookTitle={book?.title ?? 'Book'}
+          projectId={projectId}
+          bookId={bookId}
+          stats={finishModeStats}
+          activeChapterId={activeChapter?.id ?? null}
+          onSelectChapter={(id) => handleJumpToNextChapter(id)}
+          onExitFinishMode={handleExitFinishMode}
         />
       )}
 
       <div className="flex flex-1 flex-col min-w-0">
-        {!distractionFree && (
+        {!distractionFree && finishModeActive && finishModeStats && (
+          <header className="flex flex-wrap items-center gap-4 border-b px-4 py-3">
+            <FinishModePanel
+              stats={finishModeStats}
+              onJumpToNext={handleJumpToNextChapter}
+              onExitFinishMode={handleExitFinishMode}
+              bookId={bookId}
+              getWordsWritten={getSprintWordsWritten}
+              compact
+            />
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="ghost" size="sm" onClick={() => setShowFinishModeSettings(true)}>
+                Settings
+              </Button>
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                {activeChapter?.title ?? 'Select chapter'}
+              </span>
+              <span className="text-sm font-medium">{totalWords.toLocaleString()} words</span>
+              <Button variant="ghost" size="sm" onClick={() => setDistractionFree(true)}>
+                Focus
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport('docx')}>
+                Export
+              </Button>
+            </div>
+          </header>
+        )}
+        {!distractionFree && !finishModeActive && (
           <EditorToolbar
             chapterTitle={activeChapter?.title ?? 'Select a chapter'}
             chapterWordCount={activeChapter?.word_count ?? 0}
             totalWordCount={totalWords}
+            bookId={bookId}
             saveStatus={status}
+            lastSaved={lastSaved}
+            hasPending={hasPending}
+            onRetry={retry}
             distractionFree={distractionFree}
             darkMode={darkMode}
             panelMode={panelMode}
@@ -329,7 +522,7 @@ export default function BookStudioPage() {
 
         {distractionFree && (
           <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="text-sm text-muted-foreground">Focus mode</span>
+            <span className="text-sm text-muted-foreground">Focus mode — just you and the page</span>
             <button
               type="button"
               className="text-sm text-primary hover:underline"
@@ -340,6 +533,33 @@ export default function BookStudioPage() {
           </div>
         )}
 
+        {(recoveryDraft || showSyncFailedBanner || !storageAvailable) && (
+          <div className="space-y-2 border-b px-4 py-2">
+            {recoveryDraft && (
+              <RecoveryBanner
+                variant="draft"
+                onRestore={handleRestoreDraft}
+                onDismiss={handleDismissRecovery}
+              />
+            )}
+            {showSyncFailedBanner && status === 'error' && (
+              <RecoveryBanner
+                variant="sync-failed"
+                onRetry={retry}
+                onDismiss={handleDismissSyncFailed}
+              />
+            )}
+            {!storageAvailable && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-sm text-amber-800 dark:text-amber-200"
+              >
+                Local storage is unavailable. Draft recovery after a crash will not be possible. Consider exporting a backup.
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-1 min-h-0">
           <div className={cn('flex-1 overflow-auto', distractionFree ? 'p-8 max-w-3xl mx-auto' : 'p-6')}>
             {activeChapter ? (
@@ -347,7 +567,7 @@ export default function BookStudioPage() {
                 <WritingStudioEditor
                 content={activeChapter.content}
                 onChange={handleChapterChange}
-                placeholder="Start writing your chapter..."
+                placeholder="Start writing here..."
                 distractionFree={distractionFree}
                 editorRef={editorRef}
                 onSelectionChange={setEditorSelection}
@@ -509,6 +729,13 @@ export default function BookStudioPage() {
         open={showQuickInsert}
         onOpenChange={setShowQuickInsert}
         editorRef={editorRef}
+      />
+      <FinishModeSettingsDialog
+        open={showFinishModeSettings}
+        onOpenChange={setShowFinishModeSettings}
+        currentTargetDate={finishModeStats?.target_date ?? null}
+        currentWordsPerDay={finishModeStats?.words_per_day ?? 500}
+        onSave={handleFinishModeSettingsSave}
       />
     </div>
   );

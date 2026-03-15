@@ -2,7 +2,7 @@
 
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,8 @@ interface ManuscriptSidebarProps {
   onReorder: (chapterIds: string[]) => void;
   onAddChapter: () => void;
   onStatusChange?: (chapterId: string, status: SectionStatus) => void;
+  canEnterFinishMode?: boolean;
+  onEnterFinishMode?: () => void;
 }
 
 const STATUS_LABELS: Record<SectionStatus, string> = {
@@ -53,6 +55,8 @@ export function ManuscriptSidebar({
   onSelectChapter,
   onReorder,
   onAddChapter,
+  canEnterFinishMode,
+  onEnterFinishMode,
   onStatusChange,
 }: ManuscriptSidebarProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +91,16 @@ export function ManuscriptSidebar({
           <Sparkles className="h-3.5 w-3.5" />
           Edit & Polish
         </Link>
+        {canEnterFinishMode && onEnterFinishMode && (
+          <button
+            type="button"
+            onClick={onEnterFinishMode}
+            className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Enter Finish Mode
+          </button>
+        )}
         {(bookType === 'fiction' || bookType === 'nonfiction') && (
           <Link
             href={`/dashboard/projects/${projectId}/books/${bookId}/plan`}
@@ -100,7 +114,7 @@ export function ManuscriptSidebar({
 
       <div className="flex-1 overflow-auto p-2">
         <p className="mb-2 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Manuscript
+          Chapters
         </p>
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="chapters">

@@ -16,14 +16,14 @@ export function HeroSection() {
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-medium uppercase tracking-wider text-primary">
-            Guided writing journey
+            Your guided writing sanctuary
           </p>
           <h1 className="mt-4 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
             Finish your book
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground font-serif leading-relaxed">
             {branding.product_name} guides you from idea to finished manuscript. Plan, write, and export
-            with AI support when you need it—without overwhelm. All your writing tools in one place.
+            with AI support when you need it—calm, clear, and clutter-free. All your writing tools in one place.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             {feature_flags.standalone_auth && (
@@ -58,10 +58,10 @@ export function HeroSection() {
                   <BookOpen className="h-8 w-8 text-primary" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Writing studio preview
+                  Your writing space
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground/80">
-                  Screenshot or illustration placeholder
+                  A calm, focused place to write
                 </p>
               </div>
             </div>

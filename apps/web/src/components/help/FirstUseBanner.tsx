@@ -21,9 +21,9 @@ export function FirstUseBanner() {
         <BookOpen className="h-5 w-5 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-medium text-foreground">Welcome to AUTHORA</h3>
+        <h3 className="font-medium text-foreground">Welcome to your writing space</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your guided writing journey from idea to finished book. Take a quick tour or explore the help center.
+          Your guided journey from idea to finished book. Take a quick tour or browse the help center when you need it.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button

@@ -216,7 +216,7 @@ export function AIActionPanel({
               </Button>
               <div className="flex gap-1 flex-1 min-w-0">
                 <Input
-                  placeholder="Feedback for rewrite..."
+                  placeholder="e.g. Make it warmer, more concise, or more formal..."
                   value={rewriteFeedback}
                   onChange={(e) => setRewriteFeedback(e.target.value)}
                   className="flex-1 min-w-0 text-sm"

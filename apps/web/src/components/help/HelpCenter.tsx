@@ -51,12 +51,12 @@ export function HelpCenter() {
             </Button>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Find answers and get unstuck. No overwhelm.
+            Find answers when you need them. Gentle guidance, no overwhelm.
           </p>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search help..."
+              placeholder="What do you need help with?"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9"

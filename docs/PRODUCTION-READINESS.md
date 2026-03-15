@@ -1,7 +1,7 @@
 # AUTHORA Production Readiness Report
 
 **Generated:** 2025-03-15  
-**Audit:** See [AUDIT-REPORT.md](AUDIT-REPORT.md), [GAP-ANALYSIS.md](GAP-ANALYSIS.md), [COMPLETION-PLAN.md](COMPLETION-PLAN.md)
+**Audit:** See [AUDIT-REPORT.md](AUDIT-REPORT.md), [GAP-ANALYSIS.md](GAP-ANALYSIS.md), [PRODUCTION-GAP-REPORT.md](PRODUCTION-GAP-REPORT.md)
 
 ## 1. Production Readiness Summary
 
@@ -17,9 +17,10 @@
 | **Setup Wizard** | ✅ Ready | CLI + web UI |
 | **Export Flows** | ✅ Ready | DOCX, PDF, EPUB, TXT, outline, publishing prep |
 | **AI Flows** | ✅ Ready | Complete, expand, rewrite, ghostwriter |
-| **Accountability** | ✅ Ready | Goals, overview, recovery, reminders |
-| **Gamification** | ✅ Ready | Stats, achievements, quests, journey map |
-| **Lead Capture** | ✅ Ready | Persists to DB via API |
+| **Accountability** | ✅ Ready | Goals, overview, recovery, reminders (cron documented) |
+| **Gamification** | ✅ Ready | Stats, achievements, quests, journey map, sprint timer wired |
+| **Lead Capture** | ✅ Ready | Persists to DB via API; file fallback when API unavailable |
+| **Legal Pages** | ✅ Ready | Privacy and Terms with substantive content |
 | **Deployment** | ✅ Ready | Docker Compose, Caddy, bootstrap scripts |
 | **Documentation** | ✅ Ready | User, admin, deployment, troubleshooting, FAQ |
 | **Tests** | ✅ Ready | API tests, Vitest, Playwright (E2E) |
@@ -35,8 +36,9 @@
 | **No password reset** | Low | Users must contact admin. Document in ADMIN.md. |
 | **No admin UI** | Low | User management via API, seed, setup wizard. Documented. |
 | **Telemetry placeholder** | Low | `record_metric`/`trace_span` are no-ops. Add OTLP when needed. |
-| **AI analysis silent failures** | Low | Some `except: pass` in AI services. Consider logging. |
 | **No rate limiting on leads** | Low | Add rate limit if abuse occurs. |
+| **Cron endpoint unauthenticated** | Low | Call from internal network only; see DEPLOYMENT.md. |
+| **Legal review** | Low | Privacy/Terms are templates; have legal counsel review before launch. |
 
 ---
 
@@ -163,10 +165,23 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 - [ ] **Lead capture**: Newsletter form on marketing site submits successfully
 - [ ] **Setup wizard**: If not completed, `/setup` is accessible
 - [ ] **Settings**: Can update display name and change password
+- [ ] **Sprint timer**: Start 5m/15m/25m in editor; complete awards XP in gamification
+- [ ] **Reminders cron**: Configure cron per DEPLOYMENT.md if using accountability reminders
 
 ---
 
-## 8. Recent Completions (Post-Audit)
+## 8. Remaining Manual Tasks (Unavoidable)
+
+| Task | Reason |
+|------|--------|
+| **Legal review** | Privacy and Terms are substantive templates; legal counsel should review for jurisdiction and product specifics. |
+| **Configure reminders cron** | Cron job must be set up on the host (see DEPLOYMENT.md). |
+| **Billing integration** | When enabling paid plans, integrate Stripe or Anakatech billing. |
+| **SSO provider** | When enabling SSO, configure OAuth provider and update auth flow. |
+
+---
+
+## 9. Recent Completions (Post-Audit)
 
 | Item | Status |
 |------|--------|
@@ -179,16 +194,24 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 | Audit report | ✅ Created |
 | Gap analysis | ✅ Created |
 | Completion plan | ✅ Created |
+| **Production gap report** | ✅ Created |
+| **Privacy/Terms placeholders** | ✅ Replaced with substantive content |
+| **Leads persistence fallback** | ✅ File-based when API unavailable |
+| **AI analysis logging** | ✅ Exceptions logged |
+| **Health check logging** | ✅ DB/Redis failures logged |
+| **Reminders cron** | ✅ Documented in DEPLOYMENT.md |
+| **Sprint timer → gamification** | ✅ Focus sessions recorded, XP awarded |
 
 ---
 
-## File Reference
+## 10. File Reference
 
 | Purpose | Path |
 |---------|------|
 | Env example | `.env.example` |
 | Env map | `docs/ENV-MAP.md` |
 | Deployment | `docs/DEPLOYMENT.md` |
+| Production gap report | `docs/PRODUCTION-GAP-REPORT.md` |
 | Admin guide | `docs/ADMIN.md` |
 | User help | `docs/USER-HELP.md` |
 | Troubleshooting | `docs/TROUBLESHOOTING.md` |

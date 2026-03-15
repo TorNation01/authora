@@ -142,6 +142,29 @@ Caddy auto-provisions TLS via Let's Encrypt.
 - **PostgreSQL**: `pg_isready -U authora`
 - **Redis**: `redis-cli ping`
 
+## Cron Jobs
+
+### Reminders (Accountability)
+
+The accountability engine sends daily, weekly, milestone, streak, overdue, finish-date risk, resume, and chapter-target reminders. Call the cron endpoint from a scheduler (e.g., system cron, Cloudflare Workers Cron, or Kubernetes CronJob).
+
+**Endpoint:** `POST /api/v1/accountability/cron/reminders`
+
+**Recommended schedule:**
+- Run every hour so daily reminders are sent at users' configured times (timezone-aware)
+- Weekly reminders are processed when the job runs on Monday
+- Respects user quiet hours and reminder type preferences
+
+**Example (system cron):**
+```bash
+# Every hour
+0 * * * * curl -X POST http://localhost:8000/api/v1/accountability/cron/reminders -H "Content-Type: application/json"
+```
+
+**Security:** The endpoint is unauthenticated. In production, either:
+- Call it only from internal network (e.g., Docker network, private IP)
+- Add a secret header and validate it in the API (requires code change)
+
 ## Bootstrap Scripts
 
 - **Local dev**: `./scripts/bootstrap-dev.sh` – install deps, start infra, run migrations

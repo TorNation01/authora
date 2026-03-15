@@ -1,43 +1,75 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Timer, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 interface WritingSprintTimerProps {
-  defaultMinutes?: number;
+  bookId?: string | null;
+  getWordsWritten?: () => number;
+  onStart?: () => void;
   onComplete?: () => void;
   className?: string;
 }
 
 export function WritingSprintTimer({
-  defaultMinutes = 15,
+  bookId,
+  getWordsWritten,
+  onStart,
   onComplete,
   className,
 }: WritingSprintTimerProps) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const sessionIdRef = useRef<string | null>(null);
+  const targetMinutesRef = useRef<number>(15);
 
   useEffect(() => {
     if (!isRunning || secondsLeft === null) return;
     if (secondsLeft <= 0) {
       setIsRunning(false);
+      const mins = targetMinutesRef.current;
+      const words = getWordsWritten?.() ?? 0;
+      if (sessionIdRef.current) {
+        api(`/api/v1/gamification/focus/${sessionIdRef.current}/complete`, {
+          method: 'POST',
+          body: JSON.stringify({ actual_minutes: mins, words_written: Math.max(0, words) }),
+        }).catch(() => {});
+      }
+      sessionIdRef.current = null;
       onComplete?.();
       return;
     }
     const id = setInterval(() => setSecondsLeft((s) => (s ?? 0) - 1), 1000);
     return () => clearInterval(id);
-  }, [isRunning, secondsLeft, onComplete]);
+  }, [isRunning, secondsLeft, getWordsWritten, onComplete]);
 
-  const start = useCallback((minutes: number) => {
-    setSecondsLeft(minutes * 60);
-    setIsRunning(true);
-  }, []);
+  const start = useCallback(
+    (minutes: number) => {
+      targetMinutesRef.current = minutes;
+      onStart?.(); // Capture word count at start before any async
+      if (bookId) {
+        api<{ id: string }>('/api/v1/gamification/focus/start', {
+          method: 'POST',
+          body: JSON.stringify({ book_id: bookId, target_minutes: minutes }),
+        })
+          .then((r) => {
+            sessionIdRef.current = r.id;
+          })
+          .catch(() => {});
+      }
+      setSecondsLeft(minutes * 60);
+      setIsRunning(true);
+    },
+    [bookId, onStart]
+  );
 
   const stop = useCallback(() => {
     setIsRunning(false);
     setSecondsLeft(null);
+    sessionIdRef.current = null;
   }, []);
 
   const format = (s: number) => {

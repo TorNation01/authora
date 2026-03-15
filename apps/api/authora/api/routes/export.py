@@ -25,13 +25,18 @@ from authora.services.export import (
 )
 from authora.services.export_extended import (
     ExportParams,
+    export_beta_reader_package,
+    export_chapter_summary_sheet,
     export_chapters_zip,
+    export_formatting_preview_html,
     export_full_docx,
     export_full_epub,
     export_full_pdf,
     export_full_txt,
+    export_ghostwriter_handoff,
     export_notes_txt,
     export_outline,
+    export_synopsis_package,
 )
 from authora.services.publishing_prep import (
     generate_author_bio_draft,
@@ -83,8 +88,17 @@ async def export_preview(
     book_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+    front_matter: str | None = Query(None),
+    back_matter: str | None = Query(None),
+    dedication: str | None = Query(None),
+    epigraph: str | None = Query(None),
+    copyright_notice: str | None = Query(None),
+    author_bio: str | None = Query(None),
+    acknowledgements: str | None = Query(None),
+    format_style: str = Query("manuscript", pattern="^(manuscript|print|ebook)$"),
 ):
-    """Preview export structure before final export."""
+    """Preview export structure. Use format_preview for HTML rendering."""
     book = await get_book_with_chapters(db, book_id, current_user.id)
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
@@ -99,10 +113,53 @@ async def export_preview(
         "chapter_count": len(chapters),
         "total_words": total_words,
         "chapters": [{"title": c.title, "word_count": c.word_count} for c in chapters],
-        "has_front_matter": False,
-        "has_back_matter": False,
-        "has_acknowledgements": False,
+        "has_front_matter": bool(dedication or epigraph or copyright_notice or front_matter),
+        "has_back_matter": bool(acknowledgements or author_bio or back_matter),
+        "has_acknowledgements": bool(acknowledgements),
     }
+
+
+@router.get("/books/{book_id}/format-preview")
+async def export_format_preview(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+    front_matter: str | None = Query(None),
+    back_matter: str | None = Query(None),
+    dedication: str | None = Query(None),
+    epigraph: str | None = Query(None),
+    copyright_notice: str | None = Query(None),
+    author_bio: str | None = Query(None),
+    acknowledgements: str | None = Query(None),
+    include_title_page: bool = Query(True),
+    include_toc: bool = Query(True),
+    format_style: str = Query("manuscript", pattern="^(manuscript|print|ebook)$"),
+):
+    """HTML preview of export structure for review before download."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    chapters_data = _chapters_data(book)
+    params = ExportParams(
+        book_title=book.title,
+        author_name=author_name or "Author",
+        include_title_page=include_title_page,
+        include_toc=include_toc,
+        front_matter=front_matter,
+        back_matter=back_matter,
+        acknowledgements=acknowledgements,
+        include_acknowledgements=bool(acknowledgements),
+        dedication=dedication,
+        epigraph=epigraph,
+        copyright_notice=copyright_notice,
+        author_bio=author_bio,
+        format_style=format_style,
+    )
+    html_content = export_formatting_preview_html(chapters_data, params)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html_content)
 
 
 class ExportRequest(BaseModel):
@@ -123,11 +180,27 @@ async def export_book(
     front_matter: str | None = Query(None),
     back_matter: str | None = Query(None),
     acknowledgements: str | None = Query(None),
+    dedication: str | None = Query(None),
+    epigraph: str | None = Query(None),
+    copyright_notice: str | None = Query(None),
+    author_bio: str | None = Query(None),
     format_style: str = Query("manuscript", pattern="^(manuscript|print|ebook)$"),
 ):
     """Export book to specified format. Supports front/back matter via query params."""
+    from authora.config import get_settings
+    from authora.services.billing_service import check_export_limit, record_usage
+
     if format not in ("docx", "pdf", "epub", "txt"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid format")
+
+    settings = get_settings()
+    if settings.feature_billing:
+        allowed, used, limit = await check_export_limit(db, current_user.id, format)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Export limit reached ({used}/{limit} this month) or format not in plan. Upgrade for more.",
+            )
 
     book = await get_book_with_chapters(db, book_id, current_user.id)
     if not book:
@@ -160,6 +233,9 @@ async def export_book(
         media_type = "application/epub+zip"
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid format")
+
+    if settings.feature_billing:
+        await record_usage(db, current_user.id, "exports", 1)
 
     filename = get_export_filename(book.title, format)
     return Response(
@@ -307,3 +383,117 @@ async def get_publishing_prep(
         pack = await generate_handoff_pack(db, book_id)
         return {"type": "handoff_pack", "content": pack}
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid prep type")
+
+
+@router.get("/books/{book_id}/packages/beta-reader")
+async def export_beta_reader_package_route(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+):
+    """Export beta reader package (ZIP): manuscript + synopsis + feedback form + chapter summaries."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+
+    pack = await generate_beta_reader_pack(db, book_id)
+    chapters_data = _chapters_data(book)
+    params = ExportParams(
+        book_title=book.title,
+        author_name=author_name or "Author",
+        include_title_page=True,
+        include_toc=True,
+    )
+    content = export_beta_reader_package(chapters_data, pack, params)
+    filename = get_export_filename(book.title, "zip")
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".zip", "_beta_package.zip")}"'},
+    )
+
+
+@router.get("/books/{book_id}/packages/ghostwriter-handoff")
+async def export_ghostwriter_handoff_route(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+):
+    """Export ghostwriter delivery handoff (ZIP): manuscript + synopsis + summaries + bio + handoff notes."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+
+    pack = await generate_handoff_pack(db, book_id)
+    chapters_data = _chapters_data(book)
+    params = ExportParams(
+        book_title=book.title,
+        author_name=author_name or "Author",
+        include_title_page=True,
+        include_toc=True,
+    )
+    content = export_ghostwriter_handoff(chapters_data, pack, params, has_ghostwriter_content=False)
+    filename = get_export_filename(book.title, "zip")
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".zip", "_handoff.zip")}"'},
+    )
+
+
+@router.get("/books/{book_id}/packages/chapter-summary-sheet")
+async def export_chapter_summary_sheet_route(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+):
+    """Export chapter summary sheet (DOCX) for editor handoff."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+
+    summaries = await generate_chapter_summaries(db, book_id)
+    content = export_chapter_summary_sheet(summaries, book.title, author_name or "Author")
+    filename = get_export_filename(book.title, "docx")
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".docx", "_chapter_summaries.docx")}"'},
+    )
+
+
+@router.get("/books/{book_id}/packages/synopsis")
+async def export_synopsis_package_route(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+):
+    """Export synopsis as DOCX."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+
+    synopsis = await generate_synopsis(db, book_id)
+    content = export_synopsis_package(synopsis, book.title, author_name or "Author")
+    filename = get_export_filename(book.title, "docx")
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".docx", "_synopsis.docx")}"'},
+    )

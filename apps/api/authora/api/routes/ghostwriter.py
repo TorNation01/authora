@@ -99,6 +99,26 @@ async def submit_intake(
     return GhostwriterWorkspaceResponse.model_validate(ws)
 
 
+async def _check_ghostwriter_access(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Require ghostwriter feature and AI action limit when billing enabled."""
+    if not get_settings().feature_billing:
+        return
+    from authora.services.billing_service import check_ai_action_limit, has_feature, record_usage
+
+    if not await has_feature(db, user_id, "ghostwriter"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ghostwriter requires Premium. Upgrade at /pricing.",
+        )
+    allowed, used, limit = await check_ai_action_limit(db, user_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"AI action limit reached ({used}/{limit} this month). Upgrade for more.",
+        )
+    await record_usage(db, user_id, "ai_actions", 1)
+
+
 @router.post("/outline/generate")
 async def generate_outline_endpoint(
     project_id: uuid.UUID,
@@ -110,6 +130,7 @@ async def generate_outline_endpoint(
     settings = get_settings()
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+    await _check_ghostwriter_access(db, current_user.id)
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
@@ -172,6 +193,7 @@ async def generate_brief(
     settings = get_settings()
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+    await _check_ghostwriter_access(db, current_user.id)
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
@@ -255,6 +277,7 @@ async def generate_draft(
     settings = get_settings()
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+    await _check_ghostwriter_access(db, current_user.id)
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
@@ -334,6 +357,7 @@ async def regenerate_section_endpoint(
 ):
     """Regenerate a section with optional feedback. Streams response."""
     settings = get_settings()
+    await _check_ghostwriter_access(db, current_user.id)
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
     if not check_rate_limit(str(current_user.id)):
@@ -356,6 +380,7 @@ async def rewrite_with_feedback_endpoint(
 ):
     """Rewrite selection with user feedback."""
     settings = get_settings()
+    await _check_ghostwriter_access(db, current_user.id)
     if not settings.openai_api_key and not settings.anthropic_api_key:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
     if not check_rate_limit(str(current_user.id)):

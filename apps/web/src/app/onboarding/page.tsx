@@ -36,15 +36,15 @@ interface OnboardingData {
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome', icon: BookOpen },
-  { id: 'book_type', title: 'Fiction or non-fiction?', icon: BookOpen },
-  { id: 'writing_mode', title: 'How do you want to write?', icon: PenLine },
-  { id: 'writing_goals', title: 'Writing goals', icon: Target },
-  { id: 'target_timeline', title: 'Target completion', icon: Calendar },
-  { id: 'writing_schedule', title: 'Writing schedule', icon: Clock },
-  { id: 'accountability', title: 'Encouragement style', icon: Heart },
-  { id: 'ai_comfort', title: 'AI help comfort', icon: Sparkles },
+  { id: 'book_type', title: 'What are you writing?', icon: BookOpen },
+  { id: 'writing_mode', title: 'How would you like to write?', icon: PenLine },
+  { id: 'writing_goals', title: 'What matters most?', icon: Target },
+  { id: 'target_timeline', title: 'When do you hope to finish?', icon: Calendar },
+  { id: 'writing_schedule', title: 'When do you usually write?', icon: Clock },
+  { id: 'accountability', title: 'How do you like to be encouraged?', icon: Heart },
+  { id: 'ai_comfort', title: 'How much AI help?', icon: Sparkles },
   { id: 'genre', title: 'Genre or topic', icon: BookOpen },
-  { id: 'complete', title: 'Your journey', icon: Check },
+  { id: 'complete', title: "You're all set", icon: Check },
 ];
 
 const BOOK_TYPES = [
@@ -53,9 +53,9 @@ const BOOK_TYPES = [
 ];
 
 const WRITING_MODES = [
-  { id: 'solo', label: 'Write myself', desc: 'I write alone, AI assists when I ask', icon: User },
-  { id: 'cowrite', label: 'Co-write with AI', desc: 'AI suggests and drafts, I edit and steer', icon: PenLine },
-  { id: 'ghostwriter', label: 'Ghostwriter mode', desc: 'AI drafts heavily, I guide and refine', icon: Bot },
+  { id: 'solo', label: 'Mostly on my own', desc: 'I write; AI helps when I ask', icon: User },
+  { id: 'cowrite', label: 'Co-write with AI', desc: 'AI suggests and drafts; I edit and steer', icon: PenLine },
+  { id: 'ghostwriter', label: 'Heavy AI assistance', desc: 'AI drafts; I guide and refine', icon: Bot },
 ];
 
 const TIMELINE_OPTIONS = [
@@ -81,9 +81,9 @@ const ACCOUNTABILITY_OPTIONS = [
 ];
 
 const AI_COMFORT_OPTIONS = [
-  { id: 'minimal', label: 'Minimal', desc: 'Only when I explicitly ask' },
-  { id: 'moderate', label: 'Moderate', desc: 'Suggest ideas and prompts' },
-  { id: 'full', label: 'Full', desc: 'Proactive help and drafting' },
+  { id: 'minimal', label: 'Minimal', desc: 'Only when I ask' },
+  { id: 'moderate', label: 'Moderate', desc: 'Suggestions and prompts' },
+  { id: 'full', label: 'Full', desc: 'Drafting, rewriting, expansion' },
 ];
 
 export default function OnboardingPage() {
@@ -194,16 +194,16 @@ export default function OnboardingPage() {
             <CardTitle className="text-xl font-serif">{currentStep.title}</CardTitle>
             <CardDescription className="text-base">
               {currentStep.id === 'welcome' &&
-                "Welcome to AUTHORA. We'll ask a few questions to create your personalized writing journey."}
-              {currentStep.id === 'book_type' && 'What kind of book are you writing?'}
-              {currentStep.id === 'writing_mode' && 'How would you like to work with AI?'}
+                "We'll ask a few quick questions to personalize your experience. You can change these anytime."}
+              {currentStep.id === 'book_type' && 'This helps us show you the right tools and structure.'}
+              {currentStep.id === 'writing_mode' && 'Choose the level of AI help that feels right.'}
               {currentStep.id === 'writing_goals' && "What's your main goal for this book?"}
-              {currentStep.id === 'target_timeline' && 'When do you hope to finish?'}
-              {currentStep.id === 'writing_schedule' && 'When do you usually write?'}
-              {currentStep.id === 'accountability' && 'How do you like to be encouraged?'}
-              {currentStep.id === 'ai_comfort' && 'How much AI assistance do you want?'}
-              {currentStep.id === 'genre' && 'What genre or topic?'}
-              {currentStep.id === 'complete' && "We've built your roadmap. Ready to start?"}
+              {currentStep.id === 'target_timeline' && 'No pressure—this helps us suggest a pace.'}
+              {currentStep.id === 'writing_schedule' && "We'll use this for gentle reminders—only if you want them."}
+              {currentStep.id === 'accountability' && 'We adapt to your style. No guilt, ever.'}
+              {currentStep.id === 'ai_comfort' && 'You can change this anytime in settings.'}
+              {currentStep.id === 'genre' && 'e.g. romance, thriller, memoir, business.'}
+              {currentStep.id === 'complete' && "Your journey begins now. Create a project and add your first book."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

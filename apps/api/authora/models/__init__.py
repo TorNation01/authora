@@ -10,6 +10,7 @@ from authora.models.accountability import (
 from authora.models.audit import AuditLog
 from authora.models.book import Book, Chapter, ChapterVersion
 from authora.models.notification import Notification
+from authora.models.notification_delivery_log import NotificationDeliveryLog
 from authora.models.gamification import (
     Achievement,
     BadgeDefinition,
@@ -76,6 +77,9 @@ from authora.models.analytics_event import AnalyticsEvent
 from authora.models.publishing_asset import PublishingAsset
 from authora.models.feature_flag import FeatureFlag
 from authora.models.setup_state import SetupState
+from authora.models.plan import Plan
+from authora.models.subscription import Subscription
+from authora.models.usage_record import UsageRecord
 
 __all__ = [
     "AccountabilitySettings",
@@ -92,6 +96,7 @@ __all__ = [
     "Note",
     "NoteAttachment",
     "Notification",
+    "NotificationDeliveryLog",
     "UserStats",
     "Achievement",
     "BadgeDefinition",
@@ -151,4 +156,7 @@ __all__ = [
     "PublishingAsset",
     "FeatureFlag",
     "SetupState",
+    "Plan",
+    "Subscription",
+    "UsageRecord",
 ]
