@@ -1,0 +1,27 @@
+# AUTHORA reverse proxy - configure your domain
+# Replace example.com with your domain
+
+{
+    email admin@example.com
+}
+
+api.example.com {
+    reverse_proxy api:8000
+    encode gzip
+}
+
+web.example.com {
+    reverse_proxy web:3000
+    encode gzip
+}
+
+# Single-domain variant (API at /api, web at /)
+# example.com {
+#     handle /api/* {
+#         reverse_proxy api:8000
+#     }
+#     handle {
+#         reverse_proxy web:3000
+#     }
+#     encode gzip
+# }

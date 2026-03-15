@@ -1,0 +1,109 @@
+/**
+ * AUTHORA runtime config - deployment mode, feature flags, branding.
+ * Fetched from API at bootstrap; falls back to env for SSR/build.
+ */
+
+export type DeploymentMode = 'standalone' | 'anakatech';
+
+export interface FeatureFlags {
+  standalone_auth: boolean;
+  standalone_landing: boolean;
+  standalone_setup_wizard: boolean;
+  local_admin_creation: boolean;
+  sso_ready: boolean;
+  embeddable_shell: boolean;
+  shared_notifications: boolean;
+  shared_workspace_identity: boolean;
+  tenant_aware: boolean;
+  billing: boolean;
+}
+
+export interface BrandingConfig {
+  product_name: string;
+  tagline: string;
+  logo_url: string | null;
+  favicon_url: string | null;
+  primary_color: string | null;
+  show_powered_by: boolean;
+}
+
+export interface AppConfig {
+  deployment_mode: DeploymentMode;
+  is_standalone: boolean;
+  is_anakatech: boolean;
+  feature_flags: FeatureFlags;
+  branding: BrandingConfig;
+}
+
+const DEFAULT: AppConfig = {
+  deployment_mode: 'standalone',
+  is_standalone: true,
+  is_anakatech: false,
+  feature_flags: {
+    standalone_auth: true,
+    standalone_landing: true,
+    standalone_setup_wizard: true,
+    local_admin_creation: true,
+    sso_ready: false,
+    embeddable_shell: false,
+    shared_notifications: false,
+    shared_workspace_identity: false,
+    tenant_aware: false,
+    billing: false,
+  },
+  branding: {
+    product_name: 'AUTHORA',
+    tagline: 'AI-Powered Book Builder',
+    logo_url: null,
+    favicon_url: null,
+    primary_color: null,
+    show_powered_by: true,
+  },
+};
+
+let cachedConfig: AppConfig | null = null;
+
+export async function fetchConfig(): Promise<AppConfig> {
+  if (cachedConfig) return cachedConfig;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+  const base = typeof window !== 'undefined' ? '' : apiUrl;
+  try {
+    const res = await fetch(`${base}/api/v1/config`);
+    if (res.ok) {
+      const data = await res.json();
+      cachedConfig = {
+        deployment_mode: data.deployment_mode || 'standalone',
+        is_standalone: data.is_standalone ?? true,
+        is_anakatech: data.is_anakatech ?? false,
+        feature_flags: { ...DEFAULT.feature_flags, ...data.feature_flags },
+        branding: { ...DEFAULT.branding, ...data.branding },
+      };
+      return cachedConfig;
+    }
+  } catch {
+    // Fallback to env or defaults
+  }
+  const mode = (process.env.NEXT_PUBLIC_DEPLOYMENT_MODE as DeploymentMode) || 'standalone';
+  cachedConfig = {
+    ...DEFAULT,
+    deployment_mode: mode,
+    is_standalone: mode === 'standalone',
+    is_anakatech: mode === 'anakatech',
+  };
+  return cachedConfig;
+}
+
+export function getConfigSync(): AppConfig {
+  if (cachedConfig) return cachedConfig;
+  const mode = (process.env.NEXT_PUBLIC_DEPLOYMENT_MODE as DeploymentMode) || 'standalone';
+  return {
+    ...DEFAULT,
+    deployment_mode: mode,
+    is_standalone: mode === 'standalone',
+    is_anakatech: mode === 'anakatech',
+  };
+}
+
+export function clearConfigCache(): void {
+  cachedConfig = null;
+}

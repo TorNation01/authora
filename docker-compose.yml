@@ -1,0 +1,80 @@
+# AUTHORA dev compose - postgres, redis, api, web
+# Usage: docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authora
+      POSTGRES_PASSWORD: authora
+      POSTGRES_DB: authora
+    ports:
+      - "5432:5432"
+    volumes:
+      - authora_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - authora_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    volumes:
+      - authora_storage:/app/storage
+    environment:
+      DATABASE_URL: postgresql://authora:authora@postgres:5432/authora
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://web:3000"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  authora_pgdata:
+  authora_redis:
+  authora_storage:

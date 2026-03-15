@@ -1,0 +1,27 @@
+{
+  "name": "authora",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "build": "npm run build --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:migrate": "cd apps/api && alembic upgrade head",
+    "db:seed": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed",
+    "setup": "node scripts/setup-wizard.mjs",
+    "deploy": "./scripts/deploy.sh",
+    "backup": "./scripts/backup.sh",
+    "bootstrap:dev": "./scripts/bootstrap-dev.sh",
+    "bootstrap:prod": "./scripts/bootstrap-prod.sh"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

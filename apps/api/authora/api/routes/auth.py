@@ -1,0 +1,197 @@
+"""Auth API routes."""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from authora.api.dependencies import CurrentUser
+from authora.config import get_settings
+from authora.database import get_db
+from authora.schemas.auth import (
+    LogoutRequest,
+    PasswordChange,
+    RefreshRequest,
+    Token,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
+)
+from authora.services.auth import (
+    change_password,
+    create_access_token,
+    create_session,
+    create_user,
+    delete_session,
+    get_session_by_token_hash,
+    get_user_by_email,
+    get_user_by_id,
+    update_user,
+    verify_password,
+)
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", response_model=Token)
+async def register(
+    data: UserCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Register new user. Standalone mode only."""
+    if not get_settings().feature_standalone_auth:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Registration is disabled in this deployment",
+        )
+    existing = await get_user_by_email(db, data.email)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    user = await create_user(db, data.email, data.password, data.display_name)
+    refresh_token, _, _ = await create_session(db, user.id)
+    access_token, expires = create_access_token(user.id)
+
+    await db.commit()
+
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=int((expires.timestamp() - __import__("datetime").datetime.now(__import__("datetime").timezone.utc).timestamp())),
+    )
+
+
+@router.post("/login", response_model=Token)
+async def login(
+    data: UserLogin,
+    db: AsyncSession = Depends(get_db),
+):
+    """Login and get tokens. Disabled when using SSO-only auth."""
+    if not get_settings().feature_standalone_auth:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Local login is disabled. Use SSO.",
+        )
+    user = await get_user_by_email(db, data.email)
+    if not user or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
+
+    refresh_token, _, _ = await create_session(db, user.id)
+    access_token, expires = create_access_token(user.id)
+
+    await db.commit()
+
+    from datetime import datetime, timezone
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=int(expires.timestamp() - datetime.now(timezone.utc).timestamp()),
+    )
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh(
+    body: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh access token using refresh token."""
+    import hashlib
+
+    refresh_token = body.refresh_token
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+    session = await get_session_by_token_hash(db, token_hash)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    access_token, expires = create_access_token(session.user_id)
+    from datetime import datetime, timezone
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=int(expires.timestamp() - datetime.now(timezone.utc).timestamp()),
+    )
+
+
+@router.post("/logout")
+async def logout(
+    body: LogoutRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Logout and invalidate refresh token."""
+    import hashlib
+
+    token_hash = hashlib.sha256(body.refresh_token.encode()).hexdigest()
+    await delete_session(db, token_hash)
+    await db.commit()
+    return {"message": "Logged out"}
+
+
+@router.get("/me", response_model=UserResponse)
+async def me(current_user: CurrentUser):
+    """Get current user."""
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        display_name=current_user.display_name,
+        created_at=current_user.created_at,
+    )
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    data: UserUpdate,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update current user profile."""
+
+    if not get_settings().feature_standalone_auth:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile updates are disabled in this deployment",
+        )
+
+    updates = data.model_dump(exclude_unset=True)
+    if "display_name" not in updates:
+        user = await get_user_by_id(db, current_user.id)
+    else:
+        user = await update_user(db, current_user.id, display_name=updates["display_name"])
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    await db.commit()
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        created_at=user.created_at,
+    )
+
+
+@router.patch("/me/password")
+async def change_my_password(
+    data: PasswordChange,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Change current user password."""
+
+    if not get_settings().feature_standalone_auth:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Password change is disabled in this deployment",
+        )
+
+    ok = await change_password(
+        db,
+        current_user.id,
+        data.current_password,
+        data.new_password,
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    await db.commit()
+    return {"message": "Password updated"}

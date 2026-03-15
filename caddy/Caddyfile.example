@@ -1,0 +1,16 @@
+# AUTHORA Caddy reverse proxy - copy to Caddyfile and edit domains
+# Replace example.com with your domain
+
+{
+    email admin@example.com
+}
+
+api.example.com {
+    reverse_proxy api:8000
+    encode gzip
+}
+
+app.example.com {
+    reverse_proxy web:3000
+    encode gzip
+}

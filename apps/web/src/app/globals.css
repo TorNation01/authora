@@ -1,0 +1,103 @@
+@tailwind base;
+@import '../styles/design-tokens.css';
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Focus visible for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Card variants */
+  .card-sanctuary {
+    @apply rounded-xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-shadow hover:shadow-md;
+  }
+  .card-elevated {
+    @apply rounded-xl border border-border/40 bg-card shadow-lg;
+  }
+  .card-soft {
+    @apply rounded-xl bg-muted/50 border border-transparent;
+  }
+
+  /* Writing-focused prose */
+  .prose-sanctuary {
+    @apply font-serif text-foreground leading-relaxed;
+  }
+  .prose-sanctuary p {
+    @apply mb-4 text-[1.0625rem];
+  }
+  .prose-sanctuary h1 {
+    @apply text-2xl font-semibold mt-10 mb-4 text-foreground;
+  }
+  .prose-sanctuary h2 {
+    @apply text-xl font-semibold mt-8 mb-3 text-foreground;
+  }
+  .prose-sanctuary a {
+    @apply text-primary hover:underline;
+  }
+
+  /* Section headers */
+  .section-header {
+    @apply text-lg font-semibold text-foreground mb-1;
+  }
+  .section-description {
+    @apply text-sm text-muted-foreground;
+  }
+}
+
+/* TipTap editor - writing sanctuary feel */
+.ProseMirror {
+  @apply outline-none min-h-[400px] px-6 py-8 font-serif text-[1.0625rem] leading-[1.75];
+}
+.ProseMirror p {
+  @apply mb-5 leading-relaxed;
+}
+.ProseMirror h1 {
+  @apply text-2xl font-semibold mt-10 mb-4 text-foreground;
+}
+.ProseMirror h2 {
+  @apply text-xl font-semibold mt-8 mb-3 text-foreground;
+}
+.ProseMirror .is-empty::before {
+  @apply text-muted-foreground/70;
+  content: attr(data-placeholder);
+}
+.ProseMirror mark {
+  @apply rounded px-0.5 bg-yellow-200 dark:bg-yellow-900/50;
+}
+.ProseMirror u {
+  @apply underline-offset-2;
+}
+[data-active="true"] {
+  @apply bg-muted;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes celebrate {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.animate-celebrate {
+  animation: celebrate 0.5s ease-in-out;
+}

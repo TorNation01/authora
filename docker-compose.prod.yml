@@ -1,0 +1,51 @@
+# AUTHORA production overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Set: DOMAIN_API, DOMAIN_WEB, ACME_EMAIL before deploy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+  postgres:
+    restart: unless-stopped
+    # No port exposure in prod - access via internal network only
+    ports: []
+
+  redis:
+    restart: unless-stopped
+    ports: []
+
+  api:
+    restart: unless-stopped
+    volumes:
+      - authora_storage:/app/storage
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    # No port exposure - accessed via Caddy reverse proxy
+    ports: []
+
+  web:
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.example.com}
+      API_URL: ${API_URL:-${NEXT_PUBLIC_API_URL:-https://api.example.com}}
+    ports: []
+
+volumes:
+  caddy_data:
+  caddy_config:
