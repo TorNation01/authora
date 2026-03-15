@@ -27,11 +27,16 @@
     "rollback": "./scripts/rollback.sh",
     "update": "./scripts/update.sh",
     "update:prod": "./scripts/update.sh prod",
+    "bootstrap": "./scripts/bootstrap.sh",
     "bootstrap:dev": "./scripts/bootstrap-dev.sh",
     "bootstrap:prod": "./scripts/bootstrap-prod.sh",
+    "install": "./scripts/install.sh",
     "db:migrate:docker": "./scripts/db-migrate.sh --docker",
     "db:seed:docker": "./scripts/db-seed.sh --docker",
-    "health": "curl -sf http://localhost:8000/health && curl -sf http://localhost:8000/health/ready"
+    "health": "./scripts/healthcheck.sh",
+    "healthcheck": "./scripts/healthcheck.sh",
+    "first-admin": "./scripts/first-admin.sh",
+    "verify-go-live": "./scripts/verify-go-live.sh"
   },
   "engines": {
     "node": ">=18"

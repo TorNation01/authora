@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, config, content, dictionary, editing, export, fiction, ghostwriter, goals, gamification, journey, leads, nonfiction, notes, projects, reference, setup
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
+from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
 from authora.middleware.security import SecurityMiddleware
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ app.add_exception_handler(HTTPException, _http_exception_handler)
 
 app.add_middleware(SecurityMiddleware)  # First: rate limit, headers, request ID
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
+app.add_middleware(IntegrationAuditForwardingMiddleware)  # Optional: forward to Anakatech when enabled
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

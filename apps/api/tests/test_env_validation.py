@@ -23,22 +23,41 @@ def test_settings_load_defaults():
 
 
 def test_settings_deployment_mode():
-    """Deployment mode validates to standalone or anakatech."""
+    """Deployment mode validates to standalone, anakatech, or white_label."""
     get_settings.cache_clear()
     try:
         os.environ["DEPLOYMENT_MODE"] = "standalone"
         settings = get_settings()
         assert settings.is_standalone() is True
         assert settings.is_anakatech() is False
+        assert settings.is_white_label() is False
 
         os.environ["DEPLOYMENT_MODE"] = "anakatech"
         get_settings.cache_clear()
         settings = get_settings()
         assert settings.is_standalone() is False
         assert settings.is_anakatech() is True
+        assert settings.is_white_label() is False
+
+        os.environ["DEPLOYMENT_MODE"] = "white_label"
+        get_settings.cache_clear()
+        settings = get_settings()
+        assert settings.is_standalone() is False
+        assert settings.is_anakatech() is False
+        assert settings.is_white_label() is True
     finally:
         os.environ.pop("DEPLOYMENT_MODE", None)
         get_settings.cache_clear()
+
+
+def test_settings_integration_flags():
+    """Integration flags return dict."""
+    settings = get_settings()
+    flags = settings.get_integration_flags()
+    assert isinstance(flags, dict)
+    assert "enable_sso" in flags
+    assert "enable_shared_nav" in flags
+    assert "enable_shared_analytics" in flags
 
 
 def test_settings_get_feature_flags():

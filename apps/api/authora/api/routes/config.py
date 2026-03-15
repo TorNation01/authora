@@ -13,9 +13,12 @@ async def get_mode():
     settings = get_settings()
     return {
         "deployment_mode": settings.deployment_mode,
+        "app_mode": settings.effective_app_mode(),
         "is_standalone": settings.is_standalone(),
         "is_anakatech": settings.is_anakatech(),
+        "is_white_label": settings.is_white_label(),
         "feature_flags": settings.get_feature_flags(),
+        "integration_flags": settings.get_integration_flags(),
     }
 
 
@@ -32,8 +35,11 @@ async def get_config():
     settings = get_settings()
     return {
         "deployment_mode": settings.deployment_mode,
+        "app_mode": settings.effective_app_mode(),
         "is_standalone": settings.is_standalone(),
         "is_anakatech": settings.is_anakatech(),
+        "is_white_label": settings.is_white_label(),
         "feature_flags": settings.get_feature_flags(),
+        "integration_flags": settings.get_integration_flags(),
         "branding": settings.get_branding(),
     }

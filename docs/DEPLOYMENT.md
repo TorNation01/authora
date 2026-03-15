@@ -1,15 +1,30 @@
 # AUTHORA Deployment Guide
 
+## Deployment Architecture Summary
+
+| Layer | Component | Port | Notes |
+|-------|-----------|------|-------|
+| Reverse proxy | Caddy | 80, 443 | TLS termination, Let's Encrypt |
+| API | FastAPI (uvicorn) | 8000 (internal) | Behind Caddy |
+| Web | Next.js | 3000 (internal) | Behind Caddy |
+| Database | PostgreSQL 16 | 5432 (internal) | Docker volume |
+| Cache | Redis 7 | 6379 (internal) | Docker volume |
+| Storage | Local / R2 | - | File uploads, exports |
+
+**Modes:**
+- **Standalone:** Single-server Docker Compose (default)
+- **Anakatech-integrated:** Future; same API, different auth/tenant model
+
 ## Related Documentation
 
-- **[Exact Commands](DEPLOYMENT-COMMANDS.md)** – Copy-paste terminal commands for all operations
+- **[OPERATIONS_QUICKSTART](OPERATIONS_QUICKSTART.md)** – Copy-paste commands
+- **[Exact Commands](DEPLOYMENT-COMMANDS.md)** – Full command reference
+- [UBUNTU_INSTALL](UBUNTU_INSTALL.md) – Fresh Ubuntu bootstrap
+- [LOCAL_DEV](LOCAL_DEV.md) – Local development
+- [GO_LIVE_CHECKLIST](GO_LIVE_CHECKLIST.md) – Pre/post go-live
+- [BACKUP_AND_RESTORE](BACKUP_AND_RESTORE.md) – Backup and restore
 - [Cloudflare Deployment](DEPLOYMENT-CLOUDFLARE.md) – Deploy behind Cloudflare
 - [SSL & Domain Setup](DEPLOYMENT-SSL-DOMAIN.md) – TLS/HTTPS and DNS
-- [SSL Configuration](SSL.md) – TLS/HTTPS setup (legacy)
-- [Server Sizing](SERVER-SIZING.md) – Resource requirements
-- [Monitoring](MONITORING.md) – Health checks and metrics
-- [Logging](LOGGING.md) – Log configuration
-- [Incident Recovery](INCIDENT-RECOVERY.md) – Runbooks
 
 ## Quick Start (Development)
 
@@ -167,10 +182,23 @@ The accountability engine sends daily, weekly, milestone, streak, overdue, finis
 
 **Security:** When `CRON_SECRET` is set in the API environment, the endpoint requires the `X-Cron-Secret` header to match. Set `CRON_SECRET` in production (e.g. `openssl rand -hex 32`) and pass it in the cron job. If `CRON_SECRET` is not set, the endpoint remains open (backward compatible; not recommended for production).
 
-## Bootstrap Scripts
+## Scripts Reference
 
-- **Local dev**: `./scripts/bootstrap-dev.sh` – install deps, start infra, run migrations
-- **Production**: `./scripts/bootstrap-prod.sh` – validate env, build, migrate, start stack
+| Script | Purpose |
+|--------|---------|
+| `bootstrap.sh` | Fresh Ubuntu: Docker, Node, Python |
+| `install.sh` | Clone/setup: .env, deps, Caddyfile |
+| `bootstrap-dev.sh` | Local dev: deps, infra, migrations |
+| `bootstrap-prod.sh` | Production: validate, build, migrate, start |
+| `deploy.sh [dev\|prod]` | One-command deploy |
+| `update.sh [dev\|prod]` | Pull, rebuild, migrate, restart |
+| `rollback.sh <backup> [mode]` | Restore backup and restart |
+| `backup.sh [dir]` | PostgreSQL backup |
+| `restore.sh <file>` | PostgreSQL restore |
+| `healthcheck.sh [url]` | Health verification |
+| `first-admin.sh [--docker] [--prod]` | Create admin user |
+| `verify-go-live.sh [url]` | Go-live validation |
+| `validate-env.sh [mode]` | Validate required env vars |
 
 ## Security Notes
 

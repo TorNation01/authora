@@ -9,7 +9,11 @@ import { useConfig } from '@/contexts/ConfigProvider';
 export function EmbeddableModule({ children }: { children: React.ReactNode }) {
   const config = useConfig();
 
-  if (!config.feature_flags.embeddable_shell) {
+  const useEmbeddable =
+    config.feature_flags.embeddable_shell &&
+    (config.is_anakatech || config.is_white_label) &&
+    (config.integration_flags?.enable_shared_nav !== false);
+  if (!useEmbeddable) {
     return <>{children}</>;
   }
 

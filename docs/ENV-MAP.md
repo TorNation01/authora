@@ -39,7 +39,15 @@
 | `FEATURE_FLAGS_PROVIDER` | api | No | database | database \| launchdarkly |
 | `LAUNCHDARKLY_SDK_KEY` | api | If LD | - | LD key |
 | **Deployment** |
-| `DEPLOYMENT_MODE` | api | No | standalone | standalone \| saas \| anakatech |
+| `DEPLOYMENT_MODE` | api | No | standalone | standalone \| anakatech \| white_label |
+| `APP_MODE` | api | No | - | Overrides DEPLOYMENT_MODE when set |
+| **Integration (Anakatech)** |
+| `ENABLE_SSO` | api | No | false | SSO / shared identity |
+| `ENABLE_SHARED_NAV` | api | No | false | Shared nav shell, embeddable |
+| `ENABLE_SHARED_NOTIFICATIONS` | api | No | false | Shared notification center |
+| `ENABLE_SHARED_ANALYTICS` | api | No | false | Forward audit/analytics events |
+| `ENABLE_SHARED_BILLING` | api | No | false | Anakatech entitlement checks |
+| `ENABLE_BRAND_OVERRIDES` | api | No | true | Apply branding overrides |
 | `API_PUBLIC_URL` | api, web | Prod | - | Public API URL |
 | `NEXT_PUBLIC_API_URL` | web | No | - | API URL for browser |
 | `NEXT_PUBLIC_WEB_URL` | web | No | - | Web URL for emails |
@@ -69,4 +77,9 @@
 
 ### Anakatech
 - Same as SaaS + `DEPLOYMENT_MODE=anakatech`
-- Org/tenant config from Anakatech
+- Set integration toggles: `ENABLE_SSO`, `ENABLE_SHARED_NAV`, etc.
+- `API_GATEWAY_URL` for gateway routing
+
+### White-Label
+- Same as Standalone + `DEPLOYMENT_MODE=white_label`
+- `ENABLE_BRAND_OVERRIDES=true` + `BRANDING_*` vars

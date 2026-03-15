@@ -26,9 +26,27 @@ if [ -f .env ]; then
 fi
 
 if [ "$MODE" = "prod" ]; then
+  [ -f .env ] || { echo "ERROR: .env required for production. Copy .env.example and configure."; exit 1; }
+  set -a && source .env && set +a
   ./scripts/validate-env.sh production || exit 1
-  echo "Starting production stack..."
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+  # Ensure Caddyfile exists
+  if [ ! -f caddy/Caddyfile ]; then
+    [ -f scripts/generate-caddyfile.sh ] && ./scripts/generate-caddyfile.sh || cp caddy/Caddyfile.example caddy/Caddyfile 2>/dev/null || true
+  fi
+
+  echo "Starting PostgreSQL and Redis..."
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d postgres redis
+  echo "Waiting for PostgreSQL..."
+  until docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres pg_isready -U authora 2>/dev/null; do sleep 2; done
+
+  echo "Building and starting production stack..."
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm -e DATABASE_URL="${DATABASE_URL}" api alembic upgrade head
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+  echo ""
+  echo "Production deploy complete. Verify: ./scripts/healthcheck.sh https://api.yourdomain.com"
 else
   echo "Starting PostgreSQL and Redis..."
   docker compose up -d postgres redis

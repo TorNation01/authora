@@ -21,8 +21,19 @@ class Settings(BaseSettings):
     app_name: str = "AUTHORA"
     debug: bool = False
 
-    # Deployment mode: standalone | anakatech
+    # Deployment mode: standalone | anakatech | white_label
     deployment_mode: str = "standalone"
+
+    # APP_MODE alias (maps to deployment_mode for clarity)
+    app_mode: Optional[str] = None  # standalone | anakatech | white_label; falls back to deployment_mode
+
+    # Integration toggles (environment-driven; only apply when deployment_mode=anakatech)
+    enable_sso: bool = False
+    enable_shared_nav: bool = False
+    enable_shared_notifications: bool = False
+    enable_shared_analytics: bool = False
+    enable_shared_billing: bool = False
+    enable_brand_overrides: bool = True  # Always allow when white_label or anakatech
 
     # Feature flags (environment-driven)
     feature_standalone_auth: bool = True
@@ -103,10 +114,20 @@ class Settings(BaseSettings):
     @field_validator("deployment_mode", mode="before")
     @classmethod
     def validate_deployment_mode(cls, v: str) -> str:
-        allowed = ("standalone", "anakatech")
+        allowed = ("standalone", "anakatech", "white_label")
         if v and v.lower() in allowed:
             return v.lower()
         return "standalone"
+
+    @field_validator("app_mode", mode="before")
+    @classmethod
+    def validate_app_mode(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        allowed = ("standalone", "anakatech", "white_label")
+        if v.lower() in allowed:
+            return v.lower()
+        return None
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
@@ -123,11 +144,18 @@ class Settings(BaseSettings):
             )
         return self
 
+    def effective_app_mode(self) -> str:
+        """Resolve APP_MODE; falls back to deployment_mode."""
+        return self.app_mode or self.deployment_mode
+
     def is_standalone(self) -> bool:
-        return self.deployment_mode == "standalone"
+        return self.effective_app_mode() == "standalone"
 
     def is_anakatech(self) -> bool:
-        return self.deployment_mode == "anakatech"
+        return self.effective_app_mode() == "anakatech"
+
+    def is_white_label(self) -> bool:
+        return self.effective_app_mode() == "white_label"
 
     def get_feature_flags(self) -> dict[str, bool]:
         """Return feature flags for API consumers."""
@@ -142,6 +170,17 @@ class Settings(BaseSettings):
             "shared_workspace_identity": self.feature_shared_workspace_identity,
             "tenant_aware": self.feature_tenant_aware,
             "billing": self.feature_billing,
+        }
+
+    def get_integration_flags(self) -> dict[str, bool]:
+        """Return integration toggles (only meaningful when anakatech/white_label)."""
+        return {
+            "enable_sso": self.enable_sso,
+            "enable_shared_nav": self.enable_shared_nav,
+            "enable_shared_notifications": self.enable_shared_notifications,
+            "enable_shared_analytics": self.enable_shared_analytics,
+            "enable_shared_billing": self.enable_shared_billing,
+            "enable_brand_overrides": self.enable_brand_overrides,
         }
 
     def get_branding(self) -> dict:

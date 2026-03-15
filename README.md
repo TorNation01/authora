@@ -30,55 +30,39 @@ See [docs/ARCHITECTURE-PRODUCTION.md](docs/ARCHITECTURE-PRODUCTION.md) for the f
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 18+
-- Python 3.11+
-- PostgreSQL 16
-- Redis 7
-
-### 1. Clone and install
+### One-Command Local Dev
 
 ```bash
-git clone <repo>
+git clone https://github.com/TorNation01/authora.git
 cd authora
-npm install
-pip install -e apps/api
-```
-
-### 2. Environment
-
-```bash
-cp .env.example .env
-# Edit .env with your database URL, Redis URL, and optional AI keys
-```
-
-### 3. Database
-
-```bash
-# Start Postgres and Redis (Docker)
+./scripts/install.sh
 docker compose up -d postgres redis
-
-# Run migrations
-cd apps/api && alembic upgrade head
-
-# Seed demo admin (optional)
-python -m authora.scripts.seed
-# Admin: admin@authora.local / admin123
-```
-
-### 4. Run
-
-```bash
-# Terminal 1 - API
-npm run dev:api
-
-# Terminal 2 - Web
-npm run dev
+until docker compose exec -T postgres pg_isready -U authora; do sleep 2; done
+npm run db:migrate
+npm run db:seed
+npm run dev:api &   # Terminal 1
+npm run dev         # Terminal 2
 ```
 
 - Frontend: http://localhost:3000
 - API docs: http://localhost:8000/api/docs
+
+### One-Command Production Deploy (Ubuntu)
+
+```bash
+./scripts/bootstrap.sh          # Fresh server: Docker, Node, Python
+git clone https://github.com/TorNation01/authora.git && cd authora
+./scripts/install.sh
+cp .env.example .env && nano .env   # Set SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL
+source .env && ./scripts/validate-env.sh production
+./scripts/bootstrap-prod.sh
+./scripts/first-admin.sh --docker --prod
+```
+
+### Prerequisites
+
+- **Local dev:** Node.js 18+, Python 3.11+, Docker
+- **Production:** Docker, Docker Compose (see [UBUNTU_INSTALL.md](docs/UBUNTU_INSTALL.md))
 
 ## Setup Wizard
 
@@ -96,6 +80,17 @@ docker compose up -d
 
 - Web: http://localhost:3000
 - API: http://localhost:8000
+
+## Documentation
+
+| Doc | Purpose |
+|-----|---------|
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Full deployment guide |
+| [UBUNTU_INSTALL.md](docs/UBUNTU_INSTALL.md) | Fresh Ubuntu bootstrap |
+| [LOCAL_DEV.md](docs/LOCAL_DEV.md) | Local development |
+| [OPERATIONS_QUICKSTART.md](docs/OPERATIONS_QUICKSTART.md) | Copy-paste commands |
+| [GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md) | Pre/post go-live validation |
+| [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) | Backup and restore |
 
 ## Project Structure
 

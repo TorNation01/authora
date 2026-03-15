@@ -156,4 +156,11 @@ class DefaultNotificationService(NotificationService):
                     sent_at=datetime.now(timezone.utc) if ok else None,
                 )
             results["email"] = ok
+        # Optional: forward to Anakatech shared notification center when enabled
+        try:
+            from authora.integration.notifications import forward_to_shared_center, should_forward_to_shared_center
+            if should_forward_to_shared_center():
+                await forward_to_shared_center(user_id, notification_type, title, body)
+        except Exception:
+            pass  # Integration is optional; do not fail reminder delivery
         return results

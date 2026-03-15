@@ -1,16 +1,17 @@
-# AUTHORA Caddy reverse proxy - copy to Caddyfile and edit domains
-# Replace example.com with your domain
+# AUTHORA Caddy Reverse Proxy - Example
+# Copy to Caddyfile and replace domains/email.
+# Or run: ./scripts/generate-caddyfile.sh (uses DOMAIN_API, DOMAIN_WEB, ACME_EMAIL from .env)
 
 {
-    email admin@example.com
+    email admin@yourdomain.com
 }
 
-api.example.com {
+api.yourdomain.com {
     reverse_proxy api:8000
     encode gzip
 }
 
-app.example.com {
+app.yourdomain.com {
     reverse_proxy web:3000
     encode gzip
 }
