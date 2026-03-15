@@ -23,7 +23,7 @@ export function FirstUseBanner() {
       <div className="flex-1 min-w-0">
         <h3 className="font-medium text-foreground">Welcome to your writing space</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your guided journey from idea to finished book. Take a quick tour or browse the help center when you need it.
+          Your guided journey from idea to finished book. Take a quick tour or browse help whenever you need it.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
@@ -34,7 +34,7 @@ export function FirstUseBanner() {
             }}
           >
             <Play className="h-3.5 w-3.5 mr-1.5" />
-            Quick tour
+            Take the tour
           </Button>
           <Button
             size="sm"

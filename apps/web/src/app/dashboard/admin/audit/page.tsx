@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 
 export default function AdminAuditPage() {
+  const [userFilter, setUserFilter] = useState('');
+  const [resourceFilter, setResourceFilter] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
   const [data, setData] = useState<{
     logs: Array<{
       id: string;
@@ -18,8 +23,18 @@ export default function AdminAuditPage() {
   } | null>(null);
 
   useEffect(() => {
-    api<typeof data>('/api/v1/admin/audit-logs').then(setData).catch(() => setData(null));
-  }, []);
+    const params = new URLSearchParams();
+    if (userFilter.trim()) params.set('user_id', userFilter.trim());
+    if (resourceFilter.trim()) params.set('resource', resourceFilter.trim());
+    if (actionFilter.trim()) params.set('action', actionFilter.trim());
+    api<typeof data>(`/api/v1/admin/audit-logs?${params}`).then(setData).catch(() => setData(null));
+  }, [userFilter, resourceFilter, actionFilter]);
+
+  const clearFilters = () => {
+    setUserFilter('');
+    setResourceFilter('');
+    setActionFilter('');
+  };
 
   return (
     <div className="space-y-6">
@@ -29,7 +44,30 @@ export default function AdminAuditPage() {
       </div>
 
       <Card variant="soft">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              placeholder="User ID"
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              className="max-w-[200px]"
+            />
+            <Input
+              placeholder="Resource"
+              value={resourceFilter}
+              onChange={(e) => setResourceFilter(e.target.value)}
+              className="max-w-[140px]"
+            />
+            <Input
+              placeholder="Action"
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+              className="max-w-[140px]"
+            />
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              Clear
+            </Button>
+          </div>
           {data?.logs?.length ? (
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">

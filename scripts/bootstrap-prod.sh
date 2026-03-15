@@ -35,13 +35,16 @@ set +a
 # Create directories
 mkdir -p backups storage caddy/data caddy/config
 
-# Create Caddyfile from template if missing
+# Create Caddyfile from .env (DOMAIN_API, DOMAIN_WEB, ACME_EMAIL) if missing
 if [ ! -f caddy/Caddyfile ]; then
-  if [ -f caddy/Caddyfile.example ]; then
+  if [ -f scripts/generate-caddyfile.sh ]; then
+    ./scripts/generate-caddyfile.sh
+    echo "Created caddy/Caddyfile from .env. Set DOMAIN_API, DOMAIN_WEB, ACME_EMAIL."
+  elif [ -f caddy/Caddyfile.example ]; then
     cp caddy/Caddyfile.example caddy/Caddyfile
     echo "Created caddy/Caddyfile from example. Edit with your domains before deploy."
   else
-    echo "ERROR: caddy/Caddyfile required. Create from caddy/Caddyfile.example"
+    echo "ERROR: caddy/Caddyfile required. Run ./scripts/generate-caddyfile.sh or create from caddy/Caddyfile.example"
     exit 1
   fi
 fi

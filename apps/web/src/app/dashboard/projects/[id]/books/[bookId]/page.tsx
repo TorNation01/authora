@@ -9,14 +9,17 @@ import { EditorToolbar } from '@/components/studio/EditorToolbar';
 import { FinishModeSidebar } from '@/components/studio/FinishModeSidebar';
 import { FinishModePanel, type FinishModeStats } from '@/components/studio/FinishModePanel';
 import { FinishModeSettingsDialog } from '@/components/studio/FinishModeSettingsDialog';
+import { FinishModeCompletionCeremony } from '@/components/studio/FinishModeCompletionCeremony';
 import { RecoveryBanner } from '@/components/studio/RecoveryBanner';
 import { AIWritingPanel } from '@/components/studio/AIWritingPanel';
 import { NotesPanel } from '@/components/studio/NotesPanel';
 import { ReferencePanel } from '@/components/studio/ReferencePanel';
 import { FindReplaceDialog } from '@/components/studio/FindReplaceDialog';
 import { VersionHistoryDialog } from '@/components/studio/VersionHistoryDialog';
+import { RecoveryCenterDialog } from '@/components/studio/RecoveryCenterDialog';
 import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
-import { api, apiStream } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { api, apiStream, ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAutosave } from '@/hooks/useAutosave';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
@@ -62,6 +65,7 @@ export default function BookStudioPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showRecoveryCenter, setShowRecoveryCenter] = useState(false);
   const [showQuickInsert, setShowQuickInsert] = useState(false);
   const [versions, setVersions] = useState<Version[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
@@ -126,8 +130,16 @@ export default function BookStudioPage() {
   }>({
     onSave: saveChapter,
     delayMs: 2000,
-    onError: () => toast({ title: 'Failed to save', variant: 'destructive' }),
-    maxRetries: 3,
+    onError: (err) => {
+      const isConflict = err instanceof ApiError && err.status === 409;
+      toast({
+        title: isConflict
+          ? 'Save conflict—someone else may have edited. Try restoring from version history.'
+          : "Couldn't save—check your connection and try again",
+        variant: 'destructive',
+      });
+    },
+    maxRetries: 5,
     draftKey: activeChapter?.id,
     getDraftPayload: (d) => ({ content: d.content, wordCount: d.wordCount }),
   });
@@ -222,18 +234,21 @@ export default function BookStudioPage() {
         URL.revokeObjectURL(url);
         toast({ title: backupFilename ? 'Backup downloaded' : 'Export started' });
       } catch {
-        toast({ title: 'Export failed', variant: 'destructive' });
+        toast({ title: "Export didn't complete—please try again", variant: 'destructive' });
       }
     },
     [bookId, book?.title, toast]
   );
 
   const handleSelectChapter = useCallback(
-    async (ch: Chapter) => {
-      await flushPending();
-      setActiveChapter(ch);
+    (ch: { id: string }) => {
+      void (async () => {
+        await flushPending();
+        const full = book?.chapters.find((c) => c.id === ch.id);
+        if (full) setActiveChapter(full);
+      })();
     },
-    [flushPending]
+    [flushPending, book?.chapters]
   );
 
   const handleReorder = useCallback(
@@ -304,11 +319,15 @@ export default function BookStudioPage() {
         { method: 'PATCH', body: JSON.stringify({ enabled: true }) }
       );
       setFinishModeStats(updated);
+      if (updated.next_chapter_id) {
+        const ch = book?.chapters.find((c) => c.id === updated.next_chapter_id);
+        if (ch) setActiveChapter(ch);
+      }
       toast({ title: 'Finish Mode on', description: 'Focus on crossing the finish line.' });
     } catch {
       toast({ title: 'Failed to enable', variant: 'destructive' });
     }
-  }, [projectId, bookId, toast]);
+  }, [projectId, bookId, book?.chapters, toast]);
 
   const handleExitFinishMode = useCallback(async () => {
     try {
@@ -344,10 +363,28 @@ export default function BookStudioPage() {
 
   const handleJumpToNextChapter = useCallback(
     (chapterId: string) => {
-      const ch = sortedChapters.find((c) => c.id === chapterId);
+      const chapters = [...(book?.chapters ?? [])].sort((a, b) => a.sort_order - b.sort_order);
+      const ch = chapters.find((c) => c.id === chapterId);
       if (ch) setActiveChapter(ch);
     },
-    [sortedChapters]
+    [book?.chapters]
+  );
+
+  const handleRecoveryCenterRestore = useCallback(
+    (chapterId: string, content: Record<string, unknown>, wordCount: number) => {
+      const ch = book?.chapters.find((c) => c.id === chapterId);
+      if (!ch || !book) return;
+      const updated = { ...ch, content, word_count: wordCount };
+      setActiveChapter(updated);
+      setBook({
+        ...book,
+        chapters: book.chapters.map((c) => (c.id === chapterId ? updated : c)),
+      });
+      saveNow({ content, wordCount });
+      setRecoveryDraft(null);
+      toast({ title: 'Draft restored' });
+    },
+    [book, saveNow, toast]
   );
 
   const handleRestoreVersion = useCallback(
@@ -451,6 +488,7 @@ export default function BookStudioPage() {
           onReorder={handleReorder}
           onAddChapter={handleAddChapter}
           canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
+          suggestFinishMode={finishModeStats?.suggest_finish_mode}
           onEnterFinishMode={handleEnterFinishMode}
         />
       )}
@@ -512,6 +550,7 @@ export default function BookStudioPage() {
             onTogglePanel={setPanelMode}
             onExport={handleExport}
             onHistory={() => setShowHistory(true)}
+            onRecoveryCenter={() => setShowRecoveryCenter(true)}
             onFindReplace={() => setShowFindReplace(true)}
             onQuickInsert={() => setShowQuickInsert(true)}
             onStatusChange={handleStatusChange}
@@ -523,13 +562,27 @@ export default function BookStudioPage() {
         {distractionFree && (
           <div className="flex items-center justify-between border-b px-4 py-2">
             <span className="text-sm text-muted-foreground">Focus mode — just you and the page</span>
-            <button
-              type="button"
-              className="text-sm text-primary hover:underline"
-              onClick={() => setDistractionFree(false)}
-            >
-              Exit
-            </button>
+            <div className="flex items-center gap-3">
+              {status === 'saving' && <span className="text-xs text-muted-foreground">Saving…</span>}
+              {status === 'saved' && lastSaved && (
+                <span className="text-xs text-green-600 dark:text-green-500">
+                  Saved {Date.now() - lastSaved.getTime() < 60_000 ? 'just now' : `${Math.floor((Date.now() - lastSaved.getTime()) / 60_000)}m ago`}
+                </span>
+              )}
+              {status === 'error' && (
+                <span className="text-xs text-destructive">Save failed</span>
+              )}
+              {status === 'idle' && hasPending && (
+                <span className="text-xs text-muted-foreground">Unsaved</span>
+              )}
+              <button
+                type="button"
+                className="text-sm text-primary hover:underline"
+                onClick={() => setDistractionFree(false)}
+              >
+                Exit
+              </button>
+            </div>
           </div>
         )}
 
@@ -561,13 +614,24 @@ export default function BookStudioPage() {
         )}
 
         <div className="flex flex-1 min-h-0">
+          {finishModeActive && finishModeStats?.is_complete ? (
+            <div className="flex-1 overflow-auto flex items-center justify-center">
+              <FinishModeCompletionCeremony
+                bookTitle={book?.title ?? 'Your book'}
+                totalWords={totalWords}
+                chaptersTotal={finishModeStats.chapters_total}
+                onExport={(format) => handleExport(format === 'backup' ? 'backup' : 'docx', format === 'backup')}
+                onExit={handleExitFinishMode}
+              />
+            </div>
+          ) : (
           <div className={cn('flex-1 overflow-auto', distractionFree ? 'p-8 max-w-3xl mx-auto' : 'p-6')}>
             {activeChapter ? (
               <EditorReferenceContextMenu selection={editorSelection} onLookup={handleLookup}>
                 <WritingStudioEditor
                 content={activeChapter.content}
                 onChange={handleChapterChange}
-                placeholder="Start writing here..."
+                placeholder="Start writing—your words, your pace."
                 distractionFree={distractionFree}
                 editorRef={editorRef}
                 onSelectionChange={setEditorSelection}
@@ -576,12 +640,13 @@ export default function BookStudioPage() {
               </EditorReferenceContextMenu>
             ) : (
               <div className="flex h-64 items-center justify-center text-muted-foreground">
-                Select a chapter or add one to start writing
+                Pick a chapter from the sidebar, or add one to begin
               </div>
             )}
           </div>
+          )}
 
-          {panelMode === 'ai' && book && (
+          {panelMode === 'ai' && book && !finishModeStats?.is_complete && (
             <AIWritingPanel
               projectId={projectId}
               bookId={bookId}
@@ -724,6 +789,12 @@ export default function BookStudioPage() {
         versions={versions}
         loading={versionsLoading}
         onRestore={handleRestoreVersion}
+      />
+      <RecoveryCenterDialog
+        open={showRecoveryCenter}
+        onOpenChange={setShowRecoveryCenter}
+        chapters={book?.chapters ?? []}
+        onRestore={handleRecoveryCenterRestore}
       />
       <QuickInsertDialog
         open={showQuickInsert}

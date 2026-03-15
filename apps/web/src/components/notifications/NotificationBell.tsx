@@ -85,13 +85,22 @@ export function NotificationBell() {
             <div className="border-b px-4 py-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Notifications</h3>
-                <Link
-                  href="/dashboard/accountability"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => setOpen(false)}
-                >
-                  Settings
-                </Link>
+                <div className="flex gap-2">
+                  <Link
+                    href="/dashboard/notifications"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
+                    View all
+                  </Link>
+                  <Link
+                    href="/dashboard/accountability"
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setOpen(false)}
+                  >
+                    Settings
+                  </Link>
+                </div>
               </div>
             </div>
             <div className="max-h-64 overflow-auto">

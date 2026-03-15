@@ -42,7 +42,9 @@ export function ReferenceBubbleMenu({ editor, onLookup }: ReferenceBubbleMenuPro
     };
     editor.on('selectionUpdate', handler);
     handler();
-    return () => editor.off('selectionUpdate', handler);
+    return () => {
+      editor.off('selectionUpdate', handler);
+    };
   }, [editor, getSynonyms]);
 
   if (!editor || !selectedWord) return null;

@@ -90,7 +90,9 @@ export function WritingStudioEditor({
     };
     editor.on('selectionUpdate', handler);
     handler();
-    return () => editor.off('selectionUpdate', handler);
+    return () => {
+      editor.off('selectionUpdate', handler);
+    };
   }, [editor, onSelectionChange]);
 
   return (

@@ -15,22 +15,31 @@ import {
   HardDrive,
   ScrollText,
   ChevronRight,
+  AlertTriangle,
+  MessageSquare,
+  Target,
+  LifeBuoy,
 } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<{
     users?: number;
     health?: { status: string; checks: Record<string, boolean> };
+    alerts?: { failed_export_jobs: number; failed_notification_deliveries: number; has_alerts: boolean };
   } | null>(null);
 
   useEffect(() => {
     Promise.all([
       api<{ total: number }>('/api/v1/admin/users?limit=1').catch(() => ({ total: 0 })),
       api<{ status: string; checks: Record<string, boolean> }>('/api/v1/admin/health/detailed').catch(() => null),
-    ]).then(([usersRes, healthRes]) => {
+      api<{ failed_export_jobs: number; failed_notification_deliveries: number; has_alerts: boolean }>(
+        '/api/v1/admin/alerts'
+      ).catch(() => ({ failed_export_jobs: 0, failed_notification_deliveries: 0, has_alerts: false })),
+    ]).then(([usersRes, healthRes, alertsRes]) => {
       setStats({
         users: usersRes?.total ?? 0,
         health: healthRes ?? undefined,
+        alerts: alertsRes,
       });
     });
   }, []);
@@ -40,11 +49,14 @@ export default function AdminOverviewPage() {
     { href: '/dashboard/admin/feature-flags', label: 'Feature flags', icon: Flag },
     { href: '/dashboard/admin/ai-usage', label: 'AI usage', icon: Zap },
     { href: '/dashboard/admin/export-jobs', label: 'Export jobs', icon: FileDown },
+    { href: '/dashboard/admin/notification-logs', label: 'Notification logs', icon: MessageSquare },
     { href: '/dashboard/admin/reminders', label: 'Reminders', icon: Bell },
     { href: '/dashboard/admin/health', label: 'System health', icon: Activity },
     { href: '/dashboard/admin/setup', label: 'Setup state', icon: Database },
     { href: '/dashboard/admin/storage', label: 'Storage', icon: HardDrive },
     { href: '/dashboard/admin/audit', label: 'Audit logs', icon: ScrollText },
+    { href: '/dashboard/admin/support', label: 'Support tools', icon: LifeBuoy },
+    { href: '/dashboard/admin/accountability-rules', label: 'Accountability rules', icon: Target },
   ];
 
   return (
@@ -55,6 +67,31 @@ export default function AdminOverviewPage() {
           User management, feature flags, monitoring, and system controls.
         </p>
       </div>
+
+      {stats?.alerts?.has_alerts && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 flex items-center gap-4">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium">Operational alerts</p>
+            <p className="text-sm text-muted-foreground">
+              {stats.alerts.failed_export_jobs} failed export jobs · {stats.alerts.failed_notification_deliveries}{' '}
+              failed notification deliveries
+            </p>
+          </div>
+          <Link
+            href="/dashboard/admin/export-jobs?status=failed"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            View failed jobs
+          </Link>
+          <Link
+            href="/dashboard/admin/notification-logs?status=failed"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            View failed notifications
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card variant="soft">

@@ -29,9 +29,9 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-  { href: '/dashboard/notes', label: 'Notes', icon: StickyNote },
+  { href: '/dashboard/notes', label: 'Ideas & notes', icon: StickyNote },
   { href: '/dashboard/journey', label: 'Your journey', icon: Map },
-  { href: '/dashboard/accountability', label: 'My progress', icon: Target },
+  { href: '/dashboard/accountability', label: 'Progress', icon: Target },
   { href: '/dashboard/gamification', label: 'Celebrations', icon: Trophy },
   { href: '/dashboard/export', label: 'Export', icon: FileText },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

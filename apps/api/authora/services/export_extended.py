@@ -9,6 +9,40 @@ from authora.services.export import tiptap_to_plain_text
 from authora.services.export_templates import get_template
 
 
+def validate_export_content(
+    chapters: list[dict],
+    *,
+    book_title: str | None = None,
+) -> dict[str, Any]:
+    """Validate content before export. Returns {valid, warnings, errors}."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not book_title or not str(book_title).strip():
+        warnings.append("Book title is empty; export will use 'manuscript'.")
+
+    if not chapters:
+        errors.append("No chapters to export.")
+        return {"valid": False, "warnings": warnings, "errors": errors}
+
+    empty_chapters: list[str] = []
+    for i, ch in enumerate(chapters):
+        title = ch.get("title") or f"Chapter {i + 1}"
+        content = ch.get("content")
+        text = tiptap_to_plain_text(content) if content else ""
+        if not text or not text.strip():
+            empty_chapters.append(str(title))
+
+    if empty_chapters:
+        warnings.append(f"Empty or placeholder chapters: {', '.join(empty_chapters[:5])}{'...' if len(empty_chapters) > 5 else ''}")
+
+    return {
+        "valid": len(errors) == 0,
+        "warnings": warnings,
+        "errors": errors,
+    }
+
+
 @dataclass
 class ExportParams:
     """Parameters for export."""
@@ -28,20 +62,28 @@ class ExportParams:
     format_style: str = "manuscript"  # manuscript | print | ebook
 
 
+SCENE_BREAK_MARKERS = frozenset({"***", "* * *", "###", "---", "— — —", "* * * *"})
+
+def _is_scene_break(block: str, template_marker: str) -> bool:
+    """Return True if block is a scene break (centered separator)."""
+    s = block.strip()
+    return s == template_marker or s in SCENE_BREAK_MARKERS
+
+
 def _get_node_text(n: dict) -> str:
     """Extract text from a TipTap node."""
     parts = []
     for c in n.get("content", []):
         if isinstance(c, dict):
             if "text" in c:
-                parts.append(c["text"])
+                parts.append(str(c["text"]) if c["text"] is not None else "")
             elif "content" in c:
                 parts.append(_get_node_text(c))
     return "".join(parts)
 
 
-def _extract_blocks(content: dict[str, Any]) -> list[dict[str, Any]]:
-    """Extract structured blocks from TipTap (headings, paragraphs, lists)."""
+def _extract_blocks(content: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Extract structured blocks from TipTap (headings, paragraphs, lists, scene breaks)."""
     blocks = []
 
     def walk(node: Any) -> None:
@@ -56,6 +98,8 @@ def _extract_blocks(content: dict[str, Any]) -> list[dict[str, Any]]:
                 text = _get_node_text(node)
                 if text or not blocks:
                     blocks.append({"type": "paragraph", "text": text})
+            elif t == "horizontalRule":
+                blocks.append({"type": "scene_break", "text": "***"})
             elif t == "blockquote":
                 text = _get_node_text(node)
                 if text:
@@ -79,18 +123,22 @@ def _extract_blocks(content: dict[str, Any]) -> list[dict[str, Any]]:
             for n in node:
                 walk(n)
 
-    if isinstance(content, dict) and "content" in content:
+    if content and isinstance(content, dict) and "content" in content and isinstance(content["content"], list):
         for node in content["content"]:
             walk(node)
     return blocks
 
 
-def _blocks_to_plain_text(blocks: list[dict]) -> str:
+def _blocks_to_plain_text(blocks: list[dict], scene_break_marker: str = "***") -> str:
     """Convert structured blocks to plain text with heading markers."""
     lines = []
     for b in blocks:
         t = b.get("type", "")
-        text = b.get("text", "").strip()
+        text = (b.get("text") or "").strip()
+        if t == "scene_break":
+            lines.append(scene_break_marker)
+            lines.append("")
+            continue
         if not text and t != "paragraph":
             continue
         if t == "heading":
@@ -248,7 +296,7 @@ def export_full_docx(
             block = block.strip()
             if not block:
                 continue
-            if block.strip() == tpl.scene_break or block.strip() == "***" or block.strip() == "* * *":
+            if _is_scene_break(block, tpl.scene_break):
                 p = doc.add_paragraph()
                 p.paragraph_format.space_before = Pt(24)
                 p.paragraph_format.space_after = Pt(24)
@@ -406,13 +454,28 @@ def export_full_pdf(chapters: list[dict], params: ExportParams) -> bytes:
             story.append(Paragraph(f"{i}. {safe(ch.get('title', 'Untitled'))}", styles["Normal"]))
         story.append(PageBreak())
 
-    chapters_data = _build_chapters_data(chapters, use_structured=False)
+    chapters_data = _build_chapters_data(chapters, use_structured=True)
     for ch in chapters_data:
         story.append(Paragraph(safe(ch["title"]), styles["Heading1"]))
         story.append(Spacer(1, 12))
         for para in ch["text"].split("\n\n"):
-            if para.strip():
-                story.append(Paragraph(safe(para.strip()), custom))
+            para = para.strip()
+            if not para:
+                continue
+            if _is_scene_break(para, tpl.scene_break):
+                story.append(Paragraph(f'<para align="center">{tpl.scene_break}</para>', styles["Normal"]))
+                story.append(Spacer(1, 18))
+            elif para.startswith("#"):
+                level = min(len(para) - len(para.lstrip("#")), 3)
+                text = para.lstrip("#").strip()
+                style_name = ["Heading1", "Heading2", "Heading3"][level - 1]
+                story.append(Paragraph(safe(text), styles[style_name]))
+                story.append(Spacer(1, 6))
+            elif para.startswith(">"):
+                story.append(Paragraph(f'<para leftIndent="36">{safe(para[1:].strip())}</para>', styles["Normal"]))
+                story.append(Spacer(1, 6))
+            else:
+                story.append(Paragraph(safe(para), custom))
                 story.append(Spacer(1, 6))
         story.append(Spacer(1, 24))
 
@@ -441,12 +504,134 @@ def export_full_pdf(chapters: list[dict], params: ExportParams) -> bytes:
     return buffer.getvalue()
 
 
-def export_full_epub(chapters: list[dict], params: ExportParams) -> bytes:
-    """Export to EPUB with metadata."""
-    from authora.services.export import export_epub
+def _html_escape(s: str) -> str:
+    """Escape HTML entities."""
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
 
-    chapters_data = [{"title": ch.get("title", ""), "content": ch.get("content", {})} for ch in chapters]
-    return export_epub(chapters_data, params.book_title, params.author_name)
+
+def _text_to_epub_html(text: str) -> str:
+    """Convert plain text to EPUB HTML paragraphs. Preserves scene breaks."""
+    import html
+
+    blocks = []
+    for block in text.split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        if block in SCENE_BREAK_MARKERS or block == "* * *":
+            blocks.append('<p class="scene-break">* * *</p>')
+        elif block.startswith("#"):
+            level = min(len(block) - len(block.lstrip("#")), 3)
+            htext = html.escape(block.lstrip("#").strip())
+            blocks.append(f"<h{level}>{htext}</h{level}>")
+        elif block.startswith(">"):
+            bq = html.escape(block[1:].strip())
+            blocks.append(f'<blockquote><p>{bq}</p></blockquote>')
+        else:
+            safe = html.escape(block).replace("\n", "<br/>")
+            blocks.append(f"<p>{safe}</p>")
+    return "\n".join(blocks)
+
+
+def export_full_epub(chapters: list[dict], params: ExportParams) -> bytes:
+    """Export to EPUB with front/back matter, TOC, and metadata."""
+    from ebooklib import epub
+
+    chapters_data = _build_chapters_data(chapters, use_structured=True)
+
+    book = epub.EpubBook()
+    book.set_identifier(f"authora-{params.book_title[:30].replace(' ', '-')}")
+    book.set_title(params.book_title)
+    book.set_language("en")
+    book.add_author(params.author_name)
+
+    spine_items: list = ["nav"]
+    toc_entries: list = []
+
+    def add_html_chapter(title: str, html_body: str, file_name: str) -> epub.EpubHtml:
+        body = html_body.strip() or "<p> </p>"
+        ch = epub.EpubHtml(title=title, file_name=file_name, lang="en")
+        ch.content = body
+        book.add_item(ch)
+        return ch
+
+    idx = 0
+    if params.include_title_page or params.copyright_notice or params.dedication or params.epigraph or params.front_matter:
+        fm_parts = []
+        if params.include_title_page:
+            fm_parts.append(f"<h1>{_html_escape(params.book_title)}</h1>")
+            fm_parts.append(f"<p class='author'>{_html_escape(params.author_name)}</p>")
+        if params.copyright_notice:
+            fm_parts.append(f"<p class='copyright'>{_html_escape(params.copyright_notice)}</p>")
+        if params.dedication:
+            fm_parts.append(f"<p class='dedication'>{_html_escape(params.dedication)}</p>")
+        if params.epigraph:
+            fm_parts.append(f"<blockquote class='epigraph'><p>{_html_escape(params.epigraph)}</p></blockquote>")
+        if params.front_matter:
+            for p in params.front_matter.split("\n\n"):
+                if p.strip():
+                    fm_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+        if fm_parts:
+            fm = add_html_chapter("Front Matter", "\n".join(fm_parts), f"front_matter_{idx}.xhtml")
+            spine_items.append(fm)
+            toc_entries.append(fm)
+            idx += 1
+
+    if params.include_toc and chapters_data:
+        toc_parts = ["<h2>Table of Contents</h2><ol>"]
+        for i, ch in enumerate(chapters_data, 1):
+            toc_parts.append(f"<li><a href='chap_{i}.xhtml'>{_html_escape(ch['title'])}</a></li>")
+        toc_parts.append("</ol>")
+        toc_ch = add_html_chapter("Table of Contents", "\n".join(toc_parts), f"toc_{idx}.xhtml")
+        spine_items.append(toc_ch)
+        toc_entries.append(toc_ch)
+        idx += 1
+
+    for i, ch in enumerate(chapters_data, 1):
+        html_body = _text_to_epub_html(ch["text"])
+        epub_ch = add_html_chapter(ch["title"], html_body, f"chap_{i}.xhtml")
+        spine_items.append(epub_ch)
+        toc_entries.append(epub_ch)
+
+    has_back = bool(
+        (params.include_acknowledgements and params.acknowledgements) or params.author_bio or params.back_matter
+    )
+    if has_back:
+        back_parts = []
+        if params.include_acknowledgements and params.acknowledgements:
+            back_parts.append("<h2>Acknowledgements</h2>")
+            for p in params.acknowledgements.split("\n\n"):
+                if p.strip():
+                    back_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+        if params.author_bio:
+            back_parts.append("<h2>About the Author</h2>")
+            for p in params.author_bio.split("\n\n"):
+                if p.strip():
+                    back_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+        if params.back_matter:
+            for p in params.back_matter.split("\n\n"):
+                if p.strip():
+                    back_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+        if back_parts:
+            back_ch = add_html_chapter("Back Matter", "\n".join(back_parts), f"back_matter_{idx}.xhtml")
+            spine_items.append(back_ch)
+            toc_entries.append(back_ch)
+
+    book.toc = toc_entries
+    book.spine = spine_items
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    buffer = io.BytesIO()
+    epub.write_epub(buffer, book, {})
+    buffer.seek(0)
+    return buffer.getvalue()
 
 
 def export_chapter_single(chapter: dict, format: str, book_title: str) -> bytes:
@@ -544,7 +729,7 @@ def export_ghostwriter_handoff(
     params: ExportParams,
     has_ghostwriter_content: bool = False,
 ) -> bytes:
-    """Export ghostwritten delivery handoff: manuscript + briefs + handoff notes."""
+    """Export ghostwritten delivery handoff: manuscript + briefs + blurb + handoff notes."""
     chapters_data = _build_chapters_data(chapters, use_structured=True)
     manuscript = export_full_docx(chapters_data, params)
     handoff_lines = [
@@ -556,6 +741,7 @@ def export_ghostwriter_handoff(
         "This package contains:",
         "- Full manuscript (DOCX)",
         "- Synopsis",
+        "- Back cover blurb",
         "- Chapter summaries",
         "- Author bio draft",
         "- Handoff notes for your editor",
@@ -570,6 +756,9 @@ def export_ghostwriter_handoff(
         params.book_title,
         params.author_name,
     )
+    blurb = pack.get("blurb", "")
+    blurb_lines = ["BACK COVER BLURB", "", blurb] if blurb else []
+    blurb_txt = "\n".join(blurb_lines).encode("utf-8")
     summary_doc = export_chapter_summary_sheet(
         pack.get("chapter_summaries", []),
         params.book_title,
@@ -583,6 +772,8 @@ def export_ghostwriter_handoff(
         safe_title = "".join(c if c.isalnum() or c in " -_" else "_" for c in params.book_title)[:40]
         zf.writestr(f"{safe_title}_manuscript.docx", manuscript)
         zf.writestr(f"{safe_title}_synopsis.docx", synopsis_doc)
+        if blurb:
+            zf.writestr(f"{safe_title}_back_cover_blurb.txt", blurb_txt)
         zf.writestr(f"{safe_title}_chapter_summaries.docx", summary_doc)
         zf.writestr(f"{safe_title}_author_bio.txt", bio_txt)
         zf.writestr(f"{safe_title}_handoff_notes.txt", handoff_txt)

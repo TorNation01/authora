@@ -89,7 +89,7 @@ export function ReferencePanel({
                   <div>
                     <h5 className="text-xs font-medium text-muted-foreground uppercase mb-2">Definitions</h5>
                     <ul className="space-y-2 text-sm">
-                      {lookupResult.definition.meanings.slice(0, 3).map((m, i) => (
+                      {(lookupResult.definition.meanings as { partOfSpeech?: string; definitions?: { definition: string }[] }[]).slice(0, 3).map((m, i) => (
                         <li key={i}>
                           <span className="text-muted-foreground">{m.partOfSpeech}</span>
                           {m.definitions?.slice(0, 2).map((d, j) => (

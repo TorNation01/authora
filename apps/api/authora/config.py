@@ -1,9 +1,10 @@
 """Application configuration."""
 
+import os
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -74,7 +75,13 @@ class Settings(BaseSettings):
     smtp_user: Optional[str] = None
     smtp_password: Optional[str] = None
     smtp_from_email: Optional[str] = None
+    from_email: Optional[str] = None  # Alias used by setup wizard; fallback for smtp_from_email
     sendgrid_api_key: Optional[str] = None
+
+    @property
+    def email_from(self) -> str:
+        """From address for emails; setup wizard may set FROM_EMAIL."""
+        return self.smtp_from_email or self.from_email or self.smtp_user or "noreply@authora.app"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
@@ -90,6 +97,9 @@ class Settings(BaseSettings):
     # API gateway (for Anakatech: upstream gateway URL)
     api_gateway_url: Optional[str] = None
 
+    # Cron / internal jobs (secret header for /accountability/cron/reminders)
+    cron_secret: Optional[str] = None
+
     @field_validator("deployment_mode", mode="before")
     @classmethod
     def validate_deployment_mode(cls, v: str) -> str:
@@ -97,6 +107,21 @@ class Settings(BaseSettings):
         if v and v.lower() in allowed:
             return v.lower()
         return "standalone"
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        """Warn or fail on insecure config in production."""
+        if os.getenv("AUTHORA_SKIP_SECRET_VALIDATION") == "1":
+            return self
+        default_secret = "change-me-in-production-use-openssl-rand-hex-32"
+        if self.secret_key == default_secret and not self.debug:
+            import warnings
+            warnings.warn(
+                "SECRET_KEY is default. Set a strong secret in production: openssl rand -hex 32",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
 
     def is_standalone(self) -> bool:
         return self.deployment_mode == "standalone"

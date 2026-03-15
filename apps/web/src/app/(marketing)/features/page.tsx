@@ -74,10 +74,9 @@ export default function FeaturesPage() {
           </div>
         ))}
       </div>
-      {/* Screenshot placeholder */}
       <div className="mt-20 flex justify-center">
         <div className="w-full max-w-4xl rounded-xl border border-border/60 bg-muted/30 aspect-video flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Product screenshot placeholder</p>
+          <p className="text-sm text-muted-foreground">Product preview</p>
         </div>
       </div>
       <div className="mt-12 text-center">

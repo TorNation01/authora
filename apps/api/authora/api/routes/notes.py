@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
+from authora.api.resolvers import get_book_or_404, get_project_or_404
 from authora.database import get_db
 from authora.infrastructure.storage.factory import get_storage_provider
 from authora.models import Book, Chapter, Note, NoteAttachment, Project
@@ -21,28 +22,6 @@ router = APIRouter(tags=["notes"])
 
 # Project-level notes
 project_router = APIRouter(prefix="/projects/{project_id}/notes", tags=["notes"])
-
-
-async def get_project_or_404(db: AsyncSession, project_id: uuid.UUID, user_id: uuid.UUID) -> Project:
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return project
-
-
-async def get_book_or_404(db: AsyncSession, book_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID) -> Book:
-    result = await db.execute(
-        select(Book).join(Project).where(
-            Book.id == book_id,
-            Book.project_id == project_id,
-            Project.user_id == user_id,
-        )
-    )
-    book = result.scalar_one_or_none()
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-    return book
 
 
 async def get_note_or_404(
@@ -388,7 +367,7 @@ async def list_book_notes(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List notes for book."""
-    await get_book_or_404(db, book_id, project_id, current_user.id)
+    await get_book_or_404(db, book_id, current_user.id, project_id)
     notes = await search_notes(db, project_id, book_id=book_id)
     return [_note_to_response(n) for n in notes]
 
@@ -402,7 +381,7 @@ async def create_book_note(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create note for book."""
-    await get_book_or_404(db, book_id, project_id, current_user.id)
+    await get_book_or_404(db, book_id, current_user.id, project_id)
     create_data = NoteCreate(
         **data.model_dump(),
         book_id=book_id,

@@ -1,10 +1,13 @@
 """Auth API routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.config import get_settings
+from authora.models import UserPreference
 from authora.database import get_db
 from authora.schemas.auth import (
     LogoutRequest,
@@ -197,3 +200,42 @@ async def change_my_password(
         )
     await db.commit()
     return {"message": "Password updated"}
+
+
+class PreferencesResponse(BaseModel):
+    preferences: dict
+
+
+class PreferencesUpdate(BaseModel):
+    preferences: dict
+
+
+@router.get("/me/preferences", response_model=PreferencesResponse)
+async def get_my_preferences(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current user preferences (JSONB key-value)."""
+    result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    pref = result.scalar_one_or_none()
+    return PreferencesResponse(preferences=pref.preferences if pref else {})
+
+
+@router.patch("/me/preferences", response_model=PreferencesResponse)
+async def update_my_preferences(
+    data: PreferencesUpdate,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update current user preferences. Merges with existing."""
+    result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    pref = result.scalar_one_or_none()
+    if not pref:
+        pref = UserPreference(user_id=current_user.id, preferences=data.preferences)
+        db.add(pref)
+    else:
+        merged = {**(pref.preferences or {}), **data.preferences}
+        pref.preferences = merged
+    await db.commit()
+    await db.refresh(pref)
+    return PreferencesResponse(preferences=pref.preferences or {})

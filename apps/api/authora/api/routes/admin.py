@@ -16,6 +16,9 @@ from authora.models import (
     Book,
     Chapter,
     ExportJob,
+    FeatureFlag,
+    NotificationDeliveryLog,
+    Plan,
     Project,
     Reminder,
     Setting,
@@ -58,6 +61,13 @@ async def admin_list_users(
         count_q = count_q.where(or_(User.email.ilike(pattern), func.coalesce(User.display_name, "").ilike(pattern)))
     count_result = await db.execute(count_q)
     total = count_result.scalar() or 0
+    plan_ids = [u.plan_override_id for u in users if u.plan_override_id]
+    plan_map = {}
+    if plan_ids:
+        plans_result = await db.execute(select(Plan).where(Plan.id.in_(plan_ids)))
+        plan_map = {p.id: p.slug for p in plans_result.scalars().all()}
+    user_plan_slugs = {str(u.id): plan_map.get(u.plan_override_id) if u.plan_override_id else None for u in users}
+
     return {
         "users": [
             {
@@ -67,6 +77,7 @@ async def admin_list_users(
                 "is_active": u.is_active,
                 "is_admin": u.is_admin,
                 "billing_exempt": u.billing_exempt,
+                "plan_override_slug": user_plan_slugs.get(str(u.id)),
                 "created_at": u.created_at.isoformat() if u.created_at else None,
             }
             for u in users
@@ -79,6 +90,7 @@ class UserUpdateAdmin(BaseModel):
     is_active: bool | None = None
     is_admin: bool | None = None
     billing_exempt: bool | None = None
+    plan_override_slug: str | None = None
 
 
 @router.patch("/users/{user_id}")
@@ -99,9 +111,28 @@ async def admin_update_user(
         user.is_admin = data.is_admin
     if data.billing_exempt is not None:
         user.billing_exempt = data.billing_exempt
+    if data.plan_override_slug is not None:
+        if data.plan_override_slug == "":
+            user.plan_override_id = None
+        else:
+            r2 = await db.execute(select(Plan).where(Plan.slug == data.plan_override_slug))
+            plan = r2.scalar_one_or_none()
+            if not plan:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+            user.plan_override_id = plan.id
     await db.flush()
     await db.refresh(user)
-    return {"id": str(user.id), "is_active": user.is_active, "is_admin": user.is_admin, "billing_exempt": user.billing_exempt}
+    plan_slug = None
+    if user.plan_override_id:
+        p = await db.get(Plan, user.plan_override_id)
+        plan_slug = p.slug if p else None
+    return {
+        "id": str(user.id),
+        "is_active": user.is_active,
+        "is_admin": user.is_admin,
+        "billing_exempt": user.billing_exempt,
+        "plan_override_slug": plan_slug,
+    }
 
 
 # --- Feature flags ---
@@ -281,13 +312,18 @@ async def admin_health_detailed(
     except Exception as e:
         checks["redis_error"] = str(e)
 
+    s = get_settings()
+    ai_configured = bool(getattr(s, "openai_api_key", None) or getattr(s, "anthropic_api_key", None))
     return {
         "status": "ok" if checks["database"] else "degraded",
         "checks": checks,
         "config": {
-            "deployment_mode": get_settings().deployment_mode,
-            "storage_provider": get_settings().storage_provider,
-            "ai_provider": get_settings().ai_provider,
+            "deployment_mode": s.deployment_mode,
+            "storage_provider": s.storage_provider,
+            "ai_provider": s.ai_provider,
+            "ai_configured": ai_configured,
+            "feature_billing": getattr(s, "feature_billing", False),
+            "notification_provider": getattr(s, "notification_email_provider", "none"),
         },
     }
 
@@ -316,22 +352,31 @@ async def admin_storage(
     current_user: AdminUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Estimate storage usage from DB (books, chapters, assets)."""
+    """Estimate storage usage from DB (books, chapters, notes)."""
+    import json
+
+    from sqlalchemy.orm import selectinload
+
+    from authora.models import Note
+
     books_result = await db.execute(select(func.count(Book.id)))
     books_count = books_result.scalar() or 0
-    chapters_result = await db.execute(select(func.count(Chapter.id)))
-    chapters_count = chapters_result.scalar() or 0
-    total_content_result = await db.execute(
-        select(func.sum(func.length(func.cast(Chapter.content, type_=type("", (), {"__visit_name__": "TEXT"})()))))
-    )
-    try:
-        total_content_bytes = total_content_result.scalar() or 0
-    except Exception:
-        total_content_bytes = 0
+    chapters_result = await db.execute(select(Chapter).options(selectinload(Chapter.book)))
+    chapters = chapters_result.scalars().all()
+    chapters_count = len(chapters)
+    total_content_bytes = 0
+    for c in chapters:
+        if c.content:
+            total_content_bytes += len(json.dumps(c.content).encode())
+    notes_result = await db.execute(select(Note))
+    for n in notes_result.scalars().all():
+        if n.content:
+            total_content_bytes += len(str(n.content).encode())
     return {
         "books_count": books_count,
         "chapters_count": chapters_count,
         "estimated_content_bytes_approx": total_content_bytes,
+        "estimated_content_mb": round(total_content_bytes / (1024 * 1024), 2),
         "storage_provider": get_settings().storage_provider,
         "note": "Local file storage size not computed. Use du for storage_local_path.",
     }
@@ -375,7 +420,114 @@ async def admin_audit_logs(
     }
 
 
+# --- Operational alerts ---
+
+
+@router.get("/alerts")
+async def admin_operational_alerts(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Aggregate operational alerts: failed jobs, failed notifications."""
+    failed_exports = (
+        await db.execute(
+            select(func.count(ExportJob.id)).where(ExportJob.status == "failed")
+        )
+    ).scalar() or 0
+    failed_notifications = (
+        await db.execute(
+            select(func.count(NotificationDeliveryLog.id)).where(
+                NotificationDeliveryLog.status == "failed"
+            )
+        )
+    ).scalar() or 0
+    return {
+        "failed_export_jobs": failed_exports,
+        "failed_notification_deliveries": failed_notifications,
+        "has_alerts": failed_exports > 0 or failed_notifications > 0,
+    }
+
+
+# --- Notification delivery monitoring ---
+
+
+@router.get("/notification-logs")
+async def admin_notification_logs(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = Query(None, description="sent|failed|pending"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """List notification delivery logs."""
+    q = (
+        select(NotificationDeliveryLog)
+        .order_by(NotificationDeliveryLog.created_at.desc())
+        .limit(limit)
+    )
+    if status_filter:
+        q = q.where(NotificationDeliveryLog.status == status_filter)
+    result = await db.execute(q)
+    logs = result.scalars().all()
+    return {
+        "logs": [
+            {
+                "id": str(l.id),
+                "user_id": str(l.user_id),
+                "notification_type": l.notification_type,
+                "channel": l.channel,
+                "status": l.status,
+                "error_message": l.error_message,
+                "retry_count": l.retry_count,
+                "created_at": l.created_at.isoformat() if l.created_at else None,
+                "sent_at": l.sent_at.isoformat() if l.sent_at else None,
+            }
+            for l in logs
+        ],
+    }
+
+
 # --- Support tools ---
+
+
+@router.get("/support/notes/{user_id}")
+async def admin_get_support_notes(
+    user_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get support notes for a user."""
+    key = f"support_notes.{user_id}"
+    result = await db.execute(select(Setting).where(Setting.key == key))
+    row = result.scalar_one_or_none()
+    return {"notes": (row.value or {}).get("notes", "") if row and row.value else ""}
+
+
+class SupportNotesUpdate(BaseModel):
+    notes: str
+
+
+@router.put("/support/notes/{user_id}")
+async def admin_update_support_notes(
+    user_id: uuid.UUID,
+    data: SupportNotesUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update support notes for a user."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    key = f"support_notes.{user_id}"
+    result = await db.execute(select(Setting).where(Setting.key == key))
+    row = result.scalar_one_or_none()
+    value = {"notes": data.notes, "updated_by": str(current_user.id)}
+    if not row:
+        row = Setting(key=key, value=value)
+        db.add(row)
+    else:
+        row.value = value
+    await db.flush()
+    return {"ok": True}
 
 
 @router.get("/support/user-context/{user_id}")
@@ -425,6 +577,27 @@ async def admin_encouragement_messages(
         "encouragement": ENCOURAGEMENT_MESSAGES,
         "recovery_nudges": RECOVERY_NUDGES,
         "celebration": {k: v for k, v in CELEBRATION_MESSAGES.items()},
+    }
+
+
+# --- Accountability rule visibility ---
+
+
+@router.get("/accountability-rules")
+async def admin_accountability_rules(
+    current_user: AdminUser,
+):
+    """List accountability styles and rule constants (read-only)."""
+    from authora.models.accountability import (
+        ACCOUNTABILITY_STYLES,
+        PLAN_STATUSES,
+        RECOVERY_PLAN_TYPES,
+    )
+
+    return {
+        "accountability_styles": ACCOUNTABILITY_STYLES,
+        "plan_statuses": PLAN_STATUSES,
+        "recovery_plan_types": RECOVERY_PLAN_TYPES,
     }
 
 

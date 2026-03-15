@@ -117,12 +117,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: 'accountability-overview',
     title: 'Staying on track—without guilt',
-    summary: 'Set goals, get nudges, and track progress.',
+    summary: 'Set goals, get friendly nudges, and track progress.',
     body: [
-      'Set daily or weekly word goals. We\'ll nudge you gently (or more firmly) based on your preference.',
+      'Set daily or weekly word goals. We\'ll nudge you gently (or more firmly) based on what you prefer.',
       'Choose your style: Gentle (encouraging), Balanced (regular check-ins), or Structured (clear expectations).',
-      'We send recovery nudges when you\'ve been away. No guilt—just a friendly "ready when you are."',
-      'Track progress on the My progress page. See streaks, milestones, and word counts.',
+      'We send friendly nudges when you\'ve been away. No guilt—just "ready when you are."',
+      'Track progress on the Progress page. See streaks, milestones, and word counts.',
     ],
     tags: ['accountability', 'goals'],
   },
@@ -131,7 +131,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: 'Setting word goals',
     summary: 'Daily or weekly targets that work for you.',
     body: [
-      'Go to Home → My progress to set your goal.',
+      'Go to Home → Progress to set your goal.',
       'Daily: e.g. 500 words/day. Weekly: e.g. 3,500 words/week.',
       'We count words from your manuscript. Notes and outlines don\'t count.',
       'Adjust anytime. Life happens—we\'ll help you get back on track.',
@@ -183,13 +183,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     id: 'first-steps',
     title: 'Your first steps',
-    summary: 'Get started in 5 minutes.',
+    summary: 'Get started in a few minutes.',
     body: [
       '1. Create a project. Name it (e.g. "My Novel" or "Business Book").',
       '2. Add a book. Choose a template or start from scratch.',
       '3. Add chapters to your outline. One sentence per chapter is enough to start.',
       '4. Open a chapter and start writing. Or use Ghostwriter to generate a draft.',
-      '5. Set a word goal in My progress if you want gentle nudges.',
+      '5. Set a word goal in Progress if you\'d like gentle nudges.',
     ],
     tags: ['getting-started'],
   },

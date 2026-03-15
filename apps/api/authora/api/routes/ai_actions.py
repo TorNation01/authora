@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
+from authora.api.resolvers import get_book_or_404
 from authora.config import get_settings
 from authora.database import get_db
 from authora.models import Book, Project
@@ -65,16 +66,6 @@ async def list_actions():
         }
         for a in ACTION_DEFINITIONS.values()
     ]
-
-
-async def get_book_or_404(db: AsyncSession, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
-    result = await db.execute(
-        select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
-    )
-    book = result.scalar_one_or_none()
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-    return book
 
 
 @router.post("/actions/run")

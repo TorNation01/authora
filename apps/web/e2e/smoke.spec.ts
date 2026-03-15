@@ -15,4 +15,29 @@ test.describe('Smoke tests', () => {
     await page.goto('/register');
     await expect(page.getByRole('heading', { name: /create|account/i })).toBeVisible();
   });
+
+  test('pricing page loads', async ({ page }) => {
+    await page.goto('/pricing');
+    await expect(page.getByRole('heading', { name: /pricing|plan/i })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('features page loads', async ({ page }) => {
+    await page.goto('/features');
+    await expect(page.locator('h1, h2')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('contact page loads', async ({ page }) => {
+    await page.goto('/contact');
+    await expect(page.getByRole('heading', { name: /contact|get in touch/i })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('dashboard redirects to login when unauthenticated', async ({ page }) => {
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/(login|register)/, { timeout: 5000 });
+  });
+
+  test('404 page renders', async ({ page }) => {
+    await page.goto('/nonexistent-page-xyz-404-test');
+    await expect(page.getByText(/not found|page doesn't exist|404/i)).toBeVisible({ timeout: 5000 });
+  });
 });

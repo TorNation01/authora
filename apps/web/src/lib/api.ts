@@ -2,6 +2,16 @@ import { getToken } from '@/lib/auth';
 
 const API_BASE = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {}
@@ -18,7 +28,7 @@ export async function api<T>(
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    throw new ApiError(err.detail || res.statusText, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -48,7 +58,7 @@ export async function apiUpload<T>(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    throw new ApiError(err.detail || res.statusText, res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

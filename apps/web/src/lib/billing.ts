@@ -10,7 +10,7 @@ export interface BillingPlan {
   id: string;
   slug: string;
   name: string;
-  limits: Record<string, number | number[]>;
+  limits: Record<string, number | number[] | string[]>;
   features: string[];
 }
 
@@ -23,6 +23,10 @@ export interface BillingUsage {
   projects_limit: number;
   books: number;
   books_limit: number;
+  storage_mb?: number;
+  storage_mb_limit?: number;
+  ghostwriter_sessions?: number;
+  ghostwriter_sessions_limit?: number;
 }
 
 export interface BillingStatus {
@@ -30,6 +34,7 @@ export interface BillingStatus {
   usage: BillingUsage;
   billing_exempt: boolean;
   can_upgrade: boolean;
+  feature_billing_enabled?: boolean;
 }
 
 let cachedStatus: BillingStatus | null = null;

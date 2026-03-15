@@ -44,6 +44,8 @@
 | `NEXT_PUBLIC_API_URL` | web | No | - | API URL for browser |
 | `NEXT_PUBLIC_WEB_URL` | web | No | - | Web URL for emails |
 | `LEADS_STORAGE_PATH` | web | No | ./storage/leads.jsonl | Fallback path when API unavailable |
+| **Cron / Internal** |
+| `CRON_SECRET` | api | Prod* | - | Secret for X-Cron-Secret header on /accountability/cron/reminders |
 | **Billing** |
 | `FEATURE_BILLING` | api | No | false | Enable plan limits and usage metering |
 | `STRIPE_SECRET_KEY` | api | If Stripe | - | Stripe secret key |

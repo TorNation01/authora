@@ -17,8 +17,8 @@ interface AIWritingPanelProps {
   chapterId?: string;
   selection?: string;
   onComplete?: (prompt: string, onChunk: (text: string) => void) => Promise<void>;
-  onFictionPrompt?: (promptType: string, selection?: string, onChunk: (text: string) => void) => Promise<void>;
-  onNonfictionPrompt?: (promptType: string, selection?: string, onChunk: (text: string) => void) => Promise<void>;
+  onFictionPrompt?: (promptType: string, onChunk: (text: string) => void, selection?: string) => Promise<void>;
+  onNonfictionPrompt?: (promptType: string, onChunk: (text: string) => void, selection?: string) => Promise<void>;
   onInsert?: (text: string) => void;
   isFiction?: boolean;
   isNonfiction?: boolean;
@@ -26,6 +26,7 @@ interface AIWritingPanelProps {
 }
 
 export function AIWritingPanel({
+  projectId,
   bookId,
   bookType,
   chapterId,

@@ -20,7 +20,7 @@ const SUGGESTIONS = [
   'Suggest a plot twist for this chapter',
   'Expand this paragraph with more detail',
   'Help me describe this character',
-  'What should happen next?',
+  'What might happen next?',
 ];
 
 const NONFICTION_PROMPTS = [
@@ -46,7 +46,7 @@ const FICTION_PROMPTS = [
   { type: 'fix_pacing', label: 'Fix pacing' },
   { type: 'rewrite_pov', label: 'Rewrite from another POV' },
   { type: 'suggest_twists', label: 'Suggest plot twists' },
-  { type: 'identify_weak', label: 'Identify weak scenes' },
+  { type: 'identify_weak', label: 'Spot areas to strengthen' },
   { type: 'chapter_summary', label: 'Generate chapter summary' },
   { type: 'scene_ideas', label: 'Generate scene ideas' },
   { type: 'what_happens_next', label: 'What happens next?' },

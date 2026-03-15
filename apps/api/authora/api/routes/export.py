@@ -6,14 +6,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
 from authora.config import get_settings
 from authora.database import get_db
-from authora.models import Book, Chapter, Note, Project
+from authora.models import Book, Chapter, ExportJob, Note, Project
 from authora.schemas.export_schema import ExportOptions
 from authora.services.export import (
     export_docx,
@@ -37,6 +37,7 @@ from authora.services.export_extended import (
     export_notes_txt,
     export_outline,
     export_synopsis_package,
+    validate_export_content,
 )
 from authora.services.publishing_prep import (
     generate_author_bio_draft,
@@ -81,6 +82,54 @@ def _export_params_from_options(opts: ExportOptions | None, book_title: str) -> 
         acknowledgements=opts.acknowledgements,
         format_style=opts.format_style,
     )
+
+
+@router.get("/books/{book_id}/export-history")
+async def export_history(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(20, ge=1, le=100),
+):
+    """List recent exports for this book."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    result = await db.execute(
+        select(ExportJob)
+        .where(and_(ExportJob.book_id == book_id, ExportJob.user_id == current_user.id))
+        .order_by(desc(ExportJob.created_at))
+        .limit(limit)
+    )
+    jobs = result.scalars().all()
+    return {
+        "book_id": str(book_id),
+        "exports": [
+            {
+                "id": str(j.id),
+                "format": j.format,
+                "status": j.status,
+                "created_at": j.created_at.isoformat() if j.created_at else None,
+                "options": j.options,
+            }
+            for j in jobs
+        ],
+    }
+
+
+@router.get("/books/{book_id}/validate")
+async def export_validate(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Validate content before export. Returns warnings and errors."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    chapters_data = _chapters_data(book)
+    return validate_export_content(chapters_data, book_title=book.title)
 
 
 @router.get("/books/{book_id}/preview")
@@ -185,6 +234,7 @@ async def export_book(
     copyright_notice: str | None = Query(None),
     author_bio: str | None = Query(None),
     format_style: str = Query("manuscript", pattern="^(manuscript|print|ebook)$"),
+    backup_style: bool = Query(False, description="Use backup-style filename (title-backup-YYYY-MM-DD.ext)"),
 ):
     """Export book to specified format. Supports front/back matter via query params."""
     from authora.config import get_settings
@@ -216,6 +266,10 @@ async def export_book(
         back_matter=back_matter,
         acknowledgements=acknowledgements,
         include_acknowledgements=bool(acknowledgements),
+        dedication=dedication,
+        epigraph=epigraph,
+        copyright_notice=copyright_notice,
+        author_bio=author_bio,
         format_style=format_style,
     )
 
@@ -237,7 +291,17 @@ async def export_book(
     if settings.feature_billing:
         await record_usage(db, current_user.id, "exports", 1)
 
-    filename = get_export_filename(book.title, format)
+    job = ExportJob(
+        user_id=current_user.id,
+        book_id=book_id,
+        format=format,
+        status="completed",
+        options={"backup_style": backup_style},
+    )
+    db.add(job)
+    await db.commit()
+
+    filename = get_export_filename(book.title, format, backup_style=backup_style)
     return Response(
         content=content,
         media_type=media_type,
@@ -258,11 +322,11 @@ async def export_book_outline(
 
     chapters_data = _chapters_data(book)
     content = export_outline(chapters_data)
-    filename = get_export_filename(book.title, "txt")
+    filename = get_export_filename(book.title, "txt", suffix="_outline")
     return Response(
         content=content,
         media_type="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".txt", "_outline.txt")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -409,11 +473,11 @@ async def export_beta_reader_package_route(
         include_toc=True,
     )
     content = export_beta_reader_package(chapters_data, pack, params)
-    filename = get_export_filename(book.title, "zip")
+    filename = get_export_filename(book.title, "zip", suffix="_beta_package")
     return Response(
         content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".zip", "_beta_package.zip")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -441,11 +505,11 @@ async def export_ghostwriter_handoff_route(
         include_toc=True,
     )
     content = export_ghostwriter_handoff(chapters_data, pack, params, has_ghostwriter_content=False)
-    filename = get_export_filename(book.title, "zip")
+    filename = get_export_filename(book.title, "zip", suffix="_handoff")
     return Response(
         content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".zip", "_handoff.zip")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -466,11 +530,35 @@ async def export_chapter_summary_sheet_route(
 
     summaries = await generate_chapter_summaries(db, book_id)
     content = export_chapter_summary_sheet(summaries, book.title, author_name or "Author")
-    filename = get_export_filename(book.title, "docx")
+    filename = get_export_filename(book.title, "docx", suffix="_chapter_summaries")
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".docx", "_chapter_summaries.docx")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/books/{book_id}/packages/blurb")
+async def export_back_cover_blurb_route(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Export back cover blurb as TXT."""
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured")
+
+    blurb = await generate_back_cover_blurb(db, book_id)
+    content = f"BACK COVER BLURB\n\n{book.title}\n\n{blurb}".encode("utf-8")
+    filename = get_export_filename(book.title, "txt", suffix="_blurb")
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -491,9 +579,9 @@ async def export_synopsis_package_route(
 
     synopsis = await generate_synopsis(db, book_id)
     content = export_synopsis_package(synopsis, book.title, author_name or "Author")
-    filename = get_export_filename(book.title, "docx")
+    filename = get_export_filename(book.title, "docx", suffix="_synopsis")
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={"Content-Disposition": f'attachment; filename="{filename.replace(".docx", "_synopsis.docx")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

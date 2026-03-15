@@ -20,6 +20,7 @@ import {
   FileText,
   MessageSquare,
   Trophy,
+  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,15 +30,17 @@ const adminNav = [
   { href: '/dashboard/admin/feature-flags', label: 'Feature flags', icon: Flag },
   { href: '/dashboard/admin/ai-usage', label: 'AI usage', icon: Zap },
   { href: '/dashboard/admin/export-jobs', label: 'Export jobs', icon: FileDown },
+  { href: '/dashboard/admin/notification-logs', label: 'Notification logs', icon: MessageSquare },
   { href: '/dashboard/admin/reminders', label: 'Reminders', icon: Bell },
   { href: '/dashboard/admin/errors', label: 'Error monitoring', icon: AlertTriangle },
-  { href: '/dashboard/admin/health', label: 'System health', icon: Activity },
+  { href: '/dashboard/admin/health', label: 'System health', icon: Database },
   { href: '/dashboard/admin/setup', label: 'Setup state', icon: Database },
   { href: '/dashboard/admin/storage', label: 'Storage', icon: HardDrive },
   { href: '/dashboard/admin/audit', label: 'Audit logs', icon: ScrollText },
   { href: '/dashboard/admin/support', label: 'Support tools', icon: LifeBuoy },
   { href: '/dashboard/admin/content', label: 'Content templates', icon: FileText },
   { href: '/dashboard/admin/encouragement', label: 'Encouragement messages', icon: MessageSquare },
+  { href: '/dashboard/admin/accountability-rules', label: 'Accountability rules', icon: Target },
   { href: '/dashboard/admin/gamification', label: 'Gamification', icon: Trophy },
 ];
 

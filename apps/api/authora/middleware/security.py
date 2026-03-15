@@ -92,7 +92,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     count += 1
                     if count > self.rate_limit_requests:
                         return JSONResponse(
-                            {"detail": "Rate limit exceeded"},
+                            {"detail": "Rate limit exceeded", "request_id": request_id},
                             status_code=429,
                             headers={
                                 "Retry-After": str(self.rate_limit_window),

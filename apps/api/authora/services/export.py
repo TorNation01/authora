@@ -27,14 +27,17 @@ def plain_text_to_tiptap(text: str) -> dict[str, Any]:
     return {"type": "doc", "content": blocks}
 
 
-def tiptap_to_plain_text(content: dict[str, Any]) -> str:
-    """Convert TipTap JSON to plain text."""
+def tiptap_to_plain_text(content: dict[str, Any] | None) -> str:
+    """Convert TipTap JSON to plain text. Handles None, empty, and edge cases."""
+    if content is None or not isinstance(content, dict):
+        return ""
     lines = []
 
     def extract(node: Any) -> None:
         if isinstance(node, dict):
             if "text" in node:
-                lines.append(node["text"])
+                text = node["text"]
+                lines.append(str(text) if text is not None else "")
             elif "content" in node:
                 for c in node["content"]:
                     extract(c)
@@ -44,10 +47,10 @@ def tiptap_to_plain_text(content: dict[str, Any]) -> str:
             for n in node:
                 extract(n)
 
-    if isinstance(content, dict) and "content" in content:
+    if "content" in content and isinstance(content["content"], list):
         for node in content["content"]:
             extract(node)
-    return "".join(lines).replace("\n\n\n", "\n\n")
+    return "".join(lines).replace("\n\n\n", "\n\n").strip()
 
 
 def export_txt(chapters: list[dict]) -> bytes:
@@ -151,7 +154,25 @@ def export_epub(chapters: list[dict], book_title: str, author: str = "Author") -
     return buffer.getvalue()
 
 
-def get_export_filename(book_title: str, fmt: str) -> str:
-    """Generate safe filename."""
-    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in book_title).strip()[:50]
-    return f"{safe}.{fmt}"
+def get_export_filename(
+    book_title: str,
+    fmt: str,
+    *,
+    backup_style: bool = False,
+    suffix: str | None = None,
+) -> str:
+    """Generate safe, predictable export filename.
+    backup_style: adds -backup-YYYY-MM-DD before extension.
+    suffix: e.g. '_outline', '_synopsis' before extension.
+    """
+    from datetime import date
+
+    safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in (book_title or "manuscript")).strip()[:50]
+    if not safe:
+        safe = "manuscript"
+    ext = fmt.lower()
+    if suffix:
+        return f"{safe}{suffix}.{ext}"
+    if backup_style:
+        return f"{safe}-backup-{date.today().isoformat()}.{ext}"
+    return f"{safe}.{ext}"

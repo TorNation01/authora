@@ -345,7 +345,7 @@ function CharactersTab({
               <div>
                 <p className="font-medium">{String(c.name)}</p>
                 <p className="text-sm text-muted-foreground capitalize">{String(c.role)}</p>
-                {c.description && <p className="text-sm mt-1">{String(c.description).slice(0, 100)}...</p>}
+                {c.description != null && <p className="text-sm mt-1">{String(c.description).slice(0, 100)}...</p>}
               </div>
             </div>
           ))}
@@ -430,7 +430,7 @@ function RelationshipsTab({
     }
   }
 
-  const getCharName = (id: string) => characters.find((c) => c.id === id)?.name ?? id;
+  const getCharName = (id: string) => String(characters.find((c) => c.id === id)?.name ?? id);
 
   return (
     <Card variant="sanctuary">
@@ -446,7 +446,7 @@ function RelationshipsTab({
                 {getCharName(String(r.character_a_id))} ↔ {getCharName(String(r.character_b_id))}
               </p>
               <p className="text-sm text-muted-foreground">{String(r.relationship_type)}</p>
-              {r.description && <p className="text-sm mt-1">{String(r.description)}</p>}
+              {r.description != null && <p className="text-sm mt-1">{String(r.description)}</p>}
             </div>
           ))}
         </div>
@@ -552,7 +552,7 @@ function WorldTab({
             <div key={String(w.id)} className="rounded-lg border p-4">
               <p className="font-medium">{String(w.name)}</p>
               <p className="text-sm text-muted-foreground">{String(w.category)}</p>
-              {w.description && <p className="text-sm mt-1">{String(w.description)}</p>}
+              {w.description != null && <p className="text-sm mt-1">{String(w.description)}</p>}
             </div>
           ))}
         </div>
@@ -728,9 +728,9 @@ function ScenesTab({
           {scenes.map((s) => (
             <div key={String(s.id)} className="rounded-lg border p-4">
               <p className="font-medium">{String(s.title)}</p>
-              {s.beat && <p className="text-xs text-muted-foreground">{String(s.beat)}</p>}
-              {s.conflict_level && <p className="text-xs">Conflict: {String(s.conflict_level)}/5</p>}
-              {s.summary && <p className="text-sm mt-1">{String(s.summary).slice(0, 80)}...</p>}
+              {s.beat != null && <p className="text-xs text-muted-foreground">{String(s.beat)}</p>}
+              {s.conflict_level != null && <p className="text-xs">Conflict: {String(s.conflict_level)}/5</p>}
+              {s.summary != null && <p className="text-sm mt-1">{String(s.summary).slice(0, 80)}...</p>}
             </div>
           ))}
         </div>
@@ -817,7 +817,7 @@ function ChaptersTab({
           {chapterPlans.map((p, i) => (
             <div key={String(p.id)} className="rounded-lg border p-4">
               <p className="font-medium">Ch. {i + 1}: {String(p.title)}</p>
-              {p.summary && <p className="text-sm mt-1">{String(p.summary)}</p>}
+              {p.summary != null && <p className="text-sm mt-1">{String(p.summary)}</p>}
             </div>
           ))}
         </div>
@@ -902,7 +902,7 @@ function TrackersTab({
             {byType.continuity.map((t) => (
               <div key={String(t.id)} className="rounded border p-2 mb-2 text-sm">
                 <p className="font-medium">{String(t.title)}</p>
-                {t.content && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
+                {t.content != null && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
               </div>
             ))}
           </div>
@@ -911,7 +911,7 @@ function TrackersTab({
             {byType.foreshadowing.map((t) => (
               <div key={String(t.id)} className="rounded border p-2 mb-2 text-sm">
                 <p className="font-medium">{String(t.title)}</p>
-                {t.content && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
+                {t.content != null && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
               </div>
             ))}
           </div>
@@ -920,7 +920,7 @@ function TrackersTab({
             {byType.unresolved.map((t) => (
               <div key={String(t.id)} className="rounded border p-2 mb-2 text-sm">
                 <p className="font-medium">{String(t.title)}</p>
-                {t.content && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
+                {t.content != null && <p className="text-muted-foreground">{String(t.content).slice(0, 60)}...</p>}
               </div>
             ))}
           </div>
@@ -1167,9 +1167,9 @@ function NFAudienceTab({ projectId, bookId, audiences }: { projectId: string; bo
       <CardContent className="space-y-6">
         {audiences.map((a) => (
           <div key={String(a.id)} className="rounded-lg border p-4">
-            {a.demographics && <p><strong>Demographics:</strong> {String(a.demographics).slice(0, 150)}...</p>}
-            {a.pain_points && <p><strong>Pain points:</strong> {String(a.pain_points).slice(0, 150)}...</p>}
-            {a.goals && <p><strong>Goals:</strong> {String(a.goals).slice(0, 150)}...</p>}
+            {a.demographics != null && <p><strong>Demographics:</strong> {String(a.demographics).slice(0, 150)}...</p>}
+            {a.pain_points != null && <p><strong>Pain points:</strong> {String(a.pain_points).slice(0, 150)}...</p>}
+            {a.goals != null && <p><strong>Goals:</strong> {String(a.goals).slice(0, 150)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1285,7 +1285,7 @@ function NFChaptersTab({ projectId, bookId, chapterPlans }: { projectId: string;
         {chapterPlans.map((p, i) => (
           <div key={String(p.id)} className="rounded-lg border p-4">
             <p className="font-medium">Ch. {i + 1}: {String(p.title)}</p>
-            {p.summary && <p className="text-sm mt-1">{String(p.summary)}</p>}
+            {p.summary != null && <p className="text-sm mt-1">{String(p.summary)}</p>}
           </div>
         ))}
         {showForm ? (
@@ -1394,7 +1394,7 @@ function NFExamplesTab({ projectId, bookId, examples }: { projectId: string; boo
         {examples.map((e) => (
           <div key={String(e.id)} className="rounded-lg border p-4">
             <p className="font-medium">{String(e.title)}</p>
-            {e.description && <p className="text-sm mt-1">{String(e.description).slice(0, 100)}...</p>}
+            {e.description != null && <p className="text-sm mt-1">{String(e.description).slice(0, 100)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1451,7 +1451,7 @@ function NFCaseStudiesTab({ projectId, bookId, caseStudies }: { projectId: strin
         {caseStudies.map((c) => (
           <div key={String(c.id)} className="rounded-lg border p-4">
             <p className="font-medium">{String(c.title)}</p>
-            {c.scenario && <p className="text-sm mt-1">{String(c.scenario).slice(0, 100)}...</p>}
+            {c.scenario != null && <p className="text-sm mt-1">{String(c.scenario).slice(0, 100)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1506,8 +1506,8 @@ function NFStoriesTab({ projectId, bookId, storyInsertions }: { projectId: strin
       <CardContent className="space-y-6">
         {storyInsertions.map((s) => (
           <div key={String(s.id)} className="rounded-lg border p-4">
-            {s.purpose && <p className="font-medium">{String(s.purpose)}</p>}
-            {s.story_content && <p className="text-sm mt-1">{String(s.story_content).slice(0, 100)}...</p>}
+            {s.purpose != null && <p className="font-medium">{String(s.purpose)}</p>}
+            {s.story_content != null && <p className="text-sm mt-1">{String(s.story_content).slice(0, 100)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1619,8 +1619,8 @@ function NFResearchTab({ projectId, bookId, researchNotes }: { projectId: string
         {researchNotes.map((r) => (
           <div key={String(r.id)} className="rounded-lg border p-4">
             <p className="font-medium">{String(r.title)}</p>
-            {r.source && <p className="text-xs text-muted-foreground">{String(r.source)}</p>}
-            {r.content && <p className="text-sm mt-1">{String(r.content).slice(0, 80)}...</p>}
+            {r.source != null && <p className="text-xs text-muted-foreground">{String(r.source)}</p>}
+            {r.content != null && <p className="text-sm mt-1">{String(r.content).slice(0, 80)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1678,7 +1678,7 @@ function NFCitationsTab({ projectId, bookId, citations }: { projectId: string; b
         {citations.map((c) => (
           <div key={String(c.id)} className="rounded-lg border p-4">
             <p>{String(c.placeholder_text)}</p>
-            {c.source_hint && <p className="text-xs text-muted-foreground">{String(c.source_hint)}</p>}
+            {c.source_hint != null && <p className="text-xs text-muted-foreground">{String(c.source_hint)}</p>}
           </div>
         ))}
         {showForm ? (
@@ -1733,8 +1733,8 @@ function NFAuthorityTab({ projectId, bookId, authority: auth }: { projectId: str
       <CardContent className="space-y-6">
         {auth.map((a) => (
           <div key={String(a.id)} className="rounded-lg border p-4">
-            {a.credentials && <p>{String(a.credentials).slice(0, 150)}...</p>}
-            {a.experience && <p className="text-sm mt-1">{String(a.experience).slice(0, 100)}...</p>}
+            {a.credentials != null && <p>{String(a.credentials).slice(0, 150)}...</p>}
+            {a.experience != null && <p className="text-sm mt-1">{String(a.experience).slice(0, 100)}...</p>}
           </div>
         ))}
         {showForm ? (
@@ -1790,8 +1790,8 @@ function NFSummaryTab({ projectId, bookId, summaryActions }: { projectId: string
       <CardContent className="space-y-6">
         {summaryActions.map((s) => (
           <div key={String(s.id)} className="rounded-lg border p-4">
-            {s.summary && <p>{String(s.summary).slice(0, 150)}...</p>}
-            {s.action_steps && Array.isArray(s.action_steps) && (
+            {s.summary != null && <p>{String(s.summary).slice(0, 150)}...</p>}
+            {s.action_steps != null && Array.isArray(s.action_steps) && (
               <ul className="list-disc list-inside text-sm mt-2">
                 {(s.action_steps as string[]).slice(0, 3).map((step, i) => (
                   <li key={i}>{step}</li>

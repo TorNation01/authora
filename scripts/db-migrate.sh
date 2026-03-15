@@ -1,7 +1,8 @@
 #!/bin/bash
 # Run database migrations
-# Usage: ./scripts/db-migrate.sh [--docker]
-# With --docker: runs inside api container
+# Usage: ./scripts/db-migrate.sh [--docker] [--prod]
+# --docker: runs inside api container
+# --prod: use production compose (with --docker)
 
 set -e
 
@@ -9,9 +10,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [ "$1" = "--docker" ]; then
+COMPOSE_FILES="-f docker-compose.yml"
+[[ " $* " =~ " --prod " ]] && COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+
+if [[ " $* " =~ " --docker " ]]; then
   echo "Running migrations via Docker..."
-  docker compose exec api alembic upgrade head
+  [ -f .env ] && set -a && source .env && set +a
+  docker compose $COMPOSE_FILES run --rm -e DATABASE_URL="${DATABASE_URL}" api alembic upgrade head
 else
   echo "Running migrations locally..."
   [ -f .env ] && set -a && source .env && set +a

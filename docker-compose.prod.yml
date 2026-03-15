@@ -1,6 +1,7 @@
 # AUTHORA production overrides
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# Set: DOMAIN_API, DOMAIN_WEB, ACME_EMAIL before deploy
+# Requires .env with: SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL
+# Optional: DOMAIN_API, DOMAIN_WEB, ACME_EMAIL (for Caddyfile generation)
 
 services:
   caddy:
@@ -41,6 +42,7 @@ services:
 
   web:
     restart: unless-stopped
+    env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.example.com}
       API_URL: ${API_URL:-${NEXT_PUBLIC_API_URL:-https://api.example.com}}

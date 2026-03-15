@@ -26,5 +26,13 @@ class ProjectResponse(BaseModel):
     name: str
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
+    last_accessed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class DeleteProjectConfirm(BaseModel):
+    """Confirmation for project deletion."""
+
+    confirm: bool = Field(..., description="Must be true to delete")

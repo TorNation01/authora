@@ -12,12 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
 from authora.models import Plan, User
+from authora.config import get_settings
 from authora.services.billing_service import (
     _period_str,
     check_ai_action_limit,
     check_book_limit,
     check_export_limit,
+    check_ghostwriter_limit,
     check_project_limit,
+    check_storage_limit,
     get_usage,
     get_user_plan,
     has_feature,
@@ -44,6 +47,10 @@ class UsageResponse(BaseModel):
     projects_limit: int
     books: int
     books_limit: int
+    storage_mb: int = 0
+    storage_mb_limit: int = -1
+    ghostwriter_sessions: int = 0
+    ghostwriter_sessions_limit: int = -1
 
 
 class BillingStatusResponse(BaseModel):
@@ -51,6 +58,7 @@ class BillingStatusResponse(BaseModel):
     usage: UsageResponse
     billing_exempt: bool
     can_upgrade: bool
+    feature_billing_enabled: bool = False
 
 
 async def _get_usage_summary(db: AsyncSession, user_id: uuid.UUID, plan: Plan) -> dict:
@@ -60,8 +68,11 @@ async def _get_usage_summary(db: AsyncSession, user_id: uuid.UUID, plan: Plan) -
     ai_limit = plan.limits.get("ai_actions_per_month", -1)
     exp_used = await get_usage(db, user_id, period, "exports")
     exp_limit = plan.limits.get("exports_per_month", -1)
+    gw_used = await get_usage(db, user_id, period, "ghostwriter_sessions")
+    gw_limit = plan.limits.get("ghostwriter_sessions_per_month", -1)
     _, proj_count, proj_limit = await check_project_limit(db, user_id)
     _, book_count, book_limit = await check_book_limit(db, user_id)
+    _, storage_mb, storage_limit = await check_storage_limit(db, user_id)
     return {
         "ai_actions": ai_used,
         "ai_actions_limit": ai_limit if ai_limit >= 0 else 999999,
@@ -71,6 +82,10 @@ async def _get_usage_summary(db: AsyncSession, user_id: uuid.UUID, plan: Plan) -
         "projects_limit": proj_limit if proj_limit >= 0 else 999999,
         "books": book_count,
         "books_limit": book_limit if book_limit >= 0 else 999999,
+        "storage_mb": storage_mb,
+        "storage_mb_limit": storage_limit if storage_limit >= 0 else 999999,
+        "ghostwriter_sessions": gw_used,
+        "ghostwriter_sessions_limit": gw_limit if gw_limit >= 0 else 999999,
     }
 
 
@@ -85,6 +100,7 @@ async def get_billing_status(
     r = await db.execute(select(User).where(User.id == current_user.id))
     user = r.scalar_one_or_none()
     billing_exempt = getattr(user, "billing_exempt", False) or bool(getattr(user, "plan_override_id", None))
+    settings = get_settings()
     return BillingStatusResponse(
         plan=PlanResponse(
             id=str(plan.id),
@@ -95,7 +111,8 @@ async def get_billing_status(
         ),
         usage=UsageResponse(**usage),
         billing_exempt=billing_exempt,
-        can_upgrade=plan.slug == "free",
+        can_upgrade=plan.slug in ("free", "pro"),
+        feature_billing_enabled=getattr(settings, "feature_billing", False),
     )
 
 
@@ -166,14 +183,25 @@ async def admin_set_user_plan(
     return {"ok": True}
 
 
-# --- Stripe webhook placeholder (for future integration) ---
+# --- Stripe webhook placeholders (for future integration) ---
 
 @router.post("/webhooks/stripe")
 async def stripe_webhook():
-    """Stripe webhook endpoint. Placeholder for future integration."""
+    """Stripe webhook endpoint. Placeholder for future integration.
+    Handle: customer.subscription.*, invoice.*, checkout.session.completed.
+    """
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="Stripe webhook not configured. Set STRIPE_WEBHOOK_SECRET to enable.",
+    )
+
+
+@router.post("/webhooks/stripe/invoices")
+async def stripe_invoice_webhook():
+    """Stripe invoice webhook. Placeholder for invoice.paid, invoice.payment_failed."""
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Stripe invoice webhook not configured.",
     )
 
 

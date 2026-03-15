@@ -10,30 +10,30 @@ export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
   no_projects: {
     title: 'Your writing space is ready',
     description:
-      'Create your first project to begin. A project holds one book or a series—whatever fits your story.',
+      'Create your first project to begin. A project can hold one book or a whole series—whatever fits your story.',
     action: 'Create project',
   },
   no_books: {
     title: 'Add your first book',
     description:
-      'Choose a template that fits your genre, or start from a blank page. You can always change things later.',
+      'Pick a template that fits your genre, or start from a blank page. You can change things anytime.',
     action: 'Add book',
   },
   no_chapters: {
     title: 'Your first chapter awaits',
     description:
-      'Add a chapter to start writing. You can reorder and add more anytime—there\'s no wrong way to begin.',
+      'Add a chapter to start writing. Reorder and add more whenever you like—there\'s no wrong way to begin.',
     action: 'Add chapter',
   },
   no_notes: {
     title: 'Capture your ideas',
     description:
-      'Jot down research, quotes, and inspiration here. Link notes to chapters so they\'re easy to find while writing.',
+      'Jot down research, quotes, and inspiration here. Link notes to chapters so they\'re easy to find while you write.',
     action: 'Add note',
   },
   no_highlights: {
     title: 'No highlights yet',
-    description: 'Select text in your chapter to highlight. Great for marking passages you want to revisit.',
+    description: 'Select text in your chapter to highlight. Handy for marking passages you want to revisit.',
   },
   no_versions: {
     title: 'Your history will appear here',
@@ -53,13 +53,13 @@ export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
   no_exports: {
     title: 'Ready when you are',
     description:
-      'When your manuscript feels ready, export to DOCX, PDF, EPUB, or plain text. One click, no fuss.',
+      'When your manuscript feels ready, export to Word, PDF, e-reader format, or plain text. One click.',
     action: 'Export',
   },
   empty_chapter: {
     title: 'Begin here',
     description:
-      'Start typing, or use AI to generate a draft from your outline. Your voice, your pace.',
+      'Start typing, or ask AI to generate a draft from your outline. Your voice, your pace.',
   },
   empty_editor: {
     title: 'Choose a chapter',

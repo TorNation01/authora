@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 interface AIActionPanelProps {
   projectId?: string;
   bookId: string;
-  bookType?: 'fiction' | 'nonfiction';
+  bookType?: 'fiction' | 'nonfiction' | 'general';
   chapterId?: string;
   selection?: string;
   onOutput: (text: string) => void;
@@ -139,7 +139,7 @@ export function AIActionPanel({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-primary">
             <Sparkles className="h-5 w-5" />
-            <h3 className="font-semibold">AI Writing Assistant</h3>
+            <h3 className="font-semibold">AI writing help</h3>
           </div>
           <Button
             variant="ghost"
@@ -150,7 +150,7 @@ export function AIActionPanel({
           </Button>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Provider-agnostic. Preserve your voice. Accept or reject suggestions.
+          Your voice stays in control. Accept or reject suggestions—you decide.
         </p>
       </div>
 
@@ -201,7 +201,7 @@ export function AIActionPanel({
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Actions</label>
+          <label className="text-sm font-medium">What would you like help with?</label>
           {projectId && selection && (
             <div className="flex flex-wrap gap-2 mb-2">
               <Button
@@ -251,7 +251,7 @@ export function AIActionPanel({
 
         {output && (
           <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-            <p className="text-xs font-medium text-muted-foreground mb-2">AI suggestion</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Suggestion</p>
             <p className="text-sm font-serif whitespace-pre-wrap leading-relaxed">{output}</p>
             {onInsert && (
               <div className="flex gap-2 mt-3">
@@ -259,7 +259,7 @@ export function AIActionPanel({
                   Accept
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setOutput('')}>
-                  Reject
+                  Try again
                 </Button>
               </div>
             )}

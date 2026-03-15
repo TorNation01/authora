@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,11 +13,28 @@ export default function AdminFeatureFlagsPage() {
     env_flags: Record<string, boolean>;
   } | null>(null);
 
-  useEffect(() => {
+  const fetchFlags = useCallback(() => {
     api<typeof data>('/api/v1/admin/feature-flags')
       .then(setData)
       .catch(() => toast({ title: 'Failed to load', variant: 'destructive' }));
-  }, []);
+  }, [toast]);
+
+  useEffect(() => {
+    fetchFlags();
+  }, [fetchFlags]);
+
+  const toggleDbFlag = async (key: string, enabled: boolean) => {
+    try {
+      await api(`/api/v1/admin/feature-flags/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ enabled }),
+      });
+      toast({ title: 'Updated' });
+      fetchFlags();
+    } catch {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -56,9 +74,13 @@ export default function AdminFeatureFlagsPage() {
               {data.db_flags.map((f) => (
                 <div key={f.key} className="flex items-center justify-between rounded border p-3">
                   <span className="font-mono text-sm">{f.key}</span>
-                  <span className={f.enabled ? 'text-green-600' : 'text-muted-foreground'}>
+                  <Button
+                    variant={f.enabled ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleDbFlag(f.key, !f.enabled)}
+                  >
                     {f.enabled ? 'On' : 'Off'}
-                  </span>
+                  </Button>
                 </div>
               ))}
             </div>

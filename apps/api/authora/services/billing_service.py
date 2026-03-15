@@ -134,8 +134,10 @@ async def has_feature(db: AsyncSession, user_id: UUID, feature: str) -> bool:
 
 
 async def check_project_limit(db: AsyncSession, user_id: UUID) -> tuple[bool, int, int]:
-    """Check if user can create another project. Returns (allowed, current, limit)."""
-    r = await db.execute(select(Project).where(Project.user_id == user_id))
+    """Check if user can create another project. Returns (allowed, current, limit). Excludes archived."""
+    r = await db.execute(
+        select(Project).where(Project.user_id == user_id, Project.deleted_at.is_(None))
+    )
     count = len(r.scalars().all())
     limit = await get_limit(db, user_id, "projects")
     if limit < 0:
@@ -144,9 +146,11 @@ async def check_project_limit(db: AsyncSession, user_id: UUID) -> tuple[bool, in
 
 
 async def check_book_limit(db: AsyncSession, user_id: UUID) -> tuple[bool, int, int]:
-    """Check if user can create another book (total across projects)."""
+    """Check if user can create another book (total across projects). Excludes archived projects."""
     r = await db.execute(
-        select(Book).join(Project).where(Project.user_id == user_id)
+        select(Book)
+        .join(Project)
+        .where(Project.user_id == user_id, Project.deleted_at.is_(None), Book.deleted_at.is_(None))
     )
     count = len(r.scalars().all())
     limit = await get_limit(db, user_id, "books")
@@ -178,3 +182,49 @@ async def check_export_limit(db: AsyncSession, user_id: UUID, format: str) -> tu
     if format.lower() not in [f.lower() for f in formats]:
         return False, used, limit
     return used < limit, used, limit
+
+
+async def check_ghostwriter_limit(db: AsyncSession, user_id: UUID) -> tuple[bool, int, int]:
+    """Check if user can start another ghostwriter session this month."""
+    period = _period_str()
+    used = await get_usage(db, user_id, period, "ghostwriter_sessions")
+    limit = await get_limit(db, user_id, "ghostwriter_sessions_per_month")
+    if limit < 0:
+        return True, used, -1
+    if limit == 0:
+        return False, used, 0
+    return used < limit, used, limit
+
+
+async def check_storage_limit(
+    db: AsyncSession, user_id: UUID, additional_mb: int = 0
+) -> tuple[bool, int, int]:
+    """Check if user has storage headroom. used_mb is approximate (content size)."""
+    limit = await get_limit(db, user_id, "storage_mb")
+    if limit < 0:
+        return True, 0, -1
+    import json
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from authora.models import Book, Note
+
+    result = await db.execute(
+        select(Book)
+        .join(Project, Book.project_id == Project.id)
+        .where(Project.user_id == user_id)
+        .options(selectinload(Book.chapters))
+    )
+    books = result.scalars().all()
+    used_mb = 0.0
+    for b in books:
+        for c in b.chapters:
+            if c.content:
+                used_mb += len(json.dumps(c.content).encode()) / (1024 * 1024)
+    notes_result = await db.execute(select(Note).where(Note.user_id == user_id))
+    for n in notes_result.scalars().all():
+        if n.content:
+            used_mb += len(str(n.content).encode()) / (1024 * 1024)
+    used_mb = int(used_mb) + 1
+    return (used_mb + additional_mb) <= limit, used_mb, limit

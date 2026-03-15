@@ -8,7 +8,7 @@ export default function AdminHealthPage() {
   const [health, setHealth] = useState<{
     status: string;
     checks: Record<string, unknown>;
-    config?: Record<string, string>;
+    config?: Record<string, string | boolean>;
   } | null>(null);
 
   useEffect(() => {
@@ -42,10 +42,25 @@ export default function AdminHealthPage() {
               </div>
               {health.config && (
                 <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Config</p>
-                  <pre className="rounded bg-muted p-3 text-xs overflow-auto">
-                    {JSON.stringify(health.config, null, 2)}
-                  </pre>
+                  <p className="text-sm font-medium mb-2">Config indicators</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {Object.entries(health.config).map(([k, v]) => (
+                      <div key={k} className="rounded border p-3">
+                        <p className="text-sm font-medium">{k.replace(/_/g, ' ')}</p>
+                        <p
+                          className={
+                            typeof v === 'boolean'
+                              ? v
+                                ? 'text-green-600'
+                                : 'text-muted-foreground'
+                              : ''
+                          }
+                        >
+                          {typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -183,7 +183,7 @@ export default function AccountabilityPage() {
     <div className="p-6 lg:p-8 max-w-4xl space-y-8">
       <div className="flex items-start justify-between">
         <PageHeader
-          title="My progress"
+          title="Progress"
           description="Goals that support you—never punish. We adapt to your pace and help you finish."
           actions={
             <div className="flex items-center gap-2">
@@ -210,7 +210,7 @@ export default function AccountabilityPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Encouragement style</label>
+              <label className="text-sm font-medium">How we encourage you</label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {STYLES.map((s) => (
                   <Button
@@ -231,7 +231,7 @@ export default function AccountabilityPage() {
                   checked={settings.reminder_enabled}
                   onChange={(e) => updateSettings({ reminder_enabled: e.target.checked })}
                 />
-                Enable reminders
+                Enable reminders (opt-in)
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -242,6 +242,10 @@ export default function AccountabilityPage() {
                 Email reminders
               </label>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Reminders are opt-in. By enabling email reminders, you consent to receive supportive
+              nudges at your configured times. You can disable either at any time.
+            </p>
             <div>
               <label className="text-sm font-medium">Reminder times (your timezone)</label>
               <p className="text-xs text-muted-foreground mb-1">
@@ -328,15 +332,18 @@ export default function AccountabilityPage() {
                   { id: 'weekly_reminder', label: 'Weekly check-in' },
                   { id: 'milestone_reminder', label: 'Milestone ahead' },
                   { id: 'streak_reminder', label: 'Streak reminder' },
-                  { id: 'overdue_nudge', label: 'Overdue nudge' },
+                  { id: 'overdue_nudge', label: 'Gentle catch-up reminder' },
                   { id: 'finish_date_risk', label: 'Finish date risk' },
                   { id: 'resume_reminder', label: 'Resume writing' },
+                  { id: 'section_reminder', label: 'You were working on this' },
                   { id: 'chapter_target_reminder', label: 'Chapter target' },
-                  { id: 'stuck_nudge', label: 'We miss you' },
+                  { id: 'stuck_nudge', label: 'Ready when you are' },
+                  { id: 'missed_goal_recovery', label: 'Recovery plan nudges' },
                 ].map(({ id, label }) => {
                   const types = settings.reminder_types ?? [
                     'daily_reminder', 'weekly_reminder', 'milestone_reminder', 'streak_reminder',
-                    'overdue_nudge', 'finish_date_risk', 'resume_reminder', 'chapter_target_reminder', 'stuck_nudge',
+                    'overdue_nudge', 'finish_date_risk', 'resume_reminder', 'section_reminder',
+                    'chapter_target_reminder', 'stuck_nudge', 'missed_goal_recovery',
                   ];
                   const checked = types.includes(id);
                   return (

@@ -18,6 +18,8 @@ from authora.models import (
     Chapter,
     ChapterTarget,
     Milestone,
+    Notification,
+    NotificationDeliveryLog,
     Project,
     RecoveryPlan,
     StreakLog,
@@ -42,6 +44,8 @@ REMINDER_TYPES = [
     "resume_reminder",
     "chapter_target_reminder",
     "stuck_nudge",
+    "section_reminder",
+    "missed_goal_recovery",
 ]
 
 
@@ -140,7 +144,12 @@ async def process_daily_reminders(db: AsyncSession) -> int:
         if words_today >= target:
             continue
 
-        msg = get_message(style, "daily_reminder", target=target)
+        msg = get_message(
+            style,
+            "daily_reminder",
+            target=target,
+            date=date.today().isoformat(),
+        )
         user_result = await db.execute(select(User).where(User.id == settings.user_id))
         user = user_result.scalar_one_or_none()
         email = user.email if user else ""
@@ -607,6 +616,65 @@ async def process_stuck_detection(db: AsyncSession) -> int:
     return sent
 
 
+async def process_section_reminders(db: AsyncSession) -> int:
+    """'You were working on this section' reminders—fires when 1 day since last write."""
+    result = await db.execute(
+        select(AccountabilitySettings).where(
+            AccountabilitySettings.reminder_enabled == True,
+            AccountabilitySettings.plan_paused == False,
+        )
+    )
+    settings_list = result.scalars().all()
+    sent = 0
+    svc = DefaultNotificationService(db)
+
+    for settings in settings_list:
+        if not _is_reminder_type_enabled(settings, "section_reminder"):
+            continue
+        if _in_quiet_hours(settings):
+            continue
+
+        stats_result = await db.execute(select(UserStats).where(UserStats.user_id == settings.user_id))
+        stats = stats_result.scalar_one_or_none()
+        if not stats or not stats.last_writing_date:
+            continue
+
+        days_since = (date.today() - stats.last_writing_date).days
+        if days_since != 1:
+            continue
+
+        result = await db.execute(
+            select(Chapter)
+            .join(Book, Chapter.book_id == Book.id)
+            .join(Project, Book.project_id == Project.id)
+            .where(Project.user_id == settings.user_id)
+            .order_by(Chapter.updated_at.desc())
+            .limit(1)
+        )
+        last_chapter = result.scalar_one_or_none()
+        if not last_chapter:
+            continue
+
+        style = get_style(settings)
+        msg = get_message(style, "section_reminder", chapter=last_chapter.title or "Untitled")
+        user_result = await db.execute(select(User).where(User.id == settings.user_id))
+        user = user_result.scalar_one_or_none()
+        user_email = user.email if user else ""
+        results = await svc.send_reminder(
+            str(settings.user_id),
+            user_email,
+            "section_reminder",
+            "You were working on this",
+            msg,
+            in_app=True,
+            email=settings.email_reminders_enabled,
+        )
+        if results["in_app"] or results["email"]:
+            sent += 1
+
+    return sent
+
+
 async def process_overdue_and_recovery(db: AsyncSession) -> int:
     """Check for overdue plans and create recovery plans."""
     result = await db.execute(
@@ -657,6 +725,94 @@ async def process_overdue_and_recovery(db: AsyncSession) -> int:
             message=recovery.get("message"),
         )
         db.add(rp)
+        await db.flush()
         created += 1
 
+        settings_result = await db.execute(
+            select(AccountabilitySettings).where(AccountabilitySettings.user_id == plan.user_id)
+        )
+        settings = settings_result.scalar_one_or_none()
+        if not settings or not settings.reminder_enabled or settings.plan_paused:
+            continue
+        if not _is_reminder_type_enabled(settings, "missed_goal_recovery"):
+            continue
+        if _in_quiet_hours(settings):
+            continue
+
+        style = get_style(settings)
+        msg = get_message(style, "missed_goal_recovery")
+        user_result = await db.execute(select(User).where(User.id == plan.user_id))
+        user = user_result.scalar_one_or_none()
+        user_email = user.email if user else ""
+        svc = DefaultNotificationService(db)
+        await svc.send_reminder(
+            str(plan.user_id),
+            user_email,
+            "missed_goal_recovery",
+            "Recovery plan ready",
+            msg,
+            in_app=True,
+            email=settings.email_reminders_enabled,
+        )
+
     return created
+
+
+async def process_failed_email_retries(db: AsyncSession) -> int:
+    """Retry failed email deliveries. Respects email config; degrades gracefully."""
+    from authora.config import get_settings
+
+    cfg = get_settings()
+    if cfg.notification_email_provider == "none":
+        return 0
+    if cfg.notification_email_provider == "smtp" and not cfg.smtp_host:
+        return 0
+    if cfg.notification_email_provider == "sendgrid" and not cfg.sendgrid_api_key:
+        return 0
+
+    result = await db.execute(
+        select(NotificationDeliveryLog)
+        .where(
+            NotificationDeliveryLog.channel == "email",
+            NotificationDeliveryLog.status == "failed",
+            NotificationDeliveryLog.retry_count < 3,
+        )
+        .order_by(NotificationDeliveryLog.created_at.asc())
+        .limit(50)
+    )
+    logs = result.scalars().all()
+    retried = 0
+    svc = DefaultNotificationService(db)
+
+    for log in logs:
+        notif_result = await db.execute(
+            select(Notification)
+            .where(
+                Notification.user_id == log.user_id,
+                Notification.type == log.notification_type,
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(1)
+        )
+        notif = notif_result.scalar_one_or_none()
+        if not notif:
+            continue
+
+        user_result = await db.execute(select(User).where(User.id == log.user_id))
+        user = user_result.scalar_one_or_none()
+        if not user or not user.email:
+            continue
+
+        ok = await svc.send_email(user.email, notif.title, notif.body)
+        log.retry_count += 1
+        log.status = "sent" if ok else "failed"
+        if ok:
+            from datetime import datetime, timezone
+            log.sent_at = datetime.now(timezone.utc)
+            log.error_message = None
+            retried += 1
+        else:
+            log.error_message = "Retry failed"
+        await db.flush()
+
+    return retried

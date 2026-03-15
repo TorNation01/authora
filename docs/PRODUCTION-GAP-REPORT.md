@@ -77,13 +77,16 @@ This report documents gaps identified during a comprehensive production audit. I
 - **Reminders cron:** Documented in `docs/DEPLOYMENT.md` with example cron entry and security note.
 - **Sprint timer:** Wired to gamification focus API; starts session on timer start, completes with XP/words on finish.
 
+### Completed in Follow-Up Pass
+
+- **Cron secret:** `CRON_SECRET` env var; `X-Cron-Secret` header required when set
+- **Leads rate limiting:** 5 per IP per hour; applies to API and file fallback
+- **Marketing placeholders:** TestimonialsSection, features page, HeroSection, pricing CTA updated
+
 ### Deferred (Documented for Follow-Up)
 
 - Billing integration (Stripe/Anakatech)
 - Telemetry/OTLP
-- Marketing content polish
-- Rate limiting on leads
-- Cron secret header
 - Admin UI, password reset, test coverage
 
 ---

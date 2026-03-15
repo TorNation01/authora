@@ -59,7 +59,7 @@ export function TestimonialsSection() {
           ))}
         </div>
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          Testimonials placeholder—replace with real quotes and photos.
+          Early adopters sharing their progress. Add verified testimonials as you collect them.
         </p>
       </div>
     </section>

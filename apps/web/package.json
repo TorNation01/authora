@@ -41,6 +41,8 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/react": "^14.2.0",
     "@playwright/test": "^1.40.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",

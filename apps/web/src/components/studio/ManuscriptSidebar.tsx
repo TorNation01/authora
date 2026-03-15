@@ -28,6 +28,7 @@ interface ManuscriptSidebarProps {
   onAddChapter: () => void;
   onStatusChange?: (chapterId: string, status: SectionStatus) => void;
   canEnterFinishMode?: boolean;
+  suggestFinishMode?: boolean;
   onEnterFinishMode?: () => void;
 }
 
@@ -56,6 +57,7 @@ export function ManuscriptSidebar({
   onReorder,
   onAddChapter,
   canEnterFinishMode,
+  suggestFinishMode,
   onEnterFinishMode,
   onStatusChange,
 }: ManuscriptSidebarProps) {
@@ -77,6 +79,16 @@ export function ManuscriptSidebar({
         >
           ← {bookTitle}
         </Link>
+        {suggestFinishMode && onEnterFinishMode && (
+          <button
+            type="button"
+            onClick={onEnterFinishMode}
+            className="flex items-center gap-1.5 w-full text-left text-sm font-medium text-primary rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Enter Finish Mode — you&apos;re almost there
+          </button>
+        )}
         <Link
           href={`/dashboard/projects/${projectId}/books/${bookId}/ghostwriter`}
           className="flex items-center gap-1.5 text-sm text-primary hover:underline"

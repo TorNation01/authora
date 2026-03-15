@@ -36,8 +36,8 @@
 | **No password reset** | Low | Users must contact admin. Document in ADMIN.md. |
 | **No admin UI** | Low | User management via API, seed, setup wizard. Documented. |
 | **Telemetry placeholder** | Low | `record_metric`/`trace_span` are no-ops. Add OTLP when needed. |
-| **No rate limiting on leads** | Low | Add rate limit if abuse occurs. |
-| **Cron endpoint unauthenticated** | Low | Call from internal network only; see DEPLOYMENT.md. |
+| **Leads rate limiting** | Resolved | 5 per IP per hour; 429 when exceeded. |
+| **Cron endpoint security** | Resolved | Set `CRON_SECRET`; use `X-Cron-Secret` header; see DEPLOYMENT.md. |
 | **Legal review** | Low | Privacy/Terms are templates; have legal counsel review before launch. |
 
 ---
@@ -201,6 +201,9 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 | **Health check logging** | ✅ DB/Redis failures logged |
 | **Reminders cron** | ✅ Documented in DEPLOYMENT.md |
 | **Sprint timer → gamification** | ✅ Focus sessions recorded, XP awarded |
+| **Cron secret** | ✅ CRON_SECRET + X-Cron-Secret header; documented in ENV-MAP, DEPLOYMENT |
+| **Leads rate limiting** | ✅ 5 per IP per hour; API and file fallback paths |
+| **Marketing placeholders** | ✅ TestimonialsSection, features, HeroSection, pricing CTA updated |
 
 ---
 

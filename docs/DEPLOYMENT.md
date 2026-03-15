@@ -2,8 +2,10 @@
 
 ## Related Documentation
 
-- [Cloudflare Deployment](CLOUDFLARE-DEPLOYMENT.md) – Deploy behind Cloudflare
-- [SSL Configuration](SSL.md) – TLS/HTTPS setup
+- **[Exact Commands](DEPLOYMENT-COMMANDS.md)** – Copy-paste terminal commands for all operations
+- [Cloudflare Deployment](DEPLOYMENT-CLOUDFLARE.md) – Deploy behind Cloudflare
+- [SSL & Domain Setup](DEPLOYMENT-SSL-DOMAIN.md) – TLS/HTTPS and DNS
+- [SSL Configuration](SSL.md) – TLS/HTTPS setup (legacy)
 - [Server Sizing](SERVER-SIZING.md) – Resource requirements
 - [Monitoring](MONITORING.md) – Health checks and metrics
 - [Logging](LOGGING.md) – Log configuration
@@ -157,13 +159,13 @@ The accountability engine sends daily, weekly, milestone, streak, overdue, finis
 
 **Example (system cron):**
 ```bash
-# Every hour
-0 * * * * curl -X POST http://localhost:8000/api/v1/accountability/cron/reminders -H "Content-Type: application/json"
+# Every hour (when CRON_SECRET is set, include the header)
+0 * * * * curl -X POST http://localhost:8000/api/v1/accountability/cron/reminders \
+  -H "Content-Type: application/json" \
+  -H "X-Cron-Secret: $CRON_SECRET"
 ```
 
-**Security:** The endpoint is unauthenticated. In production, either:
-- Call it only from internal network (e.g., Docker network, private IP)
-- Add a secret header and validate it in the API (requires code change)
+**Security:** When `CRON_SECRET` is set in the API environment, the endpoint requires the `X-Cron-Secret` header to match. Set `CRON_SECRET` in production (e.g. `openssl rand -hex 32`) and pass it in the cron job. If `CRON_SECRET` is not set, the endpoint remains open (backward compatible; not recommended for production).
 
 ## Bootstrap Scripts
 

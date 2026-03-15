@@ -45,7 +45,7 @@ export default function ProjectPage() {
         title={projectName || 'Project'}
         description="Books in this project"
         backHref="/dashboard"
-        backLabel="Dashboard"
+        backLabel="Back to Home"
         actions={
           <Button asChild>
             <Link href={`/dashboard/projects/${projectId}/books/new`}>

@@ -67,7 +67,7 @@ export default function DashboardLayout({
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading your space...</p>
+        <p className="text-muted-foreground">Loading your writing space...</p>
       </div>
     );
   }

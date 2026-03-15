@@ -96,8 +96,8 @@ export default function PublishingPrepPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
-        title="Publishing prep center"
-        description="Generate synopsis, blurbs, chapter summaries, and handoff materials."
+        title="Publishing prep"
+        description="Create synopsis, blurbs, chapter summaries, and materials for agents or self-publishing."
         backHref="/dashboard/export"
         backLabel="Back to export"
       />

@@ -46,11 +46,10 @@ export function HeroSection() {
             No credit card required · Free to start
           </p>
         </div>
-        {/* Screenshot/illustration placeholder */}
         <div className="mt-16 flex justify-center">
           <div
             className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-border/60 bg-muted/50 shadow-xl"
-            data-analytics="hero-screenshot-placeholder"
+            data-analytics="hero-preview"
           >
             <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
               <div className="text-center">

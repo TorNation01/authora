@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
+from authora.api.resolvers import get_fiction_book_or_404
 from authora.database import get_db
 from authora.models import (
     Book,
@@ -53,20 +54,6 @@ from authora.schemas.fiction import (
 )
 
 router = APIRouter(prefix="/projects/{project_id}/books/{book_id}/fiction", tags=["fiction"])
-
-
-async def get_fiction_book_or_404(
-    db: AsyncSession, book_id: uuid.UUID, user_id: uuid.UUID
-) -> Book:
-    result = await db.execute(
-        select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
-    )
-    book = result.scalar_one_or_none()
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-    if book.type != "fiction":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Book is not fiction")
-    return book
 
 
 async def get_workspace_or_create(

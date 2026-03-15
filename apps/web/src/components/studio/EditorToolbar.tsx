@@ -15,6 +15,7 @@ import {
   PanelRightClose,
   PanelRight,
   BookOpen,
+  Shield,
 } from 'lucide-react';
 import type { SectionStatus } from './ManuscriptSidebar';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ interface EditorToolbarProps {
   onTogglePanel: (mode: PanelMode) => void;
   onExport: (format: string, backupFilename?: boolean) => void;
   onHistory?: () => void;
+  onRecoveryCenter?: () => void;
   onFindReplace?: () => void;
   onQuickInsert?: () => void;
   onStatusChange?: (status: SectionStatus) => void;
@@ -80,6 +82,7 @@ export function EditorToolbar({
   onTogglePanel,
   onExport,
   onHistory,
+  onRecoveryCenter,
   onFindReplace,
   onQuickInsert,
   onStatusChange,
@@ -100,7 +103,7 @@ export function EditorToolbar({
   return (
     <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
       <div className="flex min-w-0 items-center gap-3">
-        <h2 className="truncate font-semibold">{chapterTitle || 'Choose a chapter'}</h2>
+        <h2 className="truncate font-semibold">{chapterTitle || 'Pick a chapter'}</h2>
         {onStatusChange && (
           <select
             value={sectionStatus ?? 'draft'}
@@ -110,7 +113,7 @@ export function EditorToolbar({
             <option value="draft">Draft</option>
             <option value="revising">Revising</option>
             <option value="review">Review</option>
-            <option value="done">Done</option>
+            <option value="done">Complete</option>
           </select>
         )}
         <WritingStats wordCount={chapterWordCount} />
@@ -119,9 +122,16 @@ export function EditorToolbar({
           <span className="text-xs text-muted-foreground">Saving...</span>
         )}
         {saveStatus === 'saved' && (
-          <span className="text-xs text-green-600 dark:text-green-500" title={lastSaved ? `Saved ${formatLastSaved(lastSaved)}` : undefined}>
-            Saved{lastSaved ? ` ${formatLastSaved(lastSaved)}` : ''}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs text-green-600 dark:text-green-500 cursor-default">
+                Saved{lastSaved ? ` ${formatLastSaved(lastSaved)}` : ''}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              Your work is saved automatically.{lastSaved ? ` Last saved ${formatLastSaved(lastSaved)}.` : ''}
+            </TooltipContent>
+          </Tooltip>
         )}
         {saveStatus === 'error' && (
           <span className="flex items-center gap-1">
@@ -181,6 +191,16 @@ export function EditorToolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent>{getTooltip('version_history') ?? 'Version history'}</TooltipContent>
+          </Tooltip>
+        )}
+        {onRecoveryCenter && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={onRecoveryCenter}>
+                <Shield className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Recovery Center</TooltipContent>
           </Tooltip>
         )}
         {onQuickInsert && (

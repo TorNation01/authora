@@ -13,7 +13,7 @@ export const editorExtensions = (placeholder?: string) => [
     listItem: {},
     codeBlock: false,
   }),
-  Placeholder.configure({ placeholder: placeholder ?? 'Start writing...' }),
+  Placeholder.configure({ placeholder: placeholder ?? 'Start writing—your words, your pace.' }),
   Typography,
   Underline,
   Highlight.configure({ multicolor: true }),

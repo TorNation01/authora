@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.config import get_settings
 from authora.infrastructure.notifications.base import NotificationService
+from authora.infrastructure.notifications.email_templates import (
+    reminder_email_html,
+    reminder_email_plain,
+)
 from authora.models import Notification, NotificationDeliveryLog, User
 
 
@@ -70,16 +74,18 @@ class DefaultNotificationService(NotificationService):
             await self._log_delivery(user_id, type, "in_app", "failed", str(e))
             return False
 
-    def _send_email_sync(self, to: str, subject: str, body: str) -> bool:
-        """Send email synchronously. Returns success."""
+    def _send_email_sync(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
+        """Send email synchronously. Returns success. Uses plain text; html optional."""
         cfg = get_settings()
         if cfg.notification_email_provider == "smtp" and cfg.smtp_host:
             try:
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
-                msg["From"] = cfg.smtp_from_email or cfg.smtp_user or "noreply@authora.app"
+                msg["From"] = cfg.email_from
                 msg["To"] = to
                 msg.attach(MIMEText(body, "plain"))
+                if html:
+                    msg.attach(MIMEText(html, "html"))
                 with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as smtp:
                     smtp.starttls()
                     if cfg.smtp_user and cfg.smtp_password:
@@ -100,7 +106,7 @@ class DefaultNotificationService(NotificationService):
                     },
                     json={
                         "personalizations": [{"to": [{"email": to}]}],
-                        "from": {"email": cfg.smtp_from_email or "noreply@authora.app", "name": "AUTHORA"},
+                        "from": {"email": cfg.email_from, "name": "AUTHORA"},
                         "subject": subject,
                         "content": [{"type": "text/plain", "value": body}],
                     },
@@ -111,9 +117,11 @@ class DefaultNotificationService(NotificationService):
                 return False
         return False
 
-    async def send_email(self, to: str, subject: str, body: str) -> bool:
+    async def send_email(
+        self, to: str, subject: str, body: str, html: str | None = None
+    ) -> bool:
         # Sync call in async context - acceptable for low volume
-        return self._send_email_sync(to, subject, body)
+        return self._send_email_sync(to, subject, body, html)
 
     async def send_reminder(
         self,
@@ -131,7 +139,10 @@ class DefaultNotificationService(NotificationService):
         if in_app:
             results["in_app"] = await self.send_in_app(user_id, notification_type, title, body)
         if email and user_email:
-            ok = await self.send_email(user_email, title, body)
+            cfg = get_settings()
+            product = getattr(cfg, "branding_product_name", "AUTHORA") or "AUTHORA"
+            html = reminder_email_html(title, body, product)
+            ok = await self.send_email(user_email, title, body, html)
             if self._db:
                 from datetime import datetime, timezone
 

@@ -13,13 +13,25 @@
     "build:api": "npm run build --workspace=apps/api",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:api": "npm run test --workspace=apps/api",
+    "test:e2e": "npm run test:e2e --workspace=apps/web",
+    "audit": "npm audit --workspaces --audit-level=high",
+    "audit:fix": "npm audit fix --workspaces",
     "db:migrate": "cd apps/api && alembic upgrade head",
     "db:seed": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed",
     "setup": "node scripts/setup-wizard.mjs",
     "deploy": "./scripts/deploy.sh",
+    "deploy:prod": "./scripts/deploy.sh prod",
     "backup": "./scripts/backup.sh",
+    "restore": "./scripts/restore.sh",
+    "rollback": "./scripts/rollback.sh",
+    "update": "./scripts/update.sh",
+    "update:prod": "./scripts/update.sh prod",
     "bootstrap:dev": "./scripts/bootstrap-dev.sh",
-    "bootstrap:prod": "./scripts/bootstrap-prod.sh"
+    "bootstrap:prod": "./scripts/bootstrap-prod.sh",
+    "db:migrate:docker": "./scripts/db-migrate.sh --docker",
+    "db:seed:docker": "./scripts/db-seed.sh --docker",
+    "health": "curl -sf http://localhost:8000/health && curl -sf http://localhost:8000/health/ready"
   },
   "engines": {
     "node": ">=18"

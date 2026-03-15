@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
+from authora.api.resolvers import get_book_or_404, get_project_or_404
 from authora.database import get_db
 from authora.models import Book, Chapter, ChapterVersion, Project
 from authora.services.finish_mode import get_finish_mode_stats, update_finish_mode_settings
@@ -41,24 +42,6 @@ def count_words(content: dict) -> int:
                 elif isinstance(node, dict) and "text" in node:
                     text += node.get("text", "") + " "
     return len(text.split())
-
-
-async def get_project_or_404(db: AsyncSession, project_id: uuid.UUID, user_id: uuid.UUID) -> Project:
-    result = await db.execute(select(Project).where(Project.id == project_id, Project.user_id == user_id))
-    p = result.scalar_one_or_none()
-    if not p:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return p
-
-
-async def get_book_or_404(db: AsyncSession, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
-    result = await db.execute(
-        select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
-    )
-    book = result.scalar_one_or_none()
-    if not book:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
-    return book
 
 
 @router.get("", response_model=list[BookResponse])
@@ -125,13 +108,14 @@ async def get_book(
 
 @router.patch("/{book_id}", response_model=BookResponse)
 async def update_book(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     data: BookUpdate,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update book."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     if data.title is not None:
         book.title = data.title
     if data.genre is not None:
@@ -147,25 +131,27 @@ async def update_book(
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete book."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     await db.delete(book)
 
 
 # Chapters
 @router.post("/{book_id}/chapters", response_model=ChapterResponse, status_code=status.HTTP_201_CREATED)
 async def create_chapter(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     data: ChapterCreate,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     chapter = Chapter(
         book_id=book_id,
         title=data.title,
@@ -181,6 +167,7 @@ async def create_chapter(
 
 @router.patch("/{book_id}/chapters/{chapter_id}", response_model=ChapterResponse)
 async def update_chapter(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
     data: ChapterUpdate,
@@ -188,7 +175,7 @@ async def update_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
     if not chapter:
@@ -230,13 +217,14 @@ async def update_chapter(
 
 @router.post("/{book_id}/chapters/reorder", response_model=list[ChapterResponse])
 async def reorder_chapters(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     data: ChaptersReorder,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Reorder chapters by id list."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     result = await db.execute(
         select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.sort_order)
     )
@@ -253,13 +241,14 @@ async def reorder_chapters(
 
 @router.get("/{book_id}/chapters/{chapter_id}/versions", response_model=list[ChapterVersionResponse])
 async def list_chapter_versions(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List version history for a chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -273,13 +262,14 @@ async def list_chapter_versions(
 
 @router.delete("/{book_id}/chapters/{chapter_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_chapter(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id)
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
     if not chapter:

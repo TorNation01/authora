@@ -1,10 +1,11 @@
 """Accountability engine API routes."""
 
+import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,11 +31,13 @@ from authora.models import (
 from authora.services.reminder_service import (
     process_chapter_target_reminders,
     process_daily_reminders,
+    process_failed_email_retries,
     process_finish_date_risk_alerts,
     process_milestone_reminders,
     process_overdue_and_recovery,
     process_overdue_nudges,
     process_resume_reminders,
+    process_section_reminders,
     process_streak_reminders,
     process_stuck_detection,
     process_weekly_reminders,
@@ -50,6 +53,7 @@ from authora.services.accountability_engine import (
 )
 from authora.services.gamification import get_or_create_user_stats
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/accountability", tags=["accountability"])
 
 
@@ -498,11 +502,25 @@ async def list_delivery_logs(
 
 # --- Scheduler / Cron endpoint (internal) ---
 
+def _require_cron_secret(request: Request) -> None:
+    """Require X-Cron-Secret header when CRON_SECRET is set."""
+    from authora.config import get_settings
+    secret = get_settings().cron_secret
+    if not secret:
+        return  # No secret configured: allow (backward compat; set CRON_SECRET in prod)
+    provided = request.headers.get("x-cron-secret")
+    if provided != secret:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or missing cron secret")
+
+
 @router.post("/cron/reminders")
 async def run_reminder_jobs(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Run reminder jobs. Call from cron (e.g. every hour for daily, Mon for weekly)."""
+    """Run reminder jobs. Call from cron (e.g. every hour for daily, Mon for weekly).
+    When CRON_SECRET is set, requires X-Cron-Secret header."""
+    _require_cron_secret(request)
 
     daily = await process_daily_reminders(db)
     weekly = await process_weekly_reminders(db)
@@ -511,12 +529,14 @@ async def run_reminder_jobs(
     overdue_nudges = await process_overdue_nudges(db)
     finish_risk = await process_finish_date_risk_alerts(db)
     resume = await process_resume_reminders(db)
+    section = await process_section_reminders(db)
     chapter_target = await process_chapter_target_reminders(db)
     stuck = await process_stuck_detection(db)
     recovery = await process_overdue_and_recovery(db)
+    retries = await process_failed_email_retries(db)
     await db.commit()
 
-    return {
+    result = {
         "daily_reminders": daily,
         "weekly_reminders": weekly,
         "milestone_reminders": milestone,
@@ -524,7 +544,21 @@ async def run_reminder_jobs(
         "overdue_nudges": overdue_nudges,
         "finish_date_risk_alerts": finish_risk,
         "resume_reminders": resume,
+        "section_reminders": section,
         "chapter_target_reminders": chapter_target,
         "stuck_nudges": stuck,
         "recovery_plans_created": recovery,
+        "email_retries": retries,
     }
+    logger.info(
+        "reminder_cron_completed",
+        extra={
+            "daily": result["daily_reminders"],
+            "weekly": result["weekly_reminders"],
+            "section": result["section_reminders"],
+            "resume": result["resume_reminders"],
+            "recovery_plans": result["recovery_plans_created"],
+            "email_retries": result["email_retries"],
+        },
+    )
+    return result

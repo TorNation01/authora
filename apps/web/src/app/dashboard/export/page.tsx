@@ -16,6 +16,8 @@ import {
   StickyNote,
   Loader2,
   BookOpen,
+  History,
+  AlertTriangle,
 } from 'lucide-react';
 import { HelpIcon, HowThisWorks } from '@/components/help';
 
@@ -35,6 +37,20 @@ interface ExportPreview {
   chapter_count: number;
   total_words: number;
   chapters: Array<{ title: string; word_count: number }>;
+}
+
+interface ExportValidation {
+  valid: boolean;
+  warnings: string[];
+  errors: string[];
+}
+
+interface ExportHistoryItem {
+  id: string;
+  format: string;
+  status: string;
+  created_at: string | null;
+  options?: Record<string, unknown>;
 }
 
 const FORMATS = [
@@ -63,6 +79,9 @@ export default function ExportCenterPage() {
   const [frontMatter, setFrontMatter] = useState('');
   const [backMatter, setBackMatter] = useState('');
   const [acknowledgements, setAcknowledgements] = useState('');
+  const [backupStyle, setBackupStyle] = useState(false);
+  const [validation, setValidation] = useState<ExportValidation | null>(null);
+  const [exportHistory, setExportHistory] = useState<ExportHistoryItem[]>([]);
 
   useEffect(() => {
     api<Project[]>('/api/v1/projects').then(setProjects).catch(() => setProjects([]));
@@ -78,12 +97,26 @@ export default function ExportCenterPage() {
   useEffect(() => {
     if (!selectedBook) {
       setPreview(null);
+      setValidation(null);
+      setExportHistory([]);
       return;
     }
     setLoading(true);
-    api<ExportPreview>(`/api/v1/export/books/${selectedBook.id}/preview`)
-      .then(setPreview)
-      .catch(() => setPreview(null))
+    Promise.all([
+      api<ExportPreview>(`/api/v1/export/books/${selectedBook.id}/preview`),
+      api<ExportValidation>(`/api/v1/export/books/${selectedBook.id}/validate`),
+      api<{ exports: ExportHistoryItem[] }>(`/api/v1/export/books/${selectedBook.id}/export-history?limit=10`),
+    ])
+      .then(([prev, val, hist]) => {
+        setPreview(prev);
+        setValidation(val);
+        setExportHistory(hist.exports || []);
+      })
+      .catch(() => {
+        setPreview(null);
+        setValidation(null);
+        setExportHistory([]);
+      })
       .finally(() => setLoading(false));
   }, [selectedBook?.id]);
 
@@ -92,6 +125,7 @@ export default function ExportCenterPage() {
       include_title_page: String(includeTitlePage),
       include_toc: String(includeToc),
       format_style: formatStyle,
+      backup_style: String(backupStyle),
     });
     if (authorName.trim()) p.set('author_name', authorName.trim());
     if (dedication.trim()) p.set('dedication', dedication.trim());
@@ -106,6 +140,10 @@ export default function ExportCenterPage() {
 
   const handleExport = async (format: string) => {
     if (!selectedBook) return;
+    if (validation && !validation.valid) {
+      toast({ title: 'Export blocked', description: validation.errors.join(' '), variant: 'destructive' });
+      return;
+    }
     setExporting(format);
     try {
       const token = getToken();
@@ -123,6 +161,11 @@ export default function ExportCenterPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast({ title: 'Export started', description: 'Your file is downloading.' });
+      if (selectedBook) {
+        api<{ exports: ExportHistoryItem[] }>(`/api/v1/export/books/${selectedBook.id}/export-history?limit=10`)
+          .then((r) => setExportHistory(r.exports || []))
+          .catch(() => {});
+      }
     } catch (e) {
       toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
     } finally {
@@ -234,10 +277,10 @@ export default function ExportCenterPage() {
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
         title="Export"
-        description="Download your book in DOCX, PDF, EPUB, or plain text. Preview before you download."
+        description="Download your book as Word, PDF, e-reader format, or plain text. Preview before you download."
         actions={
           <HelpIcon
-            content="Export to DOCX, PDF, EPUB, or plain text. One click to share with beta readers or publish."
+            content="Export to Word, PDF, e-reader format, or plain text. One click to share with beta readers or publish."
             articleId="export-overview"
           />
         }
@@ -245,7 +288,7 @@ export default function ExportCenterPage() {
 
       <HowThisWorks
         title="Export formats"
-        summary="DOCX for editing, PDF for print, EPUB for e-readers. Choose what you need."
+        summary="Word for editing, PDF for print, e-reader format for Kindle and others. Choose what you need."
         articleId="export-formats"
       >
         <p><strong>DOCX</strong>: Industry standard. Use for agent queries, editing, collaboration.</p>
@@ -274,7 +317,7 @@ export default function ExportCenterPage() {
               onChange={(e) => setSelectedBook(books.find((b) => b.id === e.target.value) ?? null)}
               className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="">Choose a book...</option>
+              <option value="">Select a book...</option>
               {books.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.title} {projects.find((p) => p.id === b.project_id)?.name ? `(${projects.find((p) => p.id === b.project_id)?.name})` : ''}
@@ -314,6 +357,15 @@ export default function ExportCenterPage() {
                         className="rounded border-input"
                       />
                       <span className="text-sm">Include table of contents</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={backupStyle}
+                        onChange={(e) => setBackupStyle(e.target.checked)}
+                        className="rounded border-input"
+                      />
+                      <span className="text-sm">Backup-style filename (title-backup-YYYY-MM-DD.ext)</span>
                     </label>
                     <div>
                       <label className="text-sm block mb-1">Format style</label>
@@ -437,6 +489,24 @@ export default function ExportCenterPage() {
                 </>
               ) : null}
 
+              {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
+                <Card variant="soft" className="border-amber-200 dark:border-amber-900">
+                  <CardContent className="pt-4">
+                    <div className="flex gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        {!validation.valid && (
+                          <p className="font-medium text-destructive">Export blocked: {validation.errors.join(' ')}</p>
+                        )}
+                        {validation.warnings.length > 0 && (
+                          <p className="text-muted-foreground mt-1">{validation.warnings.join(' ')}</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {FORMATS.map((f) => (
                   <Card key={f.id} variant="soft" className="p-4">
@@ -524,8 +594,34 @@ export default function ExportCenterPage() {
                     {exporting === 'synopsis' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     Synopsis
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePackageExport('blurb', `${selectedBook?.title || 'book'}_blurb.txt`)}
+                    disabled={!!exporting}
+                  >
+                    {exporting === 'blurb' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    Back cover blurb
+                  </Button>
                 </div>
               </Card>
+
+              {exportHistory.length > 0 && (
+                <details className="group">
+                  <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground list-none">
+                    <History className="h-4 w-4" />
+                    Recent exports ({exportHistory.length})
+                  </summary>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {exportHistory.map((ex) => (
+                      <li key={ex.id} className="flex justify-between">
+                        <span>{ex.format.toUpperCase()} • {ex.status}</span>
+                        <span>{ex.created_at ? new Date(ex.created_at).toLocaleDateString() : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </>
           )}
         </div>

@@ -135,7 +135,7 @@ export default function GhostwriterPage() {
       setWorkspace((w) => (w ? { ...w, outline } : null));
       toast({ title: 'Outline generated' });
     } catch (e) {
-      toast({ title: 'Generation failed', description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
+      toast({ title: "Generation didn't complete", description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
     } finally {
       setGeneratingOutline(false);
     }
@@ -197,7 +197,7 @@ export default function GhostwriterPage() {
       setDraftPreview({ chapterId, text: draft_text });
       setSelectedChapterForDraft(chapterId);
     } catch (e) {
-      toast({ title: 'Generation failed', description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
+      toast({ title: "Generation didn't complete", description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
     } finally {
       setGeneratingDraft(null);
     }

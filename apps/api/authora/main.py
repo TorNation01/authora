@@ -3,9 +3,8 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-
-logger = logging.getLogger(__name__)
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -14,7 +13,43 @@ from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.security import SecurityMiddleware
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def _request_id(request: Request) -> str:
+    return getattr(request.state, "request_id", "unknown")
+
+
+async def _validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """PII-safe validation error response with request ID."""
+    errors = exc.errors()
+    detail = [{"loc": e["loc"], "msg": e["msg"]} for e in errors]
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "request_id": _request_id(request)},
+    )
+
+
+async def _http_exception_handler(request: Request, exc) -> JSONResponse:
+    """HTTPException with request ID in response."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "request_id": _request_id(request)},
+    )
+
+
+async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """PII-safe 500 handler: log internal, return generic message."""
+    request_id = _request_id(request)
+    logger.exception("Unhandled exception request_id=%s path=%s", request_id, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal error occurred. Please try again later.",
+            "request_id": request_id,
+        },
+    )
 
 
 @asynccontextmanager
@@ -31,6 +66,12 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
+# Exception handlers (PII-safe, request ID in responses)
+app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+app.add_exception_handler(Exception, _unhandled_exception_handler)
+# HTTPException before Exception so HTTP errors get request_id
+app.add_exception_handler(HTTPException, _http_exception_handler)
 
 app.add_middleware(SecurityMiddleware)  # First: rate limit, headers, request ID
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
