@@ -787,23 +787,201 @@ async def admin_ollama_health(current_user: AdminUser):
     return {"ok": ok, "message": msg}
 
 
-@router.get("/ai/providers/ollama/models")
-async def admin_ollama_models(current_user: AdminUser):
-    """List available Ollama models (refresh/sync)."""
+@router.get("/ai/providers/openai/health")
+async def admin_openai_health(current_user: AdminUser):
+    """Check OpenAI connectivity (lightweight models list)."""
+    s = get_settings()
+    if not s.openai_api_key:
+        return {"ok": False, "message": "OpenAI is not configured"}
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=s.openai_api_key)
+        await client.models.list()
+        return {"ok": True, "message": "OpenAI is reachable"}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
+@router.get("/ai/providers/anthropic/health")
+async def admin_anthropic_health(current_user: AdminUser):
+    """Check Anthropic connectivity (lightweight models list)."""
+    s = get_settings()
+    if not s.anthropic_api_key:
+        return {"ok": False, "message": "Anthropic is not configured"}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": s.anthropic_api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+            )
+            if resp.status_code == 200:
+                return {"ok": True, "message": "Anthropic is reachable"}
+            return {"ok": False, "message": f"Anthropic returned {resp.status_code}"}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
+@router.get("/ai/providers/health")
+async def admin_ai_providers_health(current_user: AdminUser):
+    """Aggregated health check for all configured AI providers."""
     from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
 
     s = get_settings()
+    results: dict[str, dict[str, Any]] = {}
+    any_ok = False
+
+    if s.openai_api_key:
+        try:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=s.openai_api_key)
+            await client.models.list()
+            results["openai"] = {"ok": True, "message": "reachable"}
+            any_ok = True
+        except Exception as e:
+            results["openai"] = {"ok": False, "message": str(e)}
+    else:
+        results["openai"] = {"ok": False, "message": "not configured"}
+
+    if s.anthropic_api_key:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers={
+                        "x-api-key": s.anthropic_api_key,
+                        "anthropic-version": "2023-06-01",
+                    },
+                )
+                if resp.status_code == 200:
+                    results["anthropic"] = {"ok": True, "message": "reachable"}
+                    any_ok = True
+                else:
+                    results["anthropic"] = {"ok": False, "message": f"HTTP {resp.status_code}"}
+        except Exception as e:
+            results["anthropic"] = {"ok": False, "message": str(e)}
+    else:
+        results["anthropic"] = {"ok": False, "message": "not configured"}
+
+    if s.ollama_enabled:
+        p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+        ok, msg = await p.health_check()
+        results["ollama"] = {"ok": ok, "message": msg}
+        if ok:
+            any_ok = True
+    else:
+        results["ollama"] = {"ok": False, "message": "not enabled"}
+
+    return {
+        "providers": results,
+        "any_available": any_ok,
+        "degraded": not any_ok and (s.openai_api_key or s.anthropic_api_key or s.ollama_enabled),
+    }
+
+
+@router.get("/ai/providers/ollama/models")
+async def admin_ollama_models(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """List available Ollama models with capability tags and metadata."""
+    from authora.services.ollama_model_service import get_ollama_models_with_metadata
+
+    s = get_settings()
     if not s.ollama_enabled:
-        return {"models": [], "message": "Ollama is not enabled"}
-    p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+        return {"models": [], "base_url": s.ollama_base_url, "message": "Ollama is not enabled"}
     try:
-        models = await p.list_models()
-        return {
-            "models": [{"name": m.get("name"), "size": m.get("size")} for m in models],
-            "base_url": s.ollama_base_url,
-        }
+        models = await get_ollama_models_with_metadata(db)
+        return {"models": models, "base_url": s.ollama_base_url}
     except Exception as e:
-        return {"models": [], "error": str(e)}
+        return {"models": [], "base_url": s.ollama_base_url, "error": str(e)}
+
+
+class OllamaModelCapabilitiesUpdate(BaseModel):
+    capabilities: list[str] | None = None
+    recommended_roles: list[str] | None = None
+    enabled: bool | None = None
+
+
+@router.put("/ai/providers/ollama/models/{model_name}/capabilities")
+async def admin_ollama_model_capabilities(
+    model_name: str,
+    data: OllamaModelCapabilitiesUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update capability tags for an Ollama model."""
+    from authora.services.ollama_model_service import set_model_capabilities
+
+    meta = await set_model_capabilities(
+        db,
+        model_name,
+        capabilities=data.capabilities,
+        recommended_roles=data.recommended_roles,
+        enabled=data.enabled,
+    )
+    await db.commit()
+    return {"model": model_name, "capabilities": meta}
+
+
+class OllamaModelTestRequest(BaseModel):
+    test_prompt: str | None = Field(None, description="Custom test prompt")
+    base_url: str | None = Field(None, description="Override base URL")
+
+
+@router.post("/ai/providers/ollama/models/{model_name}/test")
+async def admin_ollama_model_test(
+    model_name: str,
+    current_user: AdminUser,
+    data: OllamaModelTestRequest | None = None,
+):
+    """Run a test prompt against a specific Ollama model."""
+    from authora.services.ollama_model_service import test_model
+
+    s = get_settings()
+    if not s.ollama_enabled:
+        return {"ok": False, "message": "Ollama is not enabled"}
+    body = data or OllamaModelTestRequest()
+    ok, msg = await test_model(
+        model_name,
+        base_url=body.base_url or s.ollama_base_url,
+        test_prompt=body.test_prompt,
+    )
+    return {"ok": ok, "message": msg}
+
+
+@router.get("/ai/providers/ollama/timeout")
+async def admin_ollama_timeout(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get Ollama request timeout setting."""
+    from authora.services.ollama_model_service import get_request_timeout
+
+    seconds = await get_request_timeout(db)
+    return {"timeout_seconds": seconds}
+
+
+class OllamaTimeoutUpdate(BaseModel):
+    timeout_seconds: int = Field(..., ge=30, le=300)
+
+
+@router.put("/ai/providers/ollama/timeout")
+async def admin_ollama_timeout_update(
+    data: OllamaTimeoutUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Set Ollama request timeout."""
+    from authora.services.ollama_model_service import set_request_timeout
+
+    await set_request_timeout(db, data.timeout_seconds)
+    await db.commit()
+    return {"timeout_seconds": data.timeout_seconds}
 
 
 # --- Embeddings / RAG admin ---

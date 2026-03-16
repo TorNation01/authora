@@ -1,53 +1,62 @@
 # Model Routing
 
-AUTHORA routes AI requests to providers and models based on **task type** and configuration.
+AI routing engine that selects the best model/provider for each task.
 
-## Task Types
+## Routing Modes
 
-| Task | Description | Example actions |
-|------|--------------|-----------------|
-| `writing_assist` | General writing help | expand, continue_draft, change_tone |
-| `fiction_ideation` | Fiction brainstorming | generate_outline, generate_scene_ideas |
-| `nonfiction_structure` | Nonfiction structure | nonfiction outlines |
-| `ghostwriting` | Full draft generation | generate_section, chapter drafts |
-| `editing_polish` | Editing and polish | rewrite_sentence, improve_wording |
-| `general` | Fallback | free-form completion |
+| Mode | Behavior |
+|------|----------|
+| `auto` | Local-first, fallback to cloud |
+| `local_first` | Same as auto |
+| `local` | Ollama only, no cloud |
+| `cloud` | OpenAI/Anthropic only |
+| `privacy_first` | Local only (alias for local) |
+| `quality_first` | Cloud first (premium models) |
+| `speed_first` | Local first (fast inference) |
 
-## Action → Task Mapping
+## Routing Factors
 
-| Action ID | Task |
-|-----------|------|
-| rewrite_sentence, rewrite_paragraph, improve_wording, improve_flow | editing_polish |
-| expand, change_tone, continue_draft | writing_assist |
-| condense, summarize_chapter, fix_transitions | editing_polish |
-| generate_outline, generate_scene_ideas, generate_chapter_ideas | fiction_ideation |
-| generate_section | ghostwriting |
-| ... | (see `ai_registry.ACTION_TO_TASK`) |
+- **Task type** — writing_assist, fiction_ideation, ghostwriting, etc.
+- **User/project preferences** — `ai_mode`, `routing_mode`, `preferred_provider`
+- **Provider availability** — only configured providers are considered
+- **Plan** — `premium_model_routing` feature for premium users
 
-## Provider Model Resolution
+## Task → Role Mapping
 
-### OpenAI
+| Task | Role |
+|------|------|
+| writing_assist | quick_assist_model |
+| fiction_ideation | fiction_ideation_model |
+| nonfiction_structure | nonfiction_structure_model |
+| ghostwriting | premium_drafting_model |
+| editing_polish | editing_polish_model |
+| general | default_writing_model |
 
-- Model: `AI_MODEL` env or `gpt-4o-mini`
-- Same model for all tasks (no task-specific routing for OpenAI in current config)
+## Role → Model Resolution
 
-### Anthropic
+**Ollama**: `get_ollama_model_for_role(role)` — order: project_prefs → db_overrides → env → tier defaults → OLLAMA_DEFAULT_MODELS
 
-- Model: `AI_MODEL` env or `claude-3-haiku-20240307`
-- Same model for all tasks
+**Cloud**: `get_cloud_model_for_role(role, provider)` — CLOUD_FALLBACK_MODELS or settings.ai_model
 
-### Ollama
+## Fallback Chain
 
-- Model: task-specific env or `OLLAMA_MODEL_DEFAULT`
-- `get_ollama_model_for_task(task)` returns the configured model for that task
+On failure, the system tries:
 
-## Resolution Flow
+1. Same provider, retry (up to 3 times)
+2. Next provider in mode order (e.g. ollama → openai → anthropic)
+3. Legacy `ai.complete` as last resort
 
-1. **Project/book prefs** — `ai_prefs.preferred_provider`, `ai_prefs.preferred_model`
-2. **Provider mode** — `AI_PROVIDER_MODE` (auto/cloud/local)
-3. **Provider order** — local first in auto, then cloud
-4. **Model for task** — `get_ollama_model_for_task(task)` for Ollama; `AI_MODEL` for cloud
+## Admin Overrides
 
-## Fallback
+- `PUT /admin/ai/model-roles` — Set role → model mappings (stored in Setting)
+- `POST /admin/ai/model-roles/apply-recommended` — Apply hardware-tier defaults
 
-If the primary provider fails, the next provider in the chain is tried. No per-task fallback model within Ollama (e.g. llama3.2 → mistral) is configured by default; that would require additional config.
+## User Overrides
+
+Per-book `ai_prefs`:
+
+- `ai_mode`: auto | cloud | local
+- `routing_mode`: auto | quality_first | speed_first | privacy_first | local_first
+- `preferred_provider`: openai | anthropic | ollama
+- `preferred_model`: Override for cloud
+- `preferred_ollama_model`: Override for local

@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     # AI (optional - configured via setup wizard)
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None  # Gemini-ready slot
     ai_provider: str = "openai"  # openai | anthropic | ollama (legacy single-provider)
     ai_model: str = "gpt-4o-mini"
     ai_rate_limit_per_minute: Optional[int] = 60
@@ -80,10 +81,31 @@ class Settings(BaseSettings):
     # AI provider mode: auto (prefer local, fallback cloud) | cloud | local
     ai_provider_mode: str = "auto"
 
+    # AI provider toggles (per-environment)
+    ai_cloud_disabled: bool = False  # Disable all cloud providers
+    ai_local_only: bool = False  # Local-only mode (no cloud fallback)
+    ai_openai_enabled: Optional[bool] = None  # Override: None=auto from key
+    ai_anthropic_enabled: Optional[bool] = None
+    ai_ollama_enabled: Optional[bool] = None  # Override: None=use ollama_enabled
+
+    # Provider timeouts (seconds)
+    ai_openai_timeout: Optional[int] = 60
+    ai_anthropic_timeout: Optional[int] = 60
+    ai_ollama_timeout: Optional[int] = 120  # Same as ollama_request_timeout
+
+    # Retry and fallback
+    ai_retry_count: int = 3
+    ai_fallback_enabled: bool = True  # Allow fallback to next provider on failure
+
+    # Model allowlists (comma-separated; empty = allow all)
+    ai_openai_models_allowlist: Optional[str] = None
+    ai_anthropic_models_allowlist: Optional[str] = None
+
     # Ollama (local/self-hosted)
     ollama_enabled: bool = False
     ollama_base_url: str = "http://localhost:11434"
     ollama_model_default: str = "llama3.2"
+    ollama_request_timeout: Optional[int] = 120  # seconds for generation requests
     # Hardware tier: 1=light, 2=balanced, 3=strong, 4=premium. Auto-detected if unset.
     ollama_hardware_tier: Optional[str] = None
     # Legacy task-specific (superseded by role-based)
@@ -92,6 +114,7 @@ class Settings(BaseSettings):
     ollama_model_nonfiction_structure: Optional[str] = None
     ollama_model_ghostwriting: Optional[str] = None
     ollama_model_editing_polish: Optional[str] = None
+    ollama_model_summarization: Optional[str] = None
     # Role-based model mapping (OLLAMA_MODEL_QUICK_ASSIST, etc.)
     ollama_model_quick_assist: Optional[str] = None
     ollama_model_default_writing: Optional[str] = None

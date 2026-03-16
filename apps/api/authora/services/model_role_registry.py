@@ -12,6 +12,7 @@ ROLE_PREMIUM_DRAFTING = "premium_drafting_model"
 ROLE_FICTION_IDEATION = "fiction_ideation_model"
 ROLE_NONFICTION_STRUCTURE = "nonfiction_structure_model"
 ROLE_EDITING_POLISH = "editing_polish_model"
+ROLE_SUMMARIZATION = "summarization_model"
 ROLE_EMBEDDINGS = "embeddings_model"
 ROLE_OPTIONAL_VISION = "optional_vision_model"
 
@@ -22,6 +23,7 @@ ROLE_IDS = [
     ROLE_FICTION_IDEATION,
     ROLE_NONFICTION_STRUCTURE,
     ROLE_EDITING_POLISH,
+    ROLE_SUMMARIZATION,
     ROLE_EMBEDDINGS,
     ROLE_OPTIONAL_VISION,
 ]
@@ -34,6 +36,7 @@ OLLAMA_DEFAULT_MODELS: dict[str, str] = {
     ROLE_FICTION_IDEATION: "qwen3:8b",
     ROLE_NONFICTION_STRUCTURE: "qwen3:8b",
     ROLE_EDITING_POLISH: "qwen3:8b",
+    ROLE_SUMMARIZATION: "qwen3:4b",
     ROLE_EMBEDDINGS: "qwen3-embedding:4b",
     ROLE_OPTIONAL_VISION: "qwen3-vl:8b",
 }
@@ -46,6 +49,7 @@ CLOUD_FALLBACK_MODELS: dict[str, dict[str, str]] = {
     ROLE_FICTION_IDEATION: {"openai": "gpt-4o-mini", "anthropic": "claude-3-haiku-20240307"},
     ROLE_NONFICTION_STRUCTURE: {"openai": "gpt-4o-mini", "anthropic": "claude-3-haiku-20240307"},
     ROLE_EDITING_POLISH: {"openai": "gpt-4o-mini", "anthropic": "claude-3-haiku-20240307"},
+    ROLE_SUMMARIZATION: {"openai": "gpt-4o-mini", "anthropic": "claude-3-haiku-20240307"},
     ROLE_EMBEDDINGS: {"openai": "text-embedding-3-small", "anthropic": ""},
     ROLE_OPTIONAL_VISION: {"openai": "gpt-4o", "anthropic": "claude-3-5-sonnet-20241022"},
 }
@@ -56,6 +60,7 @@ TASK_FICTION_IDEATION = "fiction_ideation"
 TASK_NONFICTION_STRUCTURE = "nonfiction_structure"
 TASK_GHOSTWRITING = "ghostwriting"
 TASK_EDITING_POLISH = "editing_polish"
+TASK_SUMMARIZATION = "summarization"
 TASK_GENERAL = "general"
 
 # Map task to role (for model resolution)
@@ -65,6 +70,7 @@ TASK_TO_ROLE: dict[str, str] = {
     TASK_NONFICTION_STRUCTURE: ROLE_NONFICTION_STRUCTURE,
     TASK_GHOSTWRITING: ROLE_PREMIUM_DRAFTING,
     TASK_EDITING_POLISH: ROLE_EDITING_POLISH,
+    TASK_SUMMARIZATION: ROLE_SUMMARIZATION,
     TASK_GENERAL: ROLE_DEFAULT_WRITING,
 }
 
@@ -76,6 +82,7 @@ ROLE_CONFIG_KEYS: dict[str, str] = {
     ROLE_FICTION_IDEATION: "ollama_model_fiction_ideation",
     ROLE_NONFICTION_STRUCTURE: "ollama_model_nonfiction_structure",
     ROLE_EDITING_POLISH: "ollama_model_editing_polish",
+    ROLE_SUMMARIZATION: "ollama_model_summarization",
     ROLE_EMBEDDINGS: "ollama_model_embeddings",
     ROLE_OPTIONAL_VISION: "ollama_model_optional_vision",
 }
@@ -106,14 +113,23 @@ def _get_tier_default_for_role(role: str) -> str:
 def get_ollama_model_for_role(
     role: str,
     project_prefs: dict[str, Any] | None = None,
+    user_prefs: dict[str, Any] | None = None,
     db_overrides: dict[str, str] | None = None,
 ) -> str:
     """
     Resolve Ollama model for a role.
-    Order: project_prefs (future) -> db_overrides -> env -> tier-based defaults -> OLLAMA_DEFAULT_MODELS.
+    Order: project preferred_ollama_model > project model_roles[role] > user preferred_ollama_model >
+           db_overrides > env > tier defaults > OLLAMA_DEFAULT_MODELS.
     """
+    # Per-project preferred local model (overrides all roles)
+    if project_prefs and project_prefs.get("preferred_ollama_model"):
+        return project_prefs["preferred_ollama_model"]
+    # Per-project per-role override
     if project_prefs and role in project_prefs.get("model_roles", {}):
         return project_prefs["model_roles"][role]
+    # Per-user preferred local model (when permitted by plan/admin)
+    if user_prefs and user_prefs.get("preferred_ollama_model"):
+        return user_prefs["preferred_ollama_model"]
 
     if db_overrides and role in db_overrides:
         return db_overrides[role]

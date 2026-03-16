@@ -55,7 +55,40 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan."""
+    """Application lifespan. Validates AI dependencies at startup."""
+    from authora.services.ai_config import (
+        get_available_providers,
+        get_environment,
+        is_ai_available,
+        log_provider_status,
+        validate_ollama_config,
+        validate_openai_config,
+        validate_anthropic_config,
+    )
+
+    env = get_environment()
+    logger.info("AUTHORA starting in %s environment", env)
+
+    providers = get_available_providers()
+    for name, configured in providers.items():
+        log_provider_status(name, configured)
+
+    if not is_ai_available():
+        logger.warning(
+            "No AI providers configured. AI features will be unavailable. "
+            "Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or OLLAMA_ENABLED=true."
+        )
+    else:
+        validations = [
+            validate_openai_config(),
+            validate_anthropic_config(),
+            validate_ollama_config(),
+        ]
+        if any(ok for ok, _ in validations):
+            logger.info("AI providers ready. Graceful fallback enabled if some unavailable.")
+        else:
+            logger.warning("AI config present but validation failed. Check keys and OLLAMA_BASE_URL.")
+
     yield
 
 
@@ -123,6 +156,20 @@ app.include_router(vault.router, prefix="/api/v1")
 async def health():
     """Health check - liveness."""
     return {"status": "ok", "app": settings.app_name, "version": "1.0.0"}
+
+
+@app.get("/health/ai")
+async def health_ai():
+    """AI providers availability (for load balancers, no auth). Returns minimal status."""
+    from authora.services.ai_config import get_available_providers, is_ai_available
+
+    providers = get_available_providers()
+    available = is_ai_available()
+    return {
+        "ai_available": available,
+        "providers_configured": list(k for k, v in providers.items() if v),
+        "status": "ok" if available else "degraded",
+    }
 
 
 @app.get("/health/ready")

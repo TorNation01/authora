@@ -7,6 +7,7 @@
 export * from './tooltips';
 export * from './empty-states';
 export * from './ai-explanations';
+export * from './ai-assist-copy';
 export * from './onboarding';
 export * from './help-center';
 export * from './template-copy';

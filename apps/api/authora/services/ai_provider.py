@@ -216,21 +216,31 @@ async def complete_with_retry(
     max_retries: int = 3,
     task: str = "general",
     project_prefs: dict | None = None,
+    user_prefs: dict | None = None,
     preferred_provider: str | None = None,
     preferred_model: str | None = None,
     db_overrides: dict[str, str] | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Stream completion with retry and fallback chain."""
+    """Stream completion with retry and fallback chain. Respects privacy mode (no cloud fallback)."""
     from authora.services.ai_registry import get_fallback_chain, get_provider_for_task
 
     provider, model, provider_name = get_provider_for_task(
         task=task,
         project_prefs=project_prefs,
+        user_prefs=user_prefs,
         preferred_provider=preferred_provider,
         preferred_model=preferred_model,
         db_overrides=db_overrides,
     )
-    fallbacks = get_fallback_chain(task, provider_name, db_overrides=db_overrides) if provider else []
+    fallbacks = (
+        get_fallback_chain(
+            task, provider_name,
+            db_overrides=db_overrides,
+            project_prefs=project_prefs,
+            user_prefs=user_prefs,
+        )
+        if provider else []
+    )
     chain = [(provider, model, provider_name)] + fallbacks
 
     last_err: Exception | None = None

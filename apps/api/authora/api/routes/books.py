@@ -342,11 +342,17 @@ class FinishModeUpdate(BaseModel):
 
 
 class AIPrefsUpdate(BaseModel):
-    """Per-book AI preferences."""
+    """Per-book AI preferences. User-facing, non-technical where possible."""
 
     ai_mode: str | None = None  # auto | cloud | local
+    routing_mode: str | None = None  # auto | quality_first | speed_first | privacy_first | local_first
     preferred_provider: str | None = None  # openai | anthropic | ollama
     preferred_model: str | None = None
+    preferred_ollama_model: str | None = None  # When local, which Ollama model
+    ai_assistance_on: bool | None = None
+    allow_continuation_suggestions: bool | None = None
+    allow_rewrite_shortcuts: bool | None = None
+    allow_brainstorming_helpers: bool | None = None
 
 
 @router.get("/{book_id}/ai-preferences")
@@ -383,10 +389,22 @@ async def patch_ai_preferences(
     prefs = dict(bs.settings.get("ai_prefs") or {})
     if data.ai_mode is not None:
         prefs["ai_mode"] = data.ai_mode
+    if data.routing_mode is not None:
+        prefs["routing_mode"] = data.routing_mode
     if data.preferred_provider is not None:
         prefs["preferred_provider"] = data.preferred_provider
     if data.preferred_model is not None:
         prefs["preferred_model"] = data.preferred_model
+    if data.preferred_ollama_model is not None:
+        prefs["preferred_ollama_model"] = data.preferred_ollama_model
+    if data.ai_assistance_on is not None:
+        prefs["ai_assistance_on"] = data.ai_assistance_on
+    if data.allow_continuation_suggestions is not None:
+        prefs["allow_continuation_suggestions"] = data.allow_continuation_suggestions
+    if data.allow_rewrite_shortcuts is not None:
+        prefs["allow_rewrite_shortcuts"] = data.allow_rewrite_shortcuts
+    if data.allow_brainstorming_helpers is not None:
+        prefs["allow_brainstorming_helpers"] = data.allow_brainstorming_helpers
     bs.settings = {**(bs.settings or {}), "ai_prefs": prefs}
     await db.flush()
     await db.refresh(bs)

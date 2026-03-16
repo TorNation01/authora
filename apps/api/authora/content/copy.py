@@ -168,6 +168,59 @@ FINISH_MODE_COPY: list[str] = [
 
 # --- AI EXPLANATION COPY ---
 
+# --- AI ASSIST UX COPY (user-facing labels, mode, trust) ---
+
+AI_ASSIST_LABELS: dict[str, str] = {
+    "help_when_stuck": "Help me get unstuck",
+    "improve_flow": "Improve flow",
+    "rewrite_sentence": "Rewrite selection",
+    "rewrite_paragraph": "Rewrite selection",
+    "improve_wording": "Make this clearer",
+    "continue_draft": "Continue from here",
+    "expand": "Expand this",
+    "condense": "Shorten this",
+    "change_tone": "Change tone",
+    "generate_scene_ideas": "Brainstorm options",
+    "generate_chapter_ideas": "Brainstorm options",
+    "generate_outline": "Generate outline",
+    "title_brainstorm": "Brainstorm titles",
+    "suggest_chapter_names": "Suggest chapter names",
+    "create_hook": "Create opening",
+    "create_conclusion": "Create conclusion",
+    "fix_transitions": "Suggest transitions",
+    "suggest_transitions": "Suggest transitions",
+    "summarize_chapter": "Summarise this chapter",
+    "summarize_section": "Summarise this section",
+    "notes_to_prose": "Turn notes into prose",
+    "generate_section": "Generate section",
+    "generate_examples": "Generate examples",
+    "identify_repetition": "Find repetition",
+    "style_guidance": "Style guidance",
+    "blurb_copy": "Write blurb",
+    "research_note_summary": "Summarise research notes",
+    "vault_retrieval_summary": "Summarise vault content",
+    "freeform_creative": "Ask AI",
+}
+
+AI_ROUTING_MODE_LABELS: dict[str, str] = {
+    "auto": "Automatic",
+    "quality_first": "Quality first",
+    "speed_first": "Speed first",
+    "privacy_first": "Privacy first",
+    "local_first": "Local first",
+    "local": "Local only",
+    "cloud": "Cloud only",
+    "cloud_only": "Cloud only",
+}
+
+AI_TRUST_COPY: dict[str, str] = {
+    "never_auto_replace": "AI suggestions never replace your writing automatically.",
+    "you_stay_in_control": "You stay in control of what changes.",
+    "local_keeps_approved": "Local mode keeps requests on approved local models.",
+    "source_review_note": "Source-based tasks may need your review before use.",
+    "voice_stays_yours": "AI can help shape language, structure, and ideas while you keep the voice.",
+}
+
 AI_EXPLANATION_COPY: dict[str, str] = {
     "ai_overview": "AUTHORA's AI helps you write faster without replacing your voice. It can suggest, expand, rewrite, or draft—you stay in control.",
     "ai_rewrite": "Rewrites your selected text in a different style. Use it to try a new tone or simplify complex sentences.",

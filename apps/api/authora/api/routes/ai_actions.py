@@ -13,7 +13,8 @@ from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_book_or_404
 from authora.config import get_settings
 from authora.database import get_db
-from authora.models import AIRevision, Book, BookSettings, Chapter, Project
+from authora.models import AIRevision, Book, BookSettings, Chapter, Project, UserPreference
+from authora.content.copy import AI_ASSIST_LABELS
 from authora.services.ai_orchestration import (
     ACTION_DEFINITIONS,
     AIMode,
@@ -57,11 +58,11 @@ class AIActionResponse(BaseModel):
 
 @router.get("/actions", response_model=list[dict])
 async def list_actions():
-    """List available AI actions."""
+    """List available AI actions with polished user-facing labels."""
     return [
         {
             "id": a.id,
-            "label": a.label,
+            "label": AI_ASSIST_LABELS.get(a.id, a.label),
             "description": a.description,
             "uses_selection": a.uses_selection,
             "uses_context": a.uses_context,
@@ -146,6 +147,12 @@ async def run_action_stream(
     if bs and bs.settings:
         project_prefs = bs.settings.get("ai_prefs") or {}
 
+    user_prefs: dict | None = None
+    pref_result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    up = pref_result.scalar_one_or_none()
+    if up and up.preferences:
+        user_prefs = up.preferences.get("ai_prefs") or {}
+
     from authora.services.ai_registry import action_to_task
 
     task = action_to_task(data.action_id, data.book_type)
@@ -184,11 +191,13 @@ async def run_action_stream(
     provider, model, provider_name = get_provider_for_task(
         task=task,
         project_prefs=project_prefs,
+        user_prefs=user_prefs,
         preferred_provider=data.preferred_provider,
         preferred_model=data.preferred_model,
         db_overrides=db_overrides,
     )
     model_name = model if provider_name else None
+    ai_provider_label = "local" if provider_name == "ollama" else "cloud"
 
     async def generate():
         collected = []
@@ -199,6 +208,7 @@ async def run_action_stream(
                 max_tokens=action.max_tokens,
                 task=task,
                 project_prefs=project_prefs,
+                user_prefs=user_prefs,
                 preferred_provider=data.preferred_provider,
                 preferred_model=data.preferred_model,
                 db_overrides=db_overrides,
@@ -229,7 +239,11 @@ async def run_action_stream(
     return StreamingResponse(
         generate(),
         media_type="text/plain",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "X-AI-Provider": ai_provider_label,
+        },
     )
 
 

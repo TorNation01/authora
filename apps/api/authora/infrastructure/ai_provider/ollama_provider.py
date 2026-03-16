@@ -5,15 +5,24 @@ from typing import AsyncGenerator
 
 import httpx
 
+from authora.config import get_settings
 from authora.services.ai_provider import AIResponse
+
+DEFAULT_TIMEOUT = 120
 
 
 class OllamaProvider:
     """Ollama API provider for local models."""
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.2"):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        model: str = "llama3.2",
+        timeout: float | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self._timeout = timeout
 
     @property
     def name(self) -> str:
@@ -26,6 +35,12 @@ class OllamaProvider:
         messages.append({"role": "user", "content": prompt})
         return messages
 
+    def _get_timeout(self) -> float:
+        """Resolve request timeout from config or default."""
+        if self._timeout is not None:
+            return float(self._timeout)
+        return float(getattr(get_settings(), "ollama_request_timeout", None) or DEFAULT_TIMEOUT)
+
     async def complete_stream(
         self,
         prompt: str,
@@ -36,7 +51,8 @@ class OllamaProvider:
         """Stream completion via Ollama /api/chat."""
         model = kwargs.get("model") or self.model
         messages = self._build_messages(prompt, system_prompt)
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        timeout = self._get_timeout()
+        async with httpx.AsyncClient(timeout=timeout) as client:
             async with client.stream(
                 "POST",
                 f"{self.base_url}/api/chat",
