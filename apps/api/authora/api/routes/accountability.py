@@ -503,11 +503,17 @@ async def list_delivery_logs(
 # --- Scheduler / Cron endpoint (internal) ---
 
 def _require_cron_secret(request: Request) -> None:
-    """Require X-Cron-Secret header when CRON_SECRET is set."""
+    """Require X-Cron-Secret header. In production (debug=False), CRON_SECRET must be set."""
     from authora.config import get_settings
-    secret = get_settings().cron_secret
+    settings = get_settings()
+    secret = settings.cron_secret
     if not secret:
-        return  # No secret configured: allow (backward compat; set CRON_SECRET in prod)
+        if settings.debug:
+            return  # Dev: allow unauthenticated cron for local testing
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="CRON_SECRET must be set in production. Add CRON_SECRET to .env and configure cron with X-Cron-Secret header.",
+        )
     provided = request.headers.get("x-cron-secret")
     if provided != secret:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or missing cron secret")

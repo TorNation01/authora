@@ -1,5 +1,7 @@
 # Backup & Restore Strategy
 
+For operational commands and cron setup, see [BACKUP_AND_RESTORE.md](./BACKUP_AND_RESTORE.md).
+
 ## Database (PostgreSQL)
 
 ### Backup

@@ -114,7 +114,7 @@ app.include_router(leads.router, prefix="/api/v1")
 @app.get("/health")
 async def health():
     """Health check - liveness."""
-    return {"status": "ok", "app": settings.app_name}
+    return {"status": "ok", "app": settings.app_name, "version": "1.0.0"}
 
 
 @app.get("/health/ready")
@@ -144,7 +144,7 @@ async def health_ready():
     ready = all(checks.values())
     status_code = 200 if ready else 503
     return JSONResponse(
-        {"status": "ready" if ready else "degraded", "checks": checks, "app": settings.app_name},
+        {"status": "ready" if ready else "degraded", "checks": checks, "app": settings.app_name, "version": "1.0.0"},
         status_code=status_code,
     )
 

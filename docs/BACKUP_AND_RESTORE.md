@@ -1,6 +1,6 @@
 # AUTHORA Backup and Restore
 
-Exact commands for backing up and restoring the AUTHORA database.
+Exact commands for backing up and restoring the AUTHORA database. For strategy and retention, see [BACKUP-RESTORE.md](./BACKUP-RESTORE.md).
 
 ## Backup
 

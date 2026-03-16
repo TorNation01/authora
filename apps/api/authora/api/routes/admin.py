@@ -275,13 +275,14 @@ async def admin_reminders(
 async def admin_errors(
     current_user: AdminUser,
 ):
-    """Error monitoring placeholder. Configure log aggregation (e.g. Loki, Sentry) for persisted errors."""
+    """Error monitoring. Returns empty list; integrate Sentry/Loki for persisted errors."""
     return {
-        "message": "Error monitoring requires log aggregation. Configure Sentry, Loki, or similar.",
+        "errors": [],
+        "total": 0,
+        "message": "No persisted errors. Integrate SENTRY_DSN or log aggregation for error monitoring.",
         "suggestions": [
             "Add SENTRY_DSN for Sentry integration",
             "Ship logs to Loki/Elasticsearch for querying",
-            "Consider adding an error_logs table for API-caught errors",
         ],
     }
 

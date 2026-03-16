@@ -34,8 +34,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Log after response - avoid logging sensitive paths in detail
+        # Ecosystem convention: app, request_id, event for log aggregation
         log_data = {
+            "app": "authora",
             "request_id": request_id,
+            "event": "audit_request",
             "method": method,
             "path": path,
             "status_code": response.status_code,

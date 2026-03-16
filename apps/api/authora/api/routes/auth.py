@@ -19,6 +19,7 @@ from authora.schemas.auth import (
     UserResponse,
     UserUpdate,
 )
+from authora.core.audit import AuditLogger
 from authora.services.auth import (
     change_password,
     create_access_token,
@@ -54,6 +55,9 @@ async def register(
     refresh_token, _, _ = await create_session(db, user.id)
     access_token, expires = create_access_token(user.id)
 
+    audit = AuditLogger(db)
+    await audit.log("register", "user", str(user.id), user.id, {"email": data.email})
+
     await db.commit()
 
     return Token(
@@ -82,6 +86,9 @@ async def login(
 
     refresh_token, _, _ = await create_session(db, user.id)
     access_token, expires = create_access_token(user.id)
+
+    audit = AuditLogger(db)
+    await audit.log("login", "user", str(user.id), user.id)
 
     await db.commit()
 

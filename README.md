@@ -87,10 +87,17 @@ docker compose up -d
 |-----|---------|
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Full deployment guide |
 | [UBUNTU_INSTALL.md](docs/UBUNTU_INSTALL.md) | Fresh Ubuntu bootstrap |
+| [UBUNTU_DEPLOY_COMMANDS.md](docs/UBUNTU_DEPLOY_COMMANDS.md) | Ubuntu deploy commands |
 | [LOCAL_DEV.md](docs/LOCAL_DEV.md) | Local development |
 | [OPERATIONS_QUICKSTART.md](docs/OPERATIONS_QUICKSTART.md) | Copy-paste commands |
+| [QUICKSTART_COMMANDS.md](docs/QUICKSTART_COMMANDS.md) | Quickstart copy-paste |
 | [GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md) | Pre/post go-live validation |
+| [GO_LIVE_COMMAND_CHECKLIST.md](docs/GO_LIVE_COMMAND_CHECKLIST.md) | One-page go-live commands |
 | [BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) | Backup and restore |
+| [OPERATOR_QUICK_REFERENCE.md](docs/OPERATOR_QUICK_REFERENCE.md) | Exact terminal commands |
+| [OPERATOR_COMMANDS.md](docs/OPERATOR_COMMANDS.md) | Full operator command reference |
+| [ANAKATECH_INTEGRATION.md](docs/ANAKATECH_INTEGRATION.md) | Anakatech ecosystem integration |
+| [ANAKATECH_CONVENTIONS.md](docs/ANAKATECH_CONVENTIONS.md) | Ecosystem conventions |
 
 ## Project Structure
 

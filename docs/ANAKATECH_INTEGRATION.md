@@ -1,6 +1,6 @@
 # Anakatech Integration Guide
 
-AUTHORA integrates into the Anakatech ecosystem through an optional adapter layer. Integration is modular, environment-driven, and does not affect standalone operation.
+AUTHORA integrates into the Anakatech ecosystem through an optional adapter layer. For ecosystem conventions, see [ANAKATECH_CONVENTIONS.md](./ANAKATECH_CONVENTIONS.md). Integration is modular, environment-driven, and does not affect standalone operation.
 
 ## Architecture Overview
 

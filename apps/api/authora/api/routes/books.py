@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_book_or_404, get_project_or_404
+from authora.core.audit import AuditLogger
 from authora.database import get_db
 from authora.models import Book, Chapter, ChapterVersion, Project
 from authora.services.finish_mode import get_finish_mode_stats, update_finish_mode_settings
@@ -83,6 +84,8 @@ async def create_book(
     )
     db.add(book)
     await db.flush()
+    audit = AuditLogger(db)
+    await audit.log("create", "book", str(book.id), current_user.id, {"title": data.title, "project_id": str(project_id)})
     await db.refresh(book)
     return BookResponse.model_validate(book)
 

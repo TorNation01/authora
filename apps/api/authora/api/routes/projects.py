@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_project_or_404
+from authora.core.audit import AuditLogger
 from authora.database import get_db
 from authora.models import Project
 from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
@@ -88,6 +89,8 @@ async def create_project(
     project = Project(user_id=current_user.id, name=data.name)
     db.add(project)
     await db.flush()
+    audit = AuditLogger(db)
+    await audit.log("create", "project", str(project.id), current_user.id, {"name": data.name})
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
 
