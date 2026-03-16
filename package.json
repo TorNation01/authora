@@ -19,6 +19,7 @@
     "audit:fix": "npm audit fix --workspaces",
     "db:migrate": "cd apps/api && alembic upgrade head",
     "db:seed": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed",
+    "promote-admin": "cd apps/api && PYTHONPATH=. python -m authora.scripts.promote_admin",
     "setup": "node scripts/setup-wizard.mjs",
     "deploy": "./scripts/deploy.sh",
     "deploy:prod": "./scripts/deploy.sh prod",

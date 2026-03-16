@@ -156,7 +156,7 @@ export default function DashboardPage() {
   const showNextStep = journey?.has_journey && journey?.next_step && !journey.next_step.journey_complete;
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
       <PageHeader
         title="Home"
         description="Your projects and what's next—we're here when you're ready"
@@ -166,7 +166,8 @@ export default function DashboardPage() {
               <Plus className="h-4 w-4 mr-2" />
               New project
             </Link>
-          }
+          </Button>
+        }
       />
 
       <FirstUseBanner />

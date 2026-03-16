@@ -79,8 +79,13 @@ from authora.models.publishing_asset import PublishingAsset
 from authora.models.feature_flag import FeatureFlag
 from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
+from authora.models.project_template import ProjectTemplate
+from authora.models.writing_framework import WritingFramework
 from authora.models.subscription import Subscription
 from authora.models.usage_record import UsageRecord
+from authora.models.entitlement_grant import EntitlementGrant
+from authora.models.promo_code import PromoCode, PromoCodeRedemption
+from authora.models.entitlement_audit_log import EntitlementAuditLog
 from authora.models.content_embedding import ContentEmbedding, IndexingJob
 
 __all__ = [
@@ -160,8 +165,14 @@ __all__ = [
     "FeatureFlag",
     "SetupState",
     "Plan",
+    "ProjectTemplate",
+    "WritingFramework",
     "Subscription",
     "UsageRecord",
+    "EntitlementGrant",
+    "PromoCode",
+    "PromoCodeRedemption",
+    "EntitlementAuditLog",
     "ContentEmbedding",
     "IndexingJob",
 ]

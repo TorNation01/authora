@@ -36,10 +36,10 @@ export default function SetupPage() {
   const [form, setForm] = useState({
     product_name: 'AUTHORA',
     tagline: 'AI-Powered Book Builder',
-    domain: 'authora.studio',  # Option 2: marketing; app at app.authora.studio
+    domain: 'authora.studio', // Option 2: marketing; app at app.authora.studio
     use_ssl: false,
-    database_url: 'postgresql://authora:authora@localhost:5432/authora',
-    redis_url: 'redis://localhost:6379/0',
+    database_url: 'postgresql://authora:authora@localhost:5433/authora',
+    redis_url: 'redis://localhost:6380/0',
     storage_provider: 'local' as 'local' | 's3' | 'r2',
     storage_local_path: './storage',
     ai_provider: 'openai' as 'openai' | 'anthropic' | 'ollama',
@@ -48,6 +48,7 @@ export default function SetupPage() {
     anthropic_api_key: '',
     ollama_enabled: false,
     ollama_base_url: 'http://localhost:11434',
+    ollama_hardware_tier: '' as '' | '1' | '2' | '3' | '4',
     email_enabled: false,
     admin_email: '',
     admin_password: '',
@@ -122,6 +123,7 @@ export default function SetupPage() {
             anthropic_api_key: form.anthropic_api_key || undefined,
             ollama_enabled: form.ollama_enabled,
             ollama_base_url: form.ollama_base_url || undefined,
+            ollama_hardware_tier: form.ollama_hardware_tier || undefined,
           },
           preferences: {
             backup_enabled: form.backup_enabled,
@@ -173,6 +175,7 @@ export default function SetupPage() {
             anthropic_api_key: form.anthropic_api_key || undefined,
             ollama_enabled: form.ollama_enabled,
             ollama_base_url: form.ollama_base_url || undefined,
+            ollama_hardware_tier: form.ollama_hardware_tier || undefined,
           },
           preferences: {
             backup_enabled: form.backup_enabled,
@@ -203,6 +206,7 @@ export default function SetupPage() {
             anthropic_api_key: form.anthropic_api_key || undefined,
             ollama_enabled: form.ollama_enabled,
             ollama_base_url: form.ollama_base_url || undefined,
+            ollama_hardware_tier: form.ollama_hardware_tier || undefined,
           },
           run_migrations: true,
           seed_templates: true,
@@ -460,6 +464,24 @@ export default function SetupPage() {
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         For server deployment, use the server URL (e.g. http://server:11434).
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="ollama_hardware_tier">Hardware tier (optional)</Label>
+                      <select
+                        id="ollama_hardware_tier"
+                        value={form.ollama_hardware_tier || ''}
+                        onChange={(e) => setForm((f) => ({ ...f, ollama_hardware_tier: (e.target.value || '') as '' | '1' | '2' | '3' | '4' }))}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
+                      >
+                        <option value="">Auto-detect</option>
+                        <option value="1">1 — Light (4–8 GB RAM)</option>
+                        <option value="2">2 — Balanced (8–16 GB)</option>
+                        <option value="3">3 — Strong (16–32 GB)</option>
+                        <option value="4">4 — Premium (32+ GB)</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Override auto-detection for model recommendations.
                       </p>
                     </div>
                     <Button

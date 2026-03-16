@@ -143,6 +143,13 @@ class Settings(BaseSettings):
     # Cron / internal jobs (secret header for /accountability/cron/reminders)
     cron_secret: Optional[str] = None
 
+    # Stripe (billing)
+    stripe_secret_key: Optional[str] = None
+    stripe_publishable_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    stripe_success_url: str = "http://localhost:3000/billing?success=1"
+    stripe_cancel_url: str = "http://localhost:3000/billing?canceled=1"
+
     @field_validator("deployment_mode", mode="before")
     @classmethod
     def validate_deployment_mode(cls, v: str) -> str:

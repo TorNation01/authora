@@ -52,6 +52,11 @@ from authora.services.accountability_engine import (
     suggest_recovery_plan,
 )
 from authora.services.gamification import get_or_create_user_stats
+from authora.services.progress_dashboard import (
+    get_monthly_summary,
+    get_progress_dashboard,
+    get_weekly_summary,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/accountability", tags=["accountability"])
@@ -72,6 +77,14 @@ class AccountabilitySettingsUpdate(BaseModel):
     reminder_cadence: str | None = None
     reminder_types: list[str] | None = None
     plan_paused: bool | None = None
+    accountability_level: str | None = None
+    streak_visible: bool | None = None
+    gamification_enabled: bool | None = None
+    encouragement_preset: str | None = None
+    reminder_style: str | None = None
+    no_reminder_mode: bool | None = None
+    grace_days: int | None = None
+    flexible_streak_mode: bool | None = None
 
 
 class AccountabilitySettingsResponse(BaseModel):
@@ -88,6 +101,14 @@ class AccountabilitySettingsResponse(BaseModel):
     reminder_types: list[str] | None
     plan_paused: bool
     paused_at: datetime | None
+    accountability_level: str | None = None
+    streak_visible: bool | None = None
+    gamification_enabled: bool | None = None
+    encouragement_preset: str | None = None
+    reminder_style: str | None = None
+    no_reminder_mode: bool | None = None
+    grace_days: int | None = None
+    flexible_streak_mode: bool | None = None
 
     model_config = {"from_attributes": True}
 
@@ -162,9 +183,58 @@ async def update_settings(
     if data.plan_paused is not None:
         settings.plan_paused = data.plan_paused
         settings.paused_at = datetime.now(timezone.utc) if data.plan_paused else None
+    if data.accountability_level is not None:
+        if data.accountability_level not in ("off", "light", "standard", "strong"):
+            raise HTTPException(status_code=400, detail="Invalid accountability level")
+        settings.accountability_level = data.accountability_level
+    if data.streak_visible is not None:
+        settings.streak_visible = data.streak_visible
+    if data.gamification_enabled is not None:
+        settings.gamification_enabled = data.gamification_enabled
+    if data.encouragement_preset is not None:
+        settings.encouragement_preset = data.encouragement_preset
+    if data.reminder_style is not None:
+        settings.reminder_style = data.reminder_style
+    if data.no_reminder_mode is not None:
+        settings.no_reminder_mode = data.no_reminder_mode
+    if data.grace_days is not None:
+        settings.grace_days = max(0, min(7, data.grace_days))
+    if data.flexible_streak_mode is not None:
+        settings.flexible_streak_mode = data.flexible_streak_mode
     await db.flush()
     await db.refresh(settings)
     return AccountabilitySettingsResponse.model_validate(settings)
+
+
+# --- Progress Dashboard ---
+
+@router.get("/progress")
+async def get_progress(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    project_id: uuid.UUID | None = None,
+    book_id: uuid.UUID | None = None,
+):
+    """Unified progress dashboard: goals, streaks, milestones, next step, finish risk."""
+    return await get_progress_dashboard(db, current_user.id, project_id=project_id, book_id=book_id)
+
+
+@router.get("/progress/weekly")
+async def get_progress_weekly(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Weekly summary."""
+    return await get_weekly_summary(db, current_user.id)
+
+
+@router.get("/progress/monthly")
+async def get_progress_monthly(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Monthly summary."""
+    return await get_monthly_summary(db, current_user.id)
 
 
 # --- Dashboard / Overview ---
@@ -274,6 +344,124 @@ async def create_plan(
     await db.flush()
     await db.refresh(plan)
     return {"id": str(plan.id), "name": plan.name}
+
+
+# --- Milestones ---
+
+@router.get("/milestones")
+async def list_milestones(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    book_id: uuid.UUID | None = None,
+    include_completed: bool = True,
+):
+    """List milestones for a book or user."""
+    from authora.services.milestone_engine import list_milestones_for_book
+
+    if not book_id:
+        q = select(Milestone).where(Milestone.user_id == current_user.id)
+        if not include_completed:
+            q = q.where(Milestone.completed_at.is_(None))
+        q = q.order_by(Milestone.sort_order, Milestone.created_at)
+        result = await db.execute(q)
+        milestones = result.scalars().all()
+    else:
+        milestones = await list_milestones_for_book(db, book_id, current_user.id, include_completed)
+
+    return [
+        {
+            "id": str(m.id),
+            "book_id": str(m.book_id) if m.book_id else None,
+            "title": m.title,
+            "target_words": m.target_words,
+            "target_date": m.target_date.isoformat() if m.target_date else None,
+            "completed_at": m.completed_at.isoformat() if m.completed_at else None,
+            "milestone_type": m.milestone_type,
+            "sort_order": m.sort_order,
+        }
+        for m in milestones
+    ]
+
+
+class MilestoneGenerateRequest(BaseModel):
+    book_id: uuid.UUID
+    writing_plan_id: uuid.UUID | None = None
+    total_target_words: int = 50000
+    target_finish_date: str | None = None
+
+
+class MilestoneCustomCreate(BaseModel):
+    title: str
+    target_words: int = 1000
+    target_date: str | None = None
+    book_id: uuid.UUID | None = None
+    writing_plan_id: uuid.UUID | None = None
+
+
+@router.post("/milestones/generate")
+async def generate_milestones(
+    data: MilestoneGenerateRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Generate milestones for a book from template/framework."""
+    from authora.services.milestone_engine import generate_milestones_for_book
+
+    finish = None
+    if data.target_finish_date:
+        try:
+            finish = date.fromisoformat(data.target_finish_date)
+        except ValueError:
+            pass
+
+    milestones = await generate_milestones_for_book(
+        db, data.book_id, current_user.id,
+        writing_plan_id=data.writing_plan_id,
+        total_target_words=data.total_target_words,
+        target_finish_date=finish,
+    )
+    return {"created": len(milestones), "milestone_ids": [str(m.id) for m in milestones]}
+
+
+@router.post("/milestones/custom")
+async def create_custom_milestone(
+    data: MilestoneCustomCreate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create a custom milestone (freeform mode)."""
+    from authora.services.milestone_engine import create_custom_milestone as create_milestone_svc
+
+    d = None
+    if data.target_date:
+        try:
+            d = date.fromisoformat(data.target_date)
+        except ValueError:
+            pass
+
+    m = await create_milestone_svc(
+        db, current_user.id, data.title,
+        target_words=data.target_words,
+        target_date=d,
+        book_id=data.book_id,
+        writing_plan_id=data.writing_plan_id,
+    )
+    return {"id": str(m.id), "title": m.title}
+
+
+@router.post("/milestones/{milestone_id}/complete")
+async def complete_milestone(
+    milestone_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mark a milestone as complete."""
+    from authora.services.milestone_engine import complete_milestone as complete_milestone_svc
+
+    m = await complete_milestone_svc(db, milestone_id, current_user.id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    return {"ok": True, "completed_at": m.completed_at.isoformat()}
 
 
 # --- Recovery Plans ---

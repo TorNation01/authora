@@ -32,11 +32,11 @@ export function FeatureGate({ feature, children, fallback, upgradeMessage }: Fea
   return (
     <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center">
       <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
-      <p className="mt-2 font-medium">{upgradeMessage ?? 'This feature requires Premium.'}</p>
+      <p className="mt-2 font-medium">{upgradeMessage ?? 'This feature requires a paid plan.'}</p>
       <Button asChild variant="outline" size="sm" className="mt-3">
         <Link href="/pricing">
           <Sparkles className="h-4 w-4 mr-2" />
-          Upgrade to Premium
+          Upgrade
         </Link>
       </Button>
     </div>

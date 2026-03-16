@@ -33,18 +33,21 @@ export default function DashboardLayout({
       return;
     }
     api<{ id: string; email: string; display_name: string | null; is_admin: boolean }>('/api/v1/auth/me')
-      .then((data) => setUser({
-        id: data.id,
-        email: data.email,
-        display_name: data.display_name,
-        is_admin: data.is_admin ?? false,
-      }))
+      .then((data) => {
+        setUser({
+          id: String(data?.id ?? ''),
+          email: String(data?.email ?? ''),
+          display_name: data?.display_name ?? null,
+          is_admin: Boolean(data?.is_admin),
+        });
+        setReady(true);
+      })
       .catch(() => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         router.replace('/login');
-      })
-      .finally(() => setReady(true));
+        // Do not setReady - stay in loading state until redirect
+      });
   }, [router, loginPath]);
 
   async function handleLogout() {
@@ -70,10 +73,12 @@ export default function DashboardLayout({
     }
   }
 
-  if (!ready) {
+  if (!ready || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading your writing space...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">
+          {!ready ? 'Loading your writing space...' : 'Redirecting to sign in...'}
+        </p>
       </div>
     );
   }

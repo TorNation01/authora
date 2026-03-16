@@ -1,17 +1,17 @@
-"""Billing API - plan status, usage, admin override. Stripe hooks placeholder."""
+"""Billing API - plan status, usage, admin override, grants, promo codes. Stripe-ready."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
-from authora.models import Plan, User
+from authora.models import EntitlementAuditLog, EntitlementGrant, Plan, PromoCode, User
 from authora.config import get_settings
 from authora.services.billing_service import (
     _period_str,
@@ -26,8 +26,30 @@ from authora.services.billing_service import (
     has_feature,
     record_usage,
 )
+from authora.services.entitlement_grants_service import (
+    ON_EXPIRY_OPTIONS,
+    ACCESS_TYPES,
+    GRANT_REASONS,
+    convert_grant_to_lifetime,
+    create_grant,
+    extend_grant,
+    list_grants_for_user,
+    revoke_grant,
+)
+from authora.services.promo_codes_service import (
+    create_promo_code,
+    list_promo_codes,
+    redeem_promo_code,
+    revoke_promo_code,
+)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
+
+
+class PlanPriceResponse(BaseModel):
+    monthly_cents: int | None = None
+    yearly_cents: int | None = None
+    lifetime_cents: int | None = None
 
 
 class PlanResponse(BaseModel):
@@ -36,6 +58,7 @@ class PlanResponse(BaseModel):
     name: str
     limits: dict
     features: list[str]
+    price: PlanPriceResponse | None = None
 
 
 class UsageResponse(BaseModel):
@@ -108,10 +131,15 @@ async def get_billing_status(
             name=plan.name,
             limits=plan.limits or {},
             features=plan.features or [],
+            price=PlanPriceResponse(
+                monthly_cents=getattr(plan, "price_monthly_cents", None),
+                yearly_cents=getattr(plan, "price_yearly_cents", None),
+                lifetime_cents=getattr(plan, "price_lifetime_cents", None),
+            ) if any([getattr(plan, "price_monthly_cents", None), getattr(plan, "price_yearly_cents", None), getattr(plan, "price_lifetime_cents", None)]) else None,
         ),
         usage=UsageResponse(**usage),
         billing_exempt=billing_exempt,
-        can_upgrade=plan.slug in ("free", "pro"),
+        can_upgrade=plan.slug in ("free", "starter", "pro"),
         feature_billing_enabled=getattr(settings, "feature_billing", False),
     )
 
@@ -121,8 +149,6 @@ async def list_plans(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List available plans (public)."""
-    from sqlalchemy import asc
-
     r = await db.execute(select(Plan).order_by(asc(Plan.sort_order)))
     plans = r.scalars().all()
     return [
@@ -132,6 +158,11 @@ async def list_plans(
             name=p.name,
             limits=p.limits or {},
             features=p.features or [],
+            price=PlanPriceResponse(
+                monthly_cents=getattr(p, "price_monthly_cents", None),
+                yearly_cents=getattr(p, "price_yearly_cents", None),
+                lifetime_cents=getattr(p, "price_lifetime_cents", None),
+            ) if any([getattr(p, "price_monthly_cents", None), getattr(p, "price_yearly_cents", None), getattr(p, "price_lifetime_cents", None)]) else None,
         )
         for p in plans
     ]
@@ -183,32 +214,448 @@ async def admin_set_user_plan(
     return {"ok": True}
 
 
-# --- Stripe webhook placeholders (for future integration) ---
+# --- Admin entitlement grants ---
 
-@router.post("/webhooks/stripe")
-async def stripe_webhook():
-    """Stripe webhook endpoint. Placeholder for future integration.
-    Handle: customer.subscription.*, invoice.*, checkout.session.completed.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Stripe webhook not configured. Set STRIPE_WEBHOOK_SECRET to enable.",
+class GrantCreateRequest(BaseModel):
+    user_id: uuid.UUID
+    plan_slug: str
+    expires_at: datetime | None = None
+    duration_months: int | None = None
+    duration_years: int | None = None
+    reason: str = "support_resolution"
+    reason_custom: str | None = None
+    access_type: str = "free"
+    override_stripe: bool = True
+    on_expiry: str = "revert_free"
+    internal_notes: str | None = None
+
+
+class GrantResponse(BaseModel):
+    id: str
+    user_id: str
+    plan_slug: str
+    granted_at: str
+    expires_at: str | None
+    reason: str
+    access_type: str
+    override_stripe: bool
+    on_expiry: str
+    revoked_at: str | None
+
+
+@router.post("/admin/grants", response_model=GrantResponse)
+async def admin_create_grant(
+    data: GrantCreateRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: create entitlement grant for a user."""
+    admin_user = await _require_admin(current_user, db)
+    r = await db.execute(select(Plan).where(Plan.slug == data.plan_slug))
+    plan = r.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    r2 = await db.execute(select(User).where(User.id == data.user_id))
+    target = r2.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if data.reason not in GRANT_REASONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reason")
+    if data.on_expiry not in ON_EXPIRY_OPTIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid on_expiry")
+    if data.access_type not in ACCESS_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid access_type")
+
+    grant = await create_grant(
+        db,
+        data.user_id,
+        plan.id,
+        admin_user.id,
+        expires_at=data.expires_at,
+        duration_months=data.duration_months,
+        duration_years=data.duration_years,
+        reason=data.reason,
+        reason_custom=data.reason_custom,
+        access_type=data.access_type,
+        override_stripe=data.override_stripe,
+        on_expiry=data.on_expiry,
+        internal_notes=data.internal_notes,
+    )
+    await db.commit()
+    await db.refresh(grant)
+    return GrantResponse(
+        id=str(grant.id),
+        user_id=str(grant.user_id),
+        plan_slug=plan.slug,
+        granted_at=grant.granted_at.isoformat(),
+        expires_at=grant.expires_at.isoformat() if grant.expires_at else None,
+        reason=grant.reason,
+        access_type=grant.access_type,
+        override_stripe=grant.override_stripe,
+        on_expiry=grant.on_expiry,
+        revoked_at=grant.revoked_at.isoformat() if grant.revoked_at else None,
     )
 
 
-@router.post("/webhooks/stripe/invoices")
-async def stripe_invoice_webhook():
-    """Stripe invoice webhook. Placeholder for invoice.paid, invoice.payment_failed."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Stripe invoice webhook not configured.",
+@router.get("/admin/grants/{user_id}", response_model=list[GrantResponse])
+async def admin_list_grants(
+    user_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_revoked: bool = False,
+):
+    """Admin: list entitlement grants for a user."""
+    await _require_admin(current_user, db)
+    grants = await list_grants_for_user(db, user_id, include_revoked=include_revoked)
+    result = []
+    for g in grants:
+        await db.refresh(g, ["plan"])
+        result.append(GrantResponse(
+            id=str(g.id),
+            user_id=str(g.user_id),
+            plan_slug=g.plan.slug,
+            granted_at=g.granted_at.isoformat(),
+            expires_at=g.expires_at.isoformat() if g.expires_at else None,
+            reason=g.reason,
+            access_type=g.access_type,
+            override_stripe=g.override_stripe,
+            on_expiry=g.on_expiry,
+            revoked_at=g.revoked_at.isoformat() if g.revoked_at else None,
+        ))
+    return result
+
+
+@router.post("/admin/grants/{grant_id}/revoke")
+async def admin_revoke_grant(
+    grant_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    reason: str | None = None,
+):
+    """Admin: revoke an entitlement grant."""
+    await _require_admin(current_user, db)
+    grant = await revoke_grant(db, grant_id, current_user.id, reason=reason)
+    if not grant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found or already revoked")
+    await db.commit()
+    return {"ok": True}
+
+
+class GrantExtendRequest(BaseModel):
+    new_expires_at: datetime
+
+
+@router.post("/admin/grants/{grant_id}/extend")
+async def admin_extend_grant(
+    grant_id: uuid.UUID,
+    data: GrantExtendRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: extend a grant's expiry date."""
+    await _require_admin(current_user, db)
+    grant = await extend_grant(db, grant_id, current_user.id, data.new_expires_at)
+    if not grant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found or revoked")
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/admin/grants/{grant_id}/convert-lifetime")
+async def admin_convert_grant_to_lifetime(
+    grant_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: convert a time-limited grant to lifetime."""
+    await _require_admin(current_user, db)
+    grant = await convert_grant_to_lifetime(db, grant_id, current_user.id)
+    if not grant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found or revoked")
+    await db.commit()
+    return {"ok": True}
+
+
+# --- Admin promo codes ---
+
+class PromoCodeCreateRequest(BaseModel):
+    code: str
+    plan_slug: str
+    discount_type: str = "free"
+    discount_value: int | None = None
+    duration_months: int | None = None
+    duration_years: int | None = None
+    expires_at: datetime | None = None
+    max_uses: int | None = None
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    internal_note: str | None = None
+    is_stripe_compatible: bool = False
+    allowed_user_ids: list[uuid.UUID] | None = None
+
+
+class PromoCodeResponse(BaseModel):
+    id: str
+    code: str
+    plan_slug: str
+    discount_type: str
+    use_count: int
+    max_uses: int | None
+    revoked_at: str | None
+
+
+@router.post("/admin/promo-codes", response_model=PromoCodeResponse)
+async def admin_create_promo_code(
+    data: PromoCodeCreateRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: create a promo code."""
+    await _require_admin(current_user, db)
+    r = await db.execute(select(Plan).where(Plan.slug == data.plan_slug))
+    plan = r.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    pc = await create_promo_code(
+        db,
+        data.code,
+        plan.id,
+        current_user.id,
+        discount_type=data.discount_type,
+        discount_value=data.discount_value,
+        duration_months=data.duration_months,
+        duration_years=data.duration_years,
+        expires_at=data.expires_at,
+        max_uses=data.max_uses,
+        valid_from=data.valid_from,
+        valid_until=data.valid_until,
+        internal_note=data.internal_note,
+        is_stripe_compatible=data.is_stripe_compatible,
+        allowed_user_ids=data.allowed_user_ids,
     )
+    await db.commit()
+    await db.refresh(pc, ["plan"])
+    return PromoCodeResponse(
+        id=str(pc.id),
+        code=pc.code,
+        plan_slug=pc.plan.slug,
+        discount_type=pc.discount_type,
+        use_count=pc.use_count,
+        max_uses=pc.max_uses,
+        revoked_at=pc.revoked_at.isoformat() if pc.revoked_at else None,
+    )
+
+
+@router.get("/admin/promo-codes", response_model=list[PromoCodeResponse])
+async def admin_list_promo_codes(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_revoked: bool = False,
+):
+    """Admin: list promo codes."""
+    await _require_admin(current_user, db)
+    codes = await list_promo_codes(db, include_revoked=include_revoked)
+    result = []
+    for pc in codes:
+        await db.refresh(pc, ["plan"])
+        result.append(PromoCodeResponse(
+            id=str(pc.id),
+            code=pc.code,
+            plan_slug=pc.plan.slug,
+            discount_type=pc.discount_type,
+            use_count=pc.use_count,
+            max_uses=pc.max_uses,
+            revoked_at=pc.revoked_at.isoformat() if pc.revoked_at else None,
+        ))
+    return result
+
+
+@router.post("/admin/promo-codes/{code_id}/revoke")
+async def admin_revoke_promo_code(
+    code_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: revoke a promo code."""
+    await _require_admin(current_user, db)
+    pc = await revoke_promo_code(db, code_id, current_user.id)
+    if not pc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Code not found or already revoked")
+    await db.commit()
+    return {"ok": True}
+
+
+# --- Redeem promo code (user or admin) ---
+
+class RedeemCodeRequest(BaseModel):
+    code: str
+
+
+@router.post("/redeem-code")
+async def redeem_code(
+    data: RedeemCodeRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Redeem a promo code for the current user."""
+    pc, grant, err = await redeem_promo_code(
+        db,
+        data.code,
+        current_user.id,
+        create_grant=True,
+        granted_by_id=current_user.id,
+    )
+    if err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+    await db.commit()
+    if pc:
+        await db.refresh(pc, ["plan"])
+    return {"ok": True, "plan_slug": pc.plan.slug if pc else None}
+
+
+# --- Admin: apply code to another user ---
+
+@router.post("/admin/redeem-code/{user_id}")
+async def admin_redeem_code_for_user(
+    user_id: uuid.UUID,
+    data: RedeemCodeRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: redeem a promo code on behalf of a user."""
+    await _require_admin(current_user, db)
+    pc, grant, err = await redeem_promo_code(
+        db,
+        data.code,
+        user_id,
+        create_grant=True,
+        granted_by_id=current_user.id,
+    )
+    if err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+    await db.commit()
+    if pc:
+        await db.refresh(pc, ["plan"])
+    return {"ok": True, "plan_slug": pc.plan.slug if pc else None}
+
+
+# --- Entitlement audit log ---
+
+class AuditLogEntryResponse(BaseModel):
+    id: str
+    user_id: str | None
+    action: str
+    entity_type: str
+    entity_id: str | None
+    details: dict | None
+    performed_by_id: str
+    created_at: str
+
+
+@router.get("/admin/audit-log", response_model=list[AuditLogEntryResponse])
+async def admin_entitlement_audit_log(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user_id: uuid.UUID | None = None,
+    action: str | None = None,
+    limit: int = Query(100, le=500),
+):
+    """Admin: view entitlement audit log."""
+    await _require_admin(current_user, db)
+    q = select(EntitlementAuditLog).order_by(EntitlementAuditLog.created_at.desc()).limit(limit)
+    if user_id:
+        q = q.where(EntitlementAuditLog.user_id == user_id)
+    if action:
+        q = q.where(EntitlementAuditLog.action == action)
+    r = await db.execute(q)
+    entries = r.scalars().all()
+    return [
+        AuditLogEntryResponse(
+            id=str(e.id),
+            user_id=str(e.user_id) if e.user_id else None,
+            action=e.action,
+            entity_type=e.entity_type,
+            entity_id=str(e.entity_id) if e.entity_id else None,
+            details=e.details,
+            performed_by_id=str(e.performed_by_id),
+            created_at=e.created_at.isoformat(),
+        )
+        for e in entries
+    ]
+
+
+# --- Stripe checkout and webhooks ---
+
+class CheckoutCreateRequest(BaseModel):
+    plan_slug: str
+    billing_interval: str  # monthly | yearly | lifetime
+    success_url: str | None = None
+    cancel_url: str | None = None
+    promo_code: str | None = None
 
 
 @router.post("/checkout/create")
-async def create_checkout_session():
-    """Create Stripe checkout session. Placeholder for future integration."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
+async def create_checkout(
+    data: CheckoutCreateRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create Stripe Checkout session. Returns url and session_id when Stripe configured."""
+    from authora.services.stripe_service import create_checkout_session
+
+    result = await create_checkout_session(
+        db,
+        current_user.id,
+        data.plan_slug,
+        data.billing_interval,
+        success_url=data.success_url,
+        cancel_url=data.cancel_url,
+        promo_code=data.promo_code,
     )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
+        )
+    return result
+
+
+class CustomerPortalRequest(BaseModel):
+    return_url: str | None = None
+
+
+@router.post("/customer-portal")
+async def create_customer_portal(
+    data: CustomerPortalRequest | None = None,
+    current_user: CurrentUser = Depends(CurrentUser),
+    db: Annotated[AsyncSession, Depends(get_db)] = ...,
+):
+    """Create Stripe Customer Portal session for managing subscription."""
+    from authora.services.stripe_service import create_customer_portal_session
+
+    result = await create_customer_portal_session(
+        db,
+        current_user.id,
+        return_url=data.return_url if data else None,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No Stripe customer found or Stripe not configured.",
+        )
+    return result
+
+
+@router.post("/webhooks/stripe")
+async def stripe_webhook(
+    request: Request,
+):
+    """Stripe webhook. Requires raw body for signature verification. Handle subscription and invoice events."""
+    from authora.services.stripe_service import handle_webhook
+
+    body = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    result = await handle_webhook(body, sig)
+    if result and result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result or {"handled": True}

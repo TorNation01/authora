@@ -1,5 +1,6 @@
 """Finish Mode service - completion-focused manuscript workflow."""
 
+import random
 from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
@@ -36,6 +37,18 @@ FINAL_STRETCH_MESSAGES = [
     "Two chapters to go. You're almost there.",
     "Three chapters remaining. The home stretch.",
 ]
+
+# Finish Mode momentum messages (draft now, refine later)
+FINISH_MODE_MOMENTUM = [
+    "Draft now, refine later. Keep the momentum.",
+    "One finished section beats another postponed perfect draft.",
+    "Your manuscript is waiting. Let's move it forward.",
+    "Done is better than perfect. Keep going.",
+    "A small session today keeps the book moving.",
+]
+
+# Sprint duration options (days)
+FINISH_MODE_SPRINTS = [7, 14, 30]
 
 
 def _get_progress_message(progress: float) -> str:
@@ -195,6 +208,9 @@ async def get_finish_mode_stats(
     final_stretch_msg = _get_final_stretch_message(len(remaining_chapters))
     is_final_stretch = _is_final_stretch(len(remaining_chapters))
 
+    # Momentum message (draft now, refine later)
+    momentum_message = random.choice(FINISH_MODE_MOMENTUM) if FINISH_MODE_MOMENTUM else None
+
     # Activation: allow when 1+ chapters; suggest when 70%+ or 3+ remaining
     can_enter = total_count >= 1
     suggest_finish_mode = (
@@ -231,6 +247,8 @@ async def get_finish_mode_stats(
         "is_complete": is_complete,
         "can_enter_finish_mode": can_enter,
         "suggest_finish_mode": suggest_finish_mode,
+        "momentum_message": momentum_message,
+        "sprint_options": FINISH_MODE_SPRINTS,
         "forecast": {
             "on_track": on_track,
             "estimated_completion_date": estimated_completion.isoformat() if estimated_completion else None,

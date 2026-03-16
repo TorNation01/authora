@@ -14,7 +14,7 @@ from authora.api.resolvers import get_project_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
 from authora.models import Project
-from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
+from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, ProjectWizardRequest
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -69,6 +69,62 @@ async def get_recent_project(
     )
     p = result.scalar_one_or_none()
     return ProjectResponse.model_validate(p) if p else None
+
+
+class ProjectWizardResponse(BaseModel):
+    """Response from project wizard."""
+
+    project: ProjectResponse
+    book_id: uuid.UUID
+    book_title: str
+
+    model_config = {"from_attributes": True}
+
+
+@router.post("/from-wizard", response_model=ProjectWizardResponse, status_code=status.HTTP_201_CREATED)
+async def create_project_from_wizard(
+    data: ProjectWizardRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create project and book from template via guided wizard."""
+    from authora.services.project_wizard import create_project_from_wizard
+
+    try:
+        project, book = await create_project_from_wizard(
+            db,
+            current_user.id,
+            template_id=data.template_id,
+            project_name=data.project_name,
+            book_title=data.book_title,
+            book_type=data.book_type,
+            genre=data.genre,
+            core_idea=data.core_idea,
+            wizard_answers=data.wizard_answers,
+            structure_framework=data.structure_framework,
+            framework_id=data.framework_id,
+            target_words=data.target_words,
+            target_date=data.target_date,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    audit = AuditLogger(db)
+    await audit.log(
+        "create",
+        "project",
+        str(project.id),
+        current_user.id,
+        {"name": project.name, "from_wizard": True, "template_id": str(data.template_id) if data.template_id else None},
+    )
+    await db.commit()
+    await db.refresh(project)
+    await db.refresh(book)
+    return ProjectWizardResponse(
+        project=ProjectResponse.model_validate(project),
+        book_id=book.id,
+        book_title=book.title,
+    )
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

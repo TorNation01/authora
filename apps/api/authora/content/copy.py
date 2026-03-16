@@ -146,6 +146,26 @@ EMPTY_STATE_COPY: dict[str, dict[str, str]] = {
     },
 }
 
+# --- FRAMEWORK & FINISH MODE COPY ---
+
+FRAMEWORK_EDITOR_COPY: dict[str, str] = {
+    "current_framework_stage": "Current framework stage",
+    "you_are_here": "You are here",
+    "next_suggested_step": "Next suggested step",
+    "missing_key_section": "Missing key section",
+    "on_track": "On track",
+    "needs_attention": "Needs attention",
+    "keep_moving": "Keep moving",
+    "finish_this_stage": "Finish this stage",
+}
+
+FINISH_MODE_COPY: list[str] = [
+    "You do not need perfect. You need progress.",
+    "Complete this stage, then move forward.",
+    "One finished section beats ten unfinished ideas.",
+    "Momentum creates books.",
+]
+
 # --- AI EXPLANATION COPY ---
 
 AI_EXPLANATION_COPY: dict[str, str] = {

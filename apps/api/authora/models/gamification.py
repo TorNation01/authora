@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +31,18 @@ class BadgeDefinition(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
+GOAL_TARGET_TYPES = [
+    "words_per_day",
+    "words_per_week",
+    "sessions_per_week",
+    "chapters_per_month",
+    "scenes_per_month",
+    "workbook_modules",
+    "memoir_sections",
+    "custom",
+]
+
+
 class UserStats(Base):
     """Aggregated user writing stats."""
 
@@ -40,6 +52,7 @@ class UserStats(Base):
     total_words: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     longest_streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    grace_days_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     last_writing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -70,10 +83,18 @@ class Goal(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     book_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
     target_words: Mapped[int] = mapped_column(Integer, nullable=False)
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     goal_type: Mapped[str] = mapped_column(String(50), nullable=False, default="legacy")
+    target_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    target_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    low_energy_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

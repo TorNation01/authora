@@ -4,28 +4,28 @@ import { useState } from 'react';
 
 const FAQ_ITEMS = [
   {
-    q: 'What is AUTHORA?',
-    a: 'AUTHORA is a guided writing platform that helps you finish your book. It combines planning tools, a distraction-free editor, AI assistance when you need it, and accountability features—all in one place. Whether you write fiction or non-fiction, AUTHORA adapts to your genre and workflow.',
+    q: 'Is Authora only for fiction writers?',
+    a: 'No. Authora supports both fiction and non-fiction writers, including novels, memoirs, self-help books, business books, workbooks, journals, and more.',
   },
   {
-    q: 'How does the AI work?',
-    a: 'AUTHORA\'s AI is built to assist, not replace. You can use it for suggestions, rewrites, expansion, or drafting. You control when and how much AI is involved. Your voice stays in the driver\'s seat.',
+    q: 'Does Authora include an editor?',
+    a: 'Yes. Authora includes a real manuscript editor designed for actual book writing, not just idea generation.',
   },
   {
-    q: 'Can I use it for both fiction and non-fiction?',
-    a: 'Yes. We have templates and workflows for fiction (romance, thriller, fantasy, mystery) and non-fiction (memoir, business, self-help, educational, thought leadership). Each template includes setup questions, outline suggestions, and milestone maps.',
+    q: 'Can Authora help me if I get stuck?',
+    a: 'Yes. Authora includes AI-supported guidance, idea generation, rewriting help, and structure support to help you keep moving.',
   },
   {
-    q: 'How does accountability work?',
-    a: 'Set daily or weekly word goals. Choose your encouragement style—gentle, balanced, or structured. We send reminders and recovery nudges when you\'ve been away. The goal is support, not guilt.',
+    q: 'Can I use Authora for more than one book?',
+    a: 'Yes. Depending on your plan, you can manage multiple active book projects.',
   },
   {
-    q: 'What formats can I export?',
-    a: 'DOCX, PDF, EPUB, and plain text. Export your full manuscript, outline, or individual chapters. Ready for querying agents or self-publishing.',
+    q: 'Will Authora write the book for me?',
+    a: 'It can help as much or as little as you want. You stay in control, and you can use the platform for planning, drafting, support, or stronger ghostwriter-style assistance.',
   },
   {
-    q: 'Is there a free tier?',
-    a: 'Yes. You can start writing for free. No credit card required. Upgrade when you need more features or support.',
+    q: 'Do I need to be a professional writer?',
+    a: 'Not at all. Authora is built for first-time writers as well as experienced authors.',
   },
 ];
 
@@ -39,7 +39,7 @@ export function FAQSection() {
             Frequently asked questions
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Everything you need to know about AUTHORA.
+            Everything you need to know about Authora.
           </p>
         </div>
         <div className="mt-12 space-y-2">

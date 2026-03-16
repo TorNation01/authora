@@ -16,24 +16,21 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-medium uppercase tracking-wider text-primary">
-            Your guided writing sanctuary
-          </p>
-          <h1 className="mt-4 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            Finish your book
+          <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            Finish the book.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground font-serif leading-relaxed">
-            {branding.product_name} guides you from idea to finished manuscript. Plan, write, and export
-            with AI support when you need it—calm, clear, and clutter-free. All your writing tools in one place.
+            {branding.product_name} is the writing studio that helps you plan, write, stay accountable, and
+            finally finish your book — with the tools, structure, and AI support to keep you moving.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             {feature_flags.standalone_auth && (
               <>
-                <Button asChild size="lg" className="min-w-[200px]" data-analytics="cta-start-writing">
-                  <Link href={`${getAppBaseUrl()}/register`}>Start writing free</Link>
+                <Button asChild size="lg" className="min-w-[200px]" data-analytics="cta-start-free">
+                  <Link href={`${getAppBaseUrl()}/register`}>Start Free</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                  <Link href="/demo">Request demo</Link>
+                  <Link href="#how-it-works">See How It Works</Link>
                 </Button>
               </>
             )}
@@ -44,8 +41,13 @@ export function HeroSection() {
             )}
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            No credit card required · Free to start
+            For fiction and non-fiction writers who want more than a blank page.
           </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm font-medium text-muted-foreground">
+            <span>Plan clearly.</span>
+            <span>Write smoothly.</span>
+            <span>Finish confidently.</span>
+          </div>
         </div>
         <div className="mt-16 flex justify-center">
           <div
@@ -58,10 +60,10 @@ export function HeroSection() {
                   <BookOpen className="h-8 w-8 text-primary" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">
-                  Your writing space
+                  Your writing studio
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground/80">
-                  A calm, focused place to write
+                  Plan, write, and finish in one place
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { api } from '@/lib/api';
 import { useConfig } from '@/contexts/ConfigProvider';
 import { useToast } from '@/hooks/use-toast';
+import { createCustomerPortalSession } from '@/lib/billing';
+import { UsageDisplay } from '@/components/billing/UsageDisplay';
 
 interface User {
   id: string;
@@ -183,6 +186,36 @@ export default function SettingsPage() {
                 {savingPassword ? 'Updating…' : 'Update password'}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {config.feature_flags.billing && (
+        <Card variant="sanctuary">
+          <CardHeader>
+            <CardTitle>Billing & plan</CardTitle>
+            <CardDescription>
+              Manage your subscription and view usage.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <UsageDisplay />
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/pricing">View plans</Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const url = await createCustomerPortalSession(window.location.href);
+                  if (url?.url) window.location.href = url.url;
+                  else toast({ title: 'Billing portal not available', variant: 'destructive' });
+                }}
+              >
+                Manage subscription
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -55,9 +55,19 @@ Finish Mode is a dedicated completion-focused workflow that helps users actually
 
 ### Sprint Sessions
 
-- 5m, 15m, 25m sprint timer
+- **Duration options**: 7-day, 14-day, 30-day completion pushes
+- **Project-end countdown**: Days until target date
+- **5m, 15m, 25m** sprint timer
 - Tracks words written during sprint
 - Integrates with gamification
+
+### Momentum Messages
+
+- "Draft now, refine later. Keep the momentum."
+- "One finished section beats another postponed perfect draft."
+- "Your manuscript is waiting. Let's move it forward."
+- "Done is better than perfect. Keep going."
+- "A small session today keeps the book moving."
 
 ### Completion Ceremony
 

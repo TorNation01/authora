@@ -35,8 +35,8 @@ export function UpgradeCallout({ feature, message, compact }: UpgradeCalloutProp
   if (feature && hasFeature) return null;
 
   const defaultMessage = feature
-    ? 'This feature requires Premium.'
-    : 'Upgrade to Premium for unlimited projects, AI, and more.';
+    ? 'This feature requires a paid plan.'
+    : 'Upgrade for more projects, AI, and premium features.';
 
   if (compact) {
     return (
@@ -58,7 +58,7 @@ export function UpgradeCallout({ feature, message, compact }: UpgradeCalloutProp
         <Button asChild size="sm">
           <Link href="/pricing">
             <Sparkles className="h-4 w-4 mr-2" />
-            Upgrade to Premium
+            Upgrade
           </Link>
         </Button>
       </div>

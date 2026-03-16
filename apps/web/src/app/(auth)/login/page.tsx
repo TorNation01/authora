@@ -22,10 +22,10 @@ export default function LoginPage() {
   const config = useConfig();
 
   useEffect(() => {
-    if (config.feature_flags.sso_ready && !config.feature_flags.standalone_auth) {
+    if (config?.feature_flags?.sso_ready && !config?.feature_flags?.standalone_auth) {
       router.replace('/sso');
     }
-  }, [config.feature_flags.sso_ready, config.feature_flags.standalone_auth, router]);
+  }, [config?.feature_flags?.sso_ready, config?.feature_flags?.standalone_auth, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,23 +54,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
+    <div className="fixed inset-0 flex items-center justify-center bg-background p-4 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-md my-auto py-6 sm:py-8">
         <Link
           href={getMarketingBaseUrl() || '/'}
-          className="mb-8 inline-block font-serif text-xl font-bold text-foreground hover:text-primary transition-colors"
+          className="mb-6 sm:mb-8 inline-block font-serif text-xl font-bold text-foreground hover:text-primary transition-colors"
         >
-          {config.branding.product_name}
+          {config?.branding?.product_name ?? 'AUTHORA'}
         </Link>
         <Card variant="sanctuary">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-serif">Welcome back</CardTitle>
-            <CardDescription>Sign in to continue your writing journey</CardDescription>
+          <CardHeader className="space-y-1 px-4 sm:px-6">
+            <CardTitle className="text-2xl font-serif text-foreground">Welcome back</CardTitle>
+            <CardDescription className="text-muted-foreground">Sign in to continue your writing journey</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-foreground">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -82,7 +82,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-foreground">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -96,7 +96,7 @@ export default function LoginPage() {
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </form>
-            {config.feature_flags.standalone_auth && (
+            {config?.feature_flags?.standalone_auth && (
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
                 <Link href="/register" className="text-primary font-medium hover:underline">

@@ -17,6 +17,13 @@ const crimson = Crimson_Pro({
   weight: ['400', '500', '600', '700'],
 });
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_MARKETING_URL || process.env.NEXT_PUBLIC_WEB_URL || 'https://authora.studio'),
   title: 'AUTHORA - AI-Powered Book Builder',

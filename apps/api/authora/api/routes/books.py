@@ -125,6 +125,13 @@ async def update_book(
         book.genre = data.genre
     if data.type is not None:
         book.type = data.type
+    if "framework_id" in data.model_fields_set:
+        if data.framework_id is not None:
+            from authora.models import WritingFramework
+            fw = await db.get(WritingFramework, data.framework_id)
+            if not fw or fw.is_disabled:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or disabled framework")
+        book.framework_id = data.framework_id
     if data.planner_data is not None:
         book.planner_data = data.planner_data
     await db.flush()

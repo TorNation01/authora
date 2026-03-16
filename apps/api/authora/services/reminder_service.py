@@ -103,6 +103,17 @@ def _utc_hour_matches_user_times(settings: AccountabilitySettings, utc_hour: int
     return user_time_str in times
 
 
+def _should_skip_reminders(settings: AccountabilitySettings) -> bool:
+    """Skip if no_reminder_mode, plan_paused, or accountability_level is off."""
+    if getattr(settings, "no_reminder_mode", False):
+        return True
+    if getattr(settings, "accountability_level", None) == "off":
+        return True
+    if settings.plan_paused:
+        return True
+    return False
+
+
 async def process_daily_reminders(db: AsyncSession) -> int:
     """Process daily reminders for users with reminder_enabled and matching reminder_times.
     Timezone-aware. Respects quiet hours. Returns count of notifications sent.
@@ -122,6 +133,8 @@ async def process_daily_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "daily_reminder"):
             continue
         if not _utc_hour_matches_user_times(settings, current_hour):
@@ -187,6 +200,8 @@ async def process_weekly_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "weekly_reminder"):
             continue
         if _in_quiet_hours(settings):
@@ -238,6 +253,8 @@ async def process_milestone_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "milestone_reminder"):
             continue
         if _in_quiet_hours(settings):
@@ -298,6 +315,8 @@ async def process_streak_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "streak_reminder"):
             continue
         if _in_quiet_hours(settings):
@@ -468,6 +487,8 @@ async def process_resume_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "resume_reminder"):
             continue
         if _in_quiet_hours(settings):
@@ -525,6 +546,8 @@ async def process_chapter_target_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "chapter_target_reminder"):
             continue
         if _in_quiet_hours(settings):
@@ -580,6 +603,8 @@ async def process_stuck_detection(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not settings.reminder_enabled:
             continue
         if not _is_reminder_type_enabled(settings, "stuck_nudge"):
@@ -629,6 +654,8 @@ async def process_section_reminders(db: AsyncSession) -> int:
     svc = DefaultNotificationService(db)
 
     for settings in settings_list:
+        if _should_skip_reminders(settings):
+            continue
         if not _is_reminder_type_enabled(settings, "section_reminder"):
             continue
         if _in_quiet_hours(settings):

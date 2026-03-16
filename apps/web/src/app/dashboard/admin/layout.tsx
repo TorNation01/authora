@@ -21,6 +21,8 @@ import {
   MessageSquare,
   Trophy,
   Target,
+  Gift,
+  Ticket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +39,9 @@ const adminNav = [
   { href: '/dashboard/admin/setup', label: 'Setup state', icon: Database },
   { href: '/dashboard/admin/storage', label: 'Storage', icon: HardDrive },
   { href: '/dashboard/admin/audit', label: 'Audit logs', icon: ScrollText },
+  { href: '/dashboard/admin/grants', label: 'Entitlement grants', icon: Gift },
+  { href: '/dashboard/admin/promo-codes', label: 'Promo codes', icon: Ticket },
+  { href: '/dashboard/admin/entitlement-audit', label: 'Entitlement audit', icon: ScrollText },
   { href: '/dashboard/admin/support', label: 'Support tools', icon: LifeBuoy },
   { href: '/dashboard/admin/content', label: 'Content templates', icon: FileText },
   { href: '/dashboard/admin/encouragement', label: 'Encouragement messages', icon: MessageSquare },

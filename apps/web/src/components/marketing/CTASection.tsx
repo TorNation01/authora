@@ -13,19 +13,19 @@ export function CTASection() {
     <section className="py-20" data-analytics="cta">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
         <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-          Ready to write your book?
+          Your book deserves more than unfinished notes
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Join authors who finish. No credit card required.
+          Write with structure, support, and momentum inside Authora.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           {feature_flags.standalone_auth && (
             <>
               <Button asChild size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/register`}>Create your account</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Start Free</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                <Link href="/demo">Request a demo</Link>
+                <Link href="/pricing">Explore Pricing</Link>
               </Button>
             </>
           )}
@@ -35,6 +35,9 @@ export function CTASection() {
             </Button>
           )}
         </div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Stop circling the idea. Start finishing the book.
+        </p>
       </div>
     </section>
   );

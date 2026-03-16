@@ -1,16 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ProductPreview } from '@/components/marketing/ProductPreview';
 import {
-  BookOpen,
-  Sparkles,
   Target,
   FileDown,
   PenLine,
   LayoutGrid,
   BookMarked,
   Bot,
-  BarChart3,
 } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -74,10 +72,8 @@ export default function FeaturesPage() {
           </div>
         ))}
       </div>
-      <div className="mt-20 flex justify-center">
-        <div className="w-full max-w-4xl rounded-xl border border-border/60 bg-muted/30 aspect-video flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Product preview</p>
-        </div>
+      <div className="mt-20">
+        <ProductPreview />
       </div>
       <div className="mt-12 text-center">
         <Button asChild size="lg">

@@ -13,6 +13,7 @@ from authora.database import Base
 if TYPE_CHECKING:
     from authora.models.ai_action_log import AIActionLog
     from authora.models.ai_revision import AIRevision
+    from authora.models.entitlement_grant import EntitlementGrant
     from authora.models.plan import Plan
     from authora.models.profile import Profile
     from authora.models.project import Project
@@ -48,6 +49,9 @@ class User(Base):
     ai_action_logs: Mapped[list["AIActionLog"]] = relationship("AIActionLog", back_populates="user", cascade="all, delete-orphan")
     plan_override: Mapped["Plan | None"] = relationship("Plan", foreign_keys=[plan_override_id], lazy="joined")
     subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
+    entitlement_grants: Mapped[list["EntitlementGrant"]] = relationship(
+        "EntitlementGrant", foreign_keys="EntitlementGrant.user_id", cascade="all, delete-orphan"
+    )
     usage_records: Mapped[list["UsageRecord"]] = relationship("UsageRecord", back_populates="user", cascade="all, delete-orphan")
 
 

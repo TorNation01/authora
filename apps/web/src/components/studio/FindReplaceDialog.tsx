@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, Replace } from 'lucide-react';
+import { Search, Replace, ChevronDown, ChevronUp } from 'lucide-react';
 import { replaceInTiptapJson } from '@/lib/tiptap-utils';
 
 interface FindReplaceDialogProps {
@@ -27,22 +27,34 @@ export function FindReplaceDialog({ open, onOpenChange, editorRef }: FindReplace
 
   if (!editor) return null;
 
-  const handleFind = () => {
+  const handleFind = (direction: 'next' | 'prev' = 'next') => {
     if (!find) return;
-    const text = editor.getText();
-    const idx = text.toLowerCase().indexOf(find.toLowerCase());
-    if (idx < 0) return;
-    let pos = 0;
+    const lower = find.toLowerCase();
+    const positions: number[] = [];
     editor.state.doc.descendants((node, offset) => {
-      const len = node.textContent.length;
-      if (pos + len > idx) {
-        const start = offset;
-        const end = Math.min(offset + find.length, offset + len);
-        editor.commands.setTextSelection({ from: start, to: end });
-        return false;
+      if (node.isText && node.text) {
+        const nodeLower = node.text.toLowerCase();
+        let idx = 0;
+        while ((idx = nodeLower.indexOf(lower, idx)) >= 0) {
+          positions.push(offset + idx);
+          idx += 1;
+        }
       }
-      pos += len;
+      return true;
     });
+    if (positions.length === 0) return;
+    const { from } = editor.state.selection;
+    let nextIdx: number;
+    if (direction === 'next') {
+      nextIdx = positions.findIndex((p) => p > from);
+      if (nextIdx < 0) nextIdx = 0;
+    } else {
+      nextIdx = positions.findIndex((p) => p >= from) - 1;
+      if (nextIdx < 0) nextIdx = positions.length - 1;
+    }
+    const start = positions[nextIdx];
+    editor.commands.setTextSelection({ from: start, to: start + find.length });
+    editor.commands.scrollIntoView();
   };
 
   const handleReplace = () => {
@@ -75,10 +87,14 @@ export function FindReplaceDialog({ open, onOpenChange, editorRef }: FindReplace
                 id="find"
                 value={find}
                 onChange={(e) => setFind(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.shiftKey ? handleFind('prev') : handleFind('next'))}
                 placeholder="Search..."
               />
-              <Button variant="outline" size="icon" onClick={handleFind}>
+              <Button variant="outline" size="icon" onClick={() => handleFind('next')} title="Find next (Enter)">
                 <Search className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => handleFind('prev')} title="Find previous (Shift+Enter)">
+                <ChevronUp className="h-4 w-4" />
               </Button>
             </div>
           </div>

@@ -40,9 +40,13 @@ const mainNav: NavItem[] = [
 export function BrandedSidebar({
   onLogout,
   children,
+  onNavigate,
+  className,
 }: {
   onLogout: () => void;
   children?: React.ReactNode;
+  onNavigate?: () => void;
+  className?: string;
 }) {
   const pathname = usePathname();
   const { branding } = useConfig();
@@ -55,7 +59,7 @@ export function BrandedSidebar({
   ];
 
   return (
-    <aside className="flex w-56 flex-col border-r border-border/60 bg-card/50">
+    <aside className={cn('flex w-56 flex-col border-r border-border/60 bg-card/50', className)}>
       <div className="flex h-14 items-center border-b border-border/60 px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           {branding.logo_url ? (
@@ -74,6 +78,7 @@ export function BrandedSidebar({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive

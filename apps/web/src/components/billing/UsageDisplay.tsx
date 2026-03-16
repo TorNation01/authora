@@ -16,7 +16,8 @@ export function UsageDisplay() {
 
   if (!status || status.billing_exempt) return null;
   if (!status.feature_billing_enabled) return null;
-  if (status.plan.slug === 'premium' && status.usage.ai_actions < 400) return null;
+  const highTier = ['studio', 'pro', 'founder_lifetime'].includes(status.plan.slug);
+  if (highTier && status.usage.ai_actions < (status.usage.ai_actions_limit ?? 999) * 0.8) return null;
 
   const aiPct = status.usage.ai_actions_limit > 0
     ? Math.min(100, (status.usage.ai_actions / status.usage.ai_actions_limit) * 100)

@@ -76,6 +76,7 @@ class BookUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=500)
     genre: str | None = None
     type: str | None = Field(None, pattern="^(fiction|nonfiction)$")
+    framework_id: UUID | None = None
     planner_data: dict[str, Any] | None = None
 
 
@@ -87,6 +88,7 @@ class BookResponse(BaseModel):
     title: str
     genre: str | None
     type: str
+    framework_id: UUID | None = None
     planner_data: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime

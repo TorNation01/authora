@@ -168,7 +168,7 @@ export default function ProjectSearchPage() {
                       <span className="flex items-center gap-2 text-sm text-muted-foreground">
                         {sourceIcon(r.source_type)}
                         {sourceLabel(r.source_type)}
-                        {r.metadata?.title && ` · ${r.metadata.title}`}
+                        {r.metadata?.title ? ` · ${String(r.metadata.title)}` : null}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {Math.round(r.score * 100)}% match

@@ -36,3 +36,19 @@ class DeleteProjectConfirm(BaseModel):
     """Confirmation for project deletion."""
 
     confirm: bool = Field(..., description="Must be true to delete")
+
+
+class ProjectWizardRequest(BaseModel):
+    """Project creation wizard request."""
+
+    template_id: UUID | None = Field(None, description="Template ID (omit for custom/blank)")
+    project_name: str = Field(..., min_length=1, max_length=255)
+    book_title: str | None = Field(None, min_length=1, max_length=500)
+    book_type: str = Field(default="fiction", pattern="^(fiction|nonfiction)$")
+    genre: str | None = None
+    core_idea: str | None = Field(None, max_length=2000)
+    wizard_answers: dict[str, str | int | list] | None = None
+    structure_framework: str | None = None
+    framework_id: UUID | None = Field(None, description="Writing framework ID (overrides template)")
+    target_words: int | None = Field(None, ge=0)
+    target_date: str | None = Field(None, max_length=50)

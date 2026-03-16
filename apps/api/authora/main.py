@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, config, content, dictionary, editing, export, fiction, ghostwriter, goals, gamification, journey, leads, nonfiction, notes, projects, rag, reference, setup
+from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, config, content, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, journey, leads, nonfiction, notes, projects, rag, reference, setup, templates
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
@@ -91,6 +91,8 @@ app.include_router(billing.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
+app.include_router(templates.router, prefix="/api/v1")
+app.include_router(frameworks.router, prefix="/api/v1")
 app.include_router(books.router, prefix="/api/v1")
 app.include_router(ghostwriter.router, prefix="/api/v1")
 app.include_router(notes.project_router, prefix="/api/v1")

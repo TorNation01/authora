@@ -46,7 +46,7 @@ export function EditorReferenceContextMenu({
       </div>
       {menu && (
         <div
-          className="fixed z-50 min-w-[140px] rounded-lg border bg-popover py-1 shadow-md"
+          className="fixed z-[99989] min-w-[140px] rounded-lg border bg-popover py-1 shadow-md"
           style={{ left: menu.x, top: menu.y }}
           onClick={(e) => e.stopPropagation()}
         >

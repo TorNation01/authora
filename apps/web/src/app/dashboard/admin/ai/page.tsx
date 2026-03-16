@@ -12,7 +12,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 import { Check, X, Loader2, RefreshCw, Server, Cloud, Save, ShieldCheck, Cpu } from 'lucide-react';
 
 type Provider = {
@@ -27,6 +29,11 @@ type AIProvidersData = {
   provider_mode: string;
   ollama_enabled: boolean;
   ollama_base_url: string | null;
+  ollama_hardware_tier?: string | null;
+  ai_provider?: string;
+  ai_model?: string;
+  openai_configured?: boolean;
+  anthropic_configured?: boolean;
 };
 
 type OllamaModelsData = {
@@ -83,6 +90,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function AdminAIPage() {
+  const { toast } = useToast();
   const [data, setData] = useState<AIProvidersData | null>(null);
   const [ollamaModels, setOllamaModels] = useState<OllamaModelsData | null>(null);
   const [ollamaHealth, setOllamaHealth] = useState<OllamaHealthData | null>(null);
@@ -94,6 +102,23 @@ export default function AdminAIPage() {
   const [saving, setSaving] = useState(false);
   const [validating, setValidating] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [configForm, setConfigForm] = useState<{
+    provider_mode: string;
+    openai_api_key: string;
+    anthropic_api_key: string;
+    ollama_enabled: boolean;
+    ollama_base_url: string;
+    ollama_hardware_tier: string;
+  }>({
+    provider_mode: 'auto',
+    openai_api_key: '',
+    anthropic_api_key: '',
+    ollama_enabled: false,
+    ollama_base_url: 'http://localhost:11434',
+    ollama_hardware_tier: '',
+  });
 
   const fetchData = async () => {
     try {
@@ -124,6 +149,18 @@ export default function AdminAIPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (data) {
+      setConfigForm((f) => ({
+        ...f,
+        provider_mode: data.provider_mode ?? 'auto',
+        ollama_enabled: data.ollama_enabled ?? false,
+        ollama_base_url: data.ollama_base_url ?? 'http://localhost:11434',
+        ollama_hardware_tier: data.ollama_hardware_tier ?? '',
+      }));
+    }
+  }, [data]);
 
   const handleRefreshModels = async () => {
     setRefreshing(true);
@@ -181,6 +218,46 @@ export default function AdminAIPage() {
     }
   };
 
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      const body: Record<string, unknown> = {
+        ai_provider_mode: configForm.provider_mode,
+        ollama_enabled: configForm.ollama_enabled,
+        ollama_base_url: configForm.ollama_base_url || undefined,
+      };
+      if (configForm.openai_api_key) body.openai_api_key = configForm.openai_api_key;
+      if (configForm.anthropic_api_key) body.anthropic_api_key = configForm.anthropic_api_key;
+      if (configForm.ollama_hardware_tier) body.ollama_hardware_tier = configForm.ollama_hardware_tier;
+      await api('/api/v1/admin/ai/config', { method: 'PUT', body: JSON.stringify(body) });
+      toast({ title: 'AI config saved', description: 'Restart the API for changes to take effect.' });
+      await fetchData();
+    } catch {
+      toast({ title: 'Failed to save', variant: 'destructive' });
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleTestOllama = async () => {
+    setTestingOllama(true);
+    try {
+      const res = await api<{ ok: boolean; message: string }>('/api/v1/admin/ai/providers/ollama/test', {
+        method: 'POST',
+        body: JSON.stringify({ base_url: configForm.ollama_base_url || 'http://localhost:11434' }),
+      });
+      if (res.ok) {
+        toast({ title: 'Ollama connection OK' });
+      } else {
+        toast({ title: 'Ollama connection failed', description: res.message, variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Test failed', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setTestingOllama(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -200,25 +277,109 @@ export default function AdminAIPage() {
 
       <Card variant="soft">
         <CardHeader>
-          <CardTitle>Provider mode</CardTitle>
+          <CardTitle>AI provider configuration</CardTitle>
           <CardDescription>
-            How AUTHORA chooses between local (Ollama) and cloud (OpenAI, Anthropic) providers.
+            Add or update AI providers, API keys, and Ollama settings. Restart the API after saving.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-sm">
-              {data?.provider_mode ?? 'auto'}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {data?.provider_mode === 'auto' && 'Auto: prefer local, fallback to cloud'}
-              {data?.provider_mode === 'cloud' && 'Cloud only: OpenAI or Anthropic'}
-              {data?.provider_mode === 'local' && 'Local only: Ollama'}
-            </span>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Provider mode</Label>
+            <Select
+              value={configForm.provider_mode}
+              onValueChange={(v) => setConfigForm((f) => ({ ...f, provider_mode: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto: prefer local, fallback to cloud</SelectItem>
+                <SelectItem value="cloud">Cloud only: OpenAI or Anthropic</SelectItem>
+                <SelectItem value="local">Local only: Ollama</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Change via AI_PROVIDER_MODE env (auto | cloud | local).
-          </p>
+          <div className="space-y-4 border-t pt-4">
+            <p className="text-sm font-medium">Cloud providers (API keys)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="openai_key">OpenAI API key</Label>
+                <Input
+                  id="openai_key"
+                  type="password"
+                  placeholder={data?.openai_configured ? '•••••••• (leave blank to keep)' : 'sk-...'}
+                  value={configForm.openai_api_key}
+                  onChange={(e) => setConfigForm((f) => ({ ...f, openai_api_key: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="anthropic_key">Anthropic API key</Label>
+                <Input
+                  id="anthropic_key"
+                  type="password"
+                  placeholder={data?.anthropic_configured ? '•••••••• (leave blank to keep)' : 'sk-ant-...'}
+                  value={configForm.anthropic_api_key}
+                  onChange={(e) => setConfigForm((f) => ({ ...f, anthropic_api_key: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4 border-t pt-4">
+            <p className="text-sm font-medium">Ollama (local)</p>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={configForm.ollama_enabled}
+                onChange={(e) => setConfigForm((f) => ({ ...f, ollama_enabled: e.target.checked }))}
+                className="rounded border-input"
+              />
+              <span className="text-sm">Enable Ollama</span>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="ollama_base_url">Base URL</Label>
+                <Input
+                  id="ollama_base_url"
+                  value={configForm.ollama_base_url}
+                  onChange={(e) => setConfigForm((f) => ({ ...f, ollama_base_url: e.target.value }))}
+                  placeholder="http://localhost:11434"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ollama_tier">Hardware tier (1–4)</Label>
+                <Select
+                  value={configForm.ollama_hardware_tier || 'auto'}
+                  onValueChange={(v) => setConfigForm((f) => ({ ...f, ollama_hardware_tier: v === 'auto' ? '' : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Auto-detect" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto-detect</SelectItem>
+                    <SelectItem value="1">1 — Light</SelectItem>
+                    <SelectItem value="2">2 — Balanced</SelectItem>
+                    <SelectItem value="3">3 — Strong</SelectItem>
+                    <SelectItem value="4">4 — Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTestOllama}
+                disabled={testingOllama}
+              >
+                {testingOllama ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Test Ollama connection
+              </Button>
+              <Button size="sm" onClick={handleSaveConfig} disabled={savingConfig}>
+                {savingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                Save config
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -419,74 +580,82 @@ export default function AdminAIPage() {
         </Card>
       )}
 
-      {data?.ollama_enabled && (
-        <Card variant="soft">
-          <CardHeader>
-            <CardTitle>Ollama</CardTitle>
-            <CardDescription>
-              Local models at {data.ollama_base_url ?? 'http://localhost:11434'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Health</p>
-                <p className="text-sm text-muted-foreground">
-                  {ollamaHealth?.ok ? (
-                    <span className="text-green-600 flex items-center gap-1">
-                      <Check className="h-4 w-4" />
-                      {ollamaHealth.message}
-                    </span>
+      <Card variant="soft">
+        <CardHeader>
+          <CardTitle>Ollama</CardTitle>
+          <CardDescription>
+            {data?.ollama_enabled
+              ? `Local models at ${data.ollama_base_url ?? 'http://localhost:11434'}`
+              : 'Enable Ollama in the configuration above to use local models.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {data?.ollama_enabled ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Health</p>
+                  <p className="text-sm text-muted-foreground">
+                    {ollamaHealth?.ok ? (
+                      <span className="text-green-600 flex items-center gap-1">
+                        <Check className="h-4 w-4" />
+                        {ollamaHealth.message}
+                      </span>
+                    ) : (
+                      <span className="text-destructive flex items-center gap-1">
+                        <X className="h-4 w-4" />
+                        {ollamaHealth?.message ?? 'Not reachable'}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshModels}
+                  disabled={refreshing}
+                >
+                  {refreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <span className="text-destructive flex items-center gap-1">
-                      <X className="h-4 w-4" />
-                      {ollamaHealth?.message ?? 'Not reachable'}
-                    </span>
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh models
+                    </>
                   )}
-                </p>
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshModels}
-                disabled={refreshing}
-              >
-                {refreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+              <div>
+                <p className="font-medium mb-2">Available models</p>
+                {ollamaModels?.error ? (
+                  <p className="text-sm text-destructive">{ollamaModels.error}</p>
+                ) : ollamaModels?.models?.length ? (
+                  <ul className="text-sm space-y-1">
+                    {ollamaModels.models.map((m) => (
+                      <li key={m.name ?? ''} className="font-mono">
+                        {m.name}
+                        {m.size != null && m.size > 0 && (
+                          <span className="text-muted-foreground ml-2">
+                            ({(m.size / 1024 / 1024 / 1024).toFixed(2)} GB)
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Refresh models
-                  </>
+                  <p className="text-sm text-muted-foreground">
+                    No models found. Run <code className="rounded bg-muted px-1">ollama pull &lt;model&gt;</code> on the server.
+                  </p>
                 )}
-              </Button>
-            </div>
-            <div>
-              <p className="font-medium mb-2">Available models</p>
-              {ollamaModels?.error ? (
-                <p className="text-sm text-destructive">{ollamaModels.error}</p>
-              ) : ollamaModels?.models?.length ? (
-                <ul className="text-sm space-y-1">
-                  {ollamaModels.models.map((m) => (
-                    <li key={m.name ?? ''} className="font-mono">
-                      {m.name}
-                      {m.size != null && m.size > 0 && (
-                        <span className="text-muted-foreground ml-2">
-                          ({(m.size / 1024 / 1024 / 1024).toFixed(2)} GB)
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No models found. Run <code className="rounded bg-muted px-1">ollama pull &lt;model&gt;</code> on the server.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Enable Ollama in the AI provider configuration above, then save to use local models.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card variant="soft">
         <CardHeader>

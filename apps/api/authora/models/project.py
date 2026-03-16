@@ -13,6 +13,7 @@ from authora.database import Base
 if TYPE_CHECKING:
     from authora.models.book import Book
     from authora.models.note import Note
+    from authora.models.project_template import ProjectTemplate
     from authora.models.user import User
 
 
@@ -26,9 +27,13 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_accessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_templates.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="projects")
+    template: Mapped["ProjectTemplate | None"] = relationship("ProjectTemplate", foreign_keys=[template_id])
     books: Mapped[list["Book"]] = relationship("Book", back_populates="project", cascade="all, delete-orphan")
     notes: Mapped[list["Note"]] = relationship("Note", back_populates="project", cascade="all, delete-orphan")

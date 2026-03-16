@@ -4,21 +4,21 @@ import { Quote } from 'lucide-react';
 
 const TESTIMONIALS = [
   {
-    quote: 'AUTHORA helped me finally finish my first novel. The accountability and structure kept me on track.',
-    author: 'Author name',
-    role: 'Fiction writer',
+    quote: 'Authora helped me stop circling the same idea and finally start making real progress.',
+    author: 'Author',
+    role: 'First-time author',
     avatar: null,
   },
   {
-    quote: 'I was drowning in notes and drafts. Having everything in one place changed everything.',
-    author: 'Author name',
+    quote: 'The structure, reminders, and AI support made writing feel possible again.',
+    author: 'Author',
     role: 'Memoir writer',
     avatar: null,
   },
   {
-    quote: 'The AI suggestions are helpful without being overwhelming. I stay in control of my voice.',
-    author: 'Author name',
-    role: 'Business author',
+    quote: 'This feels like the first tool that actually wants me to finish the manuscript.',
+    author: 'Author',
+    role: 'Fiction writer',
     avatar: null,
   },
 ];
@@ -29,10 +29,11 @@ export function TestimonialsSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-            Authors who finish
+            Built for real writers
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Join writers who are completing their manuscripts.
+            From first-time authors to experienced writers, Authora is designed for people who want a
+            better way to turn ideas into finished books.
           </p>
         </div>
         <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -59,7 +60,7 @@ export function TestimonialsSection() {
           ))}
         </div>
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          Early adopters sharing their progress. Add verified testimonials as you collect them.
+          Placeholder testimonials. Add verified quotes as you collect them.
         </p>
       </div>
     </section>

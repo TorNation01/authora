@@ -1,6 +1,7 @@
 'use client';
 
 import { Flag, Target, ChevronRight, Sparkles, Zap, Calendar } from 'lucide-react';
+import { FINISH_MODE_COPY } from '@/content/framework-copy';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -124,6 +125,10 @@ export function FinishModePanel({
         </Button>
       </div>
 
+      <p className="text-xs text-muted-foreground italic">
+        {FINISH_MODE_COPY.imperfectProgress}
+      </p>
+
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Progress</span>
@@ -168,11 +173,11 @@ export function FinishModePanel({
             className="w-full justify-between"
             onClick={() => onJumpToNext(dailyPlan.chapter_id)}
           >
-            <span>Just finish this section</span>
+            <span>{FINISH_MODE_COPY.finishThisStage}</span>
             <ChevronRight className="h-4 w-4 shrink-0" />
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            Try a {dailyPlan.suggested_session_minutes}-minute sprint
+            {FINISH_MODE_COPY.oneFinishedBeatsTen}
           </p>
         </div>
       )}

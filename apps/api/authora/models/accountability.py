@@ -14,7 +14,10 @@ if TYPE_CHECKING:
     from authora.models.book import Book, Chapter
     from authora.models.user import User
 
-ACCOUNTABILITY_STYLES = ["gentle", "balanced", "firm", "coach", "structured"]
+ACCOUNTABILITY_STYLES = ["gentle", "balanced", "firm", "coach", "structured", "minimal"]
+ACCOUNTABILITY_LEVELS = ["off", "light", "standard", "strong"]
+ENCOURAGEMENT_PRESETS = ["gentle_encouragement", "steady_coach", "finish_strong", "minimal_interruption"]
+REMINDER_STYLES = ["gentle", "supportive", "coach", "firm_kind", "minimal"]
 PLAN_STATUSES = ["active", "paused", "completed", "cancelled"]
 RECOVERY_PLAN_TYPES = ["catch_up", "adjust", "simplify"]
 
@@ -40,6 +43,14 @@ class AccountabilitySettings(Base):
     reminder_types: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     plan_paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    accountability_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    streak_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    gamification_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    encouragement_preset: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    reminder_style: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    no_reminder_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    grace_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    flexible_streak_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -100,6 +111,10 @@ class Milestone(Base):
     target_words: Mapped[int] = mapped_column(Integer, nullable=False)
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    milestone_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    framework_stage: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     writing_plan: Mapped["WritingPlan | None"] = relationship("WritingPlan", back_populates="milestones")

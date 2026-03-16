@@ -1,26 +1,32 @@
 import type { Metadata } from 'next';
 import { HeroSection } from '@/components/marketing/HeroSection';
-import { FeatureSection } from '@/components/marketing/FeatureSection';
-import { UseCasesSection } from '@/components/marketing/UseCasesSection';
+import { ProblemSection } from '@/components/marketing/ProblemSection';
+import { SolutionSection } from '@/components/marketing/SolutionSection';
+import { HowItWorksSection } from '@/components/marketing/HowItWorksSection';
+import { GenresSection } from '@/components/marketing/GenresSection';
+import { EditorSection } from '@/components/marketing/EditorSection';
+import { AISection } from '@/components/marketing/AISection';
+import { AccountabilitySection } from '@/components/marketing/AccountabilitySection';
+import { WhyAuthoraSection } from '@/components/marketing/WhyAuthoraSection';
 import { TestimonialsSection } from '@/components/marketing/TestimonialsSection';
+import { PricingTeaserSection } from '@/components/marketing/PricingTeaserSection';
 import { FAQSection } from '@/components/marketing/FAQSection';
 import { CTASection } from '@/components/marketing/CTASection';
-import { NewsletterSection } from '@/components/marketing/NewsletterSection';
 
 export const metadata: Metadata = {
-  title: 'AUTHORA | Finish Your Book — Guided Writing Journey with AI',
+  title: 'Authora | Finish the Book',
   description:
-    'Write your book and actually finish it. AUTHORA guides you from idea to finished manuscript with AI support, accountability, and all your writing tools in one place.',
-  keywords: ['book writing', 'author tool', 'AI writing', 'finish your book', 'writing app', 'novel writing'],
+    'Authora is the writing studio for fiction and non-fiction authors who want to plan, write, and finish books with structure, accountability, and AI support.',
+  keywords: ['book writing', 'author tool', 'AI writing', 'finish your book', 'writing app', 'novel writing', 'memoir', 'non-fiction'],
   openGraph: {
-    title: 'AUTHORA | Finish Your Book',
-    description: 'Your guided writing journey from idea to finished book. AI support without overwhelm.',
+    title: 'Authora — The writing studio that helps you finish the book',
+    description: 'Plan clearly, write smoothly, and finish confidently with Authora.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AUTHORA | Finish Your Book',
-    description: 'Your guided writing journey from idea to finished book.',
+    title: 'Authora — The writing studio that helps you finish the book',
+    description: 'Plan clearly, write smoothly, and finish confidently with Authora.',
   },
 };
 
@@ -28,11 +34,17 @@ export default function LandingPage() {
   return (
     <div data-page="landing">
       <HeroSection />
-      <FeatureSection />
-      <UseCasesSection />
+      <ProblemSection />
+      <SolutionSection />
+      <HowItWorksSection />
+      <GenresSection />
+      <EditorSection />
+      <AISection />
+      <AccountabilitySection />
+      <WhyAuthoraSection />
       <TestimonialsSection />
+      <PricingTeaserSection />
       <FAQSection />
-      <NewsletterSection />
       <CTASection />
     </div>
   );

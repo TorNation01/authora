@@ -105,6 +105,22 @@ MESSAGES = {
         "section_reminder": "[{chapter}] Last edited. Resume when ready.",
         "missed_goal_recovery": "Goal missed. Recovery plan below.",
     },
+    "minimal": {
+        "daily_reminder": "A small session today keeps the book moving.",
+        "weekly_reminder": "You are closer than you think. Pick up where you left off.",
+        "missed_goal": "Your goals are still here whenever you're ready.",
+        "stuck": "Even 15 minutes counts today.",
+        "motivational": "One finished section beats another postponed perfect draft.",
+        "recovery_intro": "Suggested schedule below.",
+        "milestone_reminder": "Your manuscript is waiting. Let's move it forward.",
+        "streak_reminder": "A few words today keep momentum.",
+        "overdue_nudge": "Your manuscript is waiting.",
+        "finish_date_risk": "Consider adjusting your target date.",
+        "resume_reminder": "Pick up where you left off.",
+        "chapter_target_reminder": "Almost there.",
+        "section_reminder": "Resume when ready.",
+        "missed_goal_recovery": "Recovery plan available.",
+    },
 }
 
 

@@ -1,4 +1,5 @@
-"""Audit log middleware - logs request/response for audit trail."""
+"""Audit log middleware - logs request/response for audit trail.
+Structlog: first arg is event, do not duplicate in kwargs."""
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -38,7 +39,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
         log_data = {
             "app": "authora",
             "request_id": request_id,
-            "event": "audit_request",
             "method": method,
             "path": path,
             "status_code": response.status_code,

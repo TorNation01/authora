@@ -2,8 +2,14 @@
 
 import type { Editor } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react';
-import { Bold, Italic, Underline, Highlighter, List, ListOrdered, Quote } from 'lucide-react';
+import { Bold, Italic, Underline, Highlighter, List, ListOrdered, Quote, Heading1, Heading2, Heading3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface EditorBubbleMenuProps {
   editor: Editor | null;
@@ -18,6 +24,33 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
       tippyOptions={{ duration: 100, placement: 'top' }}
       className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md"
     >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            data-active={editor.isActive('heading')}
+          >
+            <Heading1 className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+            <Heading1 className="h-4 w-4 mr-2" />
+            Heading 1
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+            <Heading2 className="h-4 w-4 mr-2" />
+            Heading 2
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+            <Heading3 className="h-4 w-4 mr-2" />
+            Heading 3
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <div className="mx-1 h-4 w-px bg-border" />
       <Button
         variant="ghost"
         size="sm"

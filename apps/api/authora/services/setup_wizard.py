@@ -187,6 +187,11 @@ def apply_config(req: SetupApplyRequest) -> tuple[bool, str]:
             updates["OLLAMA_BASE_URL"] = req.ai.ollama_base_url
         if req.ai.ollama_hardware_tier:
             updates["OLLAMA_HARDWARE_TIER"] = req.ai.ollama_hardware_tier
+        # Set AI_PROVIDER_MODE based on provider: ollama -> local, cloud -> cloud
+        if req.ai.ai_provider == "ollama":
+            updates["AI_PROVIDER_MODE"] = "local"
+        elif req.ai.ai_provider in ("openai", "anthropic"):
+            updates["AI_PROVIDER_MODE"] = "cloud"
 
     if req.email and req.email.enabled:
         if req.email.smtp_host:

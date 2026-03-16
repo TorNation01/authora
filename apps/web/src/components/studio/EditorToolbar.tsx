@@ -258,10 +258,10 @@ export function EditorToolbar({
           {exportOpen && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-[99988]"
                 onClick={() => setExportOpen(false)}
               />
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border bg-popover py-1 shadow-lg">
+              <div className="absolute right-0 top-full z-[99989] mt-1 min-w-[160px] rounded-lg border bg-popover py-1 shadow-lg">
                 {['docx', 'pdf', 'epub', 'txt'].map((f) => (
                   <button
                     key={f}

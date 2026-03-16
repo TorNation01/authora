@@ -9,3 +9,5 @@ export * from './empty-states';
 export * from './ai-explanations';
 export * from './onboarding';
 export * from './help-center';
+export * from './template-copy';
+export * from './framework-copy';

@@ -1,10 +1,16 @@
 /**
  * Billing abstraction - plan status, usage, feature gating.
  * When feature_billing is false, returns premium-equivalent (no limits).
- * Stripe integration: implement in getBillingStatus when ready.
+ * Stripe integration: checkout/create, customer-portal.
  */
 
 import { api } from './api';
+
+export interface PlanPrice {
+  monthly_cents: number | null;
+  yearly_cents: number | null;
+  lifetime_cents: number | null;
+}
 
 export interface BillingPlan {
   id: string;
@@ -12,6 +18,7 @@ export interface BillingPlan {
   name: string;
   limits: Record<string, number | number[] | string[]>;
   features: string[];
+  price?: PlanPrice | null;
 }
 
 export interface BillingUsage {
@@ -58,22 +65,22 @@ function getDefaultBillingStatus(): BillingStatus {
   return {
     plan: {
       id: 'default',
-      slug: 'premium',
-      name: 'Premium',
+      slug: 'studio',
+      name: 'Studio',
       limits: {
         projects: 999,
         books: 999,
-        ai_actions_per_month: 500,
-        exports_per_month: 50,
+        ai_actions_per_month: 1000,
+        exports_per_month: 100,
         export_formats: ['docx', 'pdf', 'epub', 'txt'],
       },
-      features: ['planning', 'editor', 'notes', 'accountability', 'gamification', 'ai', 'ghostwriter', 'export_pdf', 'export_epub', 'publishing_prep'],
+      features: ['planning', 'editor', 'notes', 'accountability', 'gamification', 'ai', 'ghostwriter', 'export_pdf', 'export_epub', 'publishing_prep', 'finish_mode', 'semantic_search', 'premium_model_routing'],
     },
     usage: {
       ai_actions: 0,
-      ai_actions_limit: 500,
+      ai_actions_limit: 1000,
       exports: 0,
-      exports_limit: 50,
+      exports_limit: 100,
       projects: 0,
       projects_limit: 999,
       books: 0,
@@ -82,6 +89,42 @@ function getDefaultBillingStatus(): BillingStatus {
     billing_exempt: true,
     can_upgrade: false,
   };
+}
+
+export async function createCheckoutSession(planSlug: string, billingInterval: string, promoCode?: string): Promise<{ url: string; session_id: string } | null> {
+  try {
+    const data = await api<{ url: string; session_id: string }>('/api/v1/billing/checkout/create', {
+      method: 'POST',
+      body: JSON.stringify({ plan_slug: planSlug, billing_interval: billingInterval, promo_code: promoCode || null }),
+    });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function createCustomerPortalSession(returnUrl?: string): Promise<{ url: string } | null> {
+  try {
+    const data = await api<{ url: string }>('/api/v1/billing/customer-portal', {
+      method: 'POST',
+      body: JSON.stringify({ return_url: returnUrl || null }),
+    });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function redeemPromoCode(code: string): Promise<{ ok: boolean; plan_slug?: string } | null> {
+  try {
+    const data = await api<{ ok: boolean; plan_slug?: string }>('/api/v1/billing/redeem-code', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function canUseFeature(status: BillingStatus, feature: string): boolean {

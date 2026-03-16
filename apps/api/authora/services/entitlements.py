@@ -74,7 +74,7 @@ async def check_can_use_ai(db: AsyncSession, user_id: UUID) -> tuple[bool, str |
     if not get_settings().feature_billing:
         return True, None
     if not await has_feature(db, user_id, "ai"):
-        return False, "AI assistance requires Premium."
+        return False, "AI assistance requires a paid plan."
     allowed, used, limit = await check_ai_action_limit(db, user_id)
     if not allowed:
         return False, f"AI action limit reached ({used}/{limit} this month)."
@@ -94,7 +94,7 @@ async def check_can_export(db: AsyncSession, user_id: UUID, format: str) -> tupl
     if not allowed:
         if used >= limit:
             return False, f"Export limit reached ({used}/{limit} this month)."
-        return False, f"Export to {format.upper()} requires Premium."
+        return False, f"Export to {format.upper()} requires a paid plan."
     return True, None
 
 
@@ -108,7 +108,7 @@ async def check_can_use_ghostwriter(db: AsyncSession, user_id: UUID) -> tuple[bo
     if not get_settings().feature_billing:
         return True, None
     if not await has_feature(db, user_id, "ghostwriter"):
-        return False, "Ghostwriter mode requires Premium."
+        return False, "Ghostwriter mode requires a paid plan."
     allowed, used, limit = await check_ghostwriter_limit(db, user_id)
     if not allowed:
         return False, f"Ghostwriter limit reached ({used}/{limit} this month)."

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,11 +20,13 @@ from authora.models import (
     NotificationDeliveryLog,
     Plan,
     Project,
+    ProjectTemplate,
     Reminder,
     Setting,
     SetupState,
     UsageRecord,
     User,
+    WritingFramework,
 )
 from authora.content.messages import (
     CELEBRATION_MESSAGES,
@@ -637,6 +639,19 @@ async def admin_gamification(
 # --- AI provider admin ---
 
 
+class AdminAIConfigUpdate(BaseModel):
+    """Update AI provider configuration (writes to .env)."""
+
+    ai_provider_mode: str | None = Field(None, description="auto | cloud | local")
+    ai_provider: str | None = Field(None, description="openai | anthropic | ollama (legacy)")
+    ai_model: str | None = Field(None, description="Default model for cloud providers")
+    openai_api_key: str | None = Field(None, description="OpenAI API key (empty = leave unchanged)")
+    anthropic_api_key: str | None = Field(None, description="Anthropic API key (empty = leave unchanged)")
+    ollama_enabled: bool | None = Field(None)
+    ollama_base_url: str | None = Field(None)
+    ollama_hardware_tier: str | None = Field(None, description="1 | 2 | 3 | 4")
+
+
 @router.get("/ai/providers")
 async def admin_ai_providers(current_user: AdminUser):
     """List AI providers with status."""
@@ -649,7 +664,60 @@ async def admin_ai_providers(current_user: AdminUser):
         "provider_mode": s.ai_provider_mode,
         "ollama_enabled": s.ollama_enabled,
         "ollama_base_url": s.ollama_base_url if s.ollama_enabled else None,
+        "ollama_hardware_tier": getattr(s, "ollama_hardware_tier", None),
+        "ai_provider": s.ai_provider,
+        "ai_model": s.ai_model,
+        "openai_configured": bool(s.openai_api_key),
+        "anthropic_configured": bool(s.anthropic_api_key),
     }
+
+
+@router.put("/ai/config")
+async def admin_update_ai_config(data: AdminAIConfigUpdate, current_user: AdminUser):
+    """Update AI provider configuration. Writes to .env. Restart API for changes to take effect."""
+    from authora.services.setup_wizard import write_env
+
+    updates: dict[str, str] = {}
+    if data.ai_provider_mode is not None:
+        updates["AI_PROVIDER_MODE"] = data.ai_provider_mode
+    if data.ai_provider is not None:
+        updates["AI_PROVIDER"] = data.ai_provider
+    if data.ai_model is not None:
+        updates["AI_MODEL"] = data.ai_model
+    if data.openai_api_key:
+        updates["OPENAI_API_KEY"] = data.openai_api_key
+    if data.anthropic_api_key:
+        updates["ANTHROPIC_API_KEY"] = data.anthropic_api_key
+    if data.ollama_enabled is not None:
+        updates["OLLAMA_ENABLED"] = str(data.ollama_enabled).lower()
+    if data.ollama_base_url is not None:
+        updates["OLLAMA_BASE_URL"] = data.ollama_base_url
+    if data.ollama_hardware_tier is not None:
+        updates["OLLAMA_HARDWARE_TIER"] = data.ollama_hardware_tier
+
+    if not updates:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No updates provided")
+
+    ok, msg = write_env(updates)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+    return {"ok": True, "message": "AI config updated. Restart the API for changes to take effect."}
+
+
+class OllamaTestRequest(BaseModel):
+    """Test Ollama with a custom base URL."""
+
+    base_url: str = Field(..., min_length=1)
+
+
+@router.post("/ai/providers/ollama/test")
+async def admin_ollama_test(data: OllamaTestRequest, current_user: AdminUser):
+    """Test Ollama connectivity with a given base URL (before saving config)."""
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    p = OllamaProvider(base_url=data.base_url, model="")
+    ok, msg = await p.health_check()
+    return {"ok": ok, "message": msg}
 
 
 @router.get("/ai/providers/ollama/health")
@@ -858,6 +926,376 @@ async def admin_apply_recommended_model_roles(
     saved = await save_ai_model_role_overrides(db, effective)
     await db.commit()
     return {"ok": True, "mappings": saved, "tier": profile.tier}
+
+
+# --- Project template management ---
+
+
+@router.get("/templates")
+async def admin_list_templates(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_disabled: bool = Query(False),
+):
+    """List all project templates (admin, includes disabled)."""
+    q = select(ProjectTemplate).order_by(ProjectTemplate.sort_order.asc(), ProjectTemplate.name.asc())
+    if not include_disabled:
+        q = q.where(ProjectTemplate.is_disabled.is_(False))
+    result = await db.execute(q)
+    templates = result.scalars().all()
+    return {
+        "templates": [
+            {
+                "id": str(t.id),
+                "slug": t.slug,
+                "category": t.category,
+                "parent_id": str(t.parent_id) if t.parent_id else None,
+                "name": t.name,
+                "description": t.description,
+                "book_type": t.book_type,
+                "genre": t.genre,
+                "structure_framework": t.structure_framework,
+                "sort_order": t.sort_order,
+                "is_featured": t.is_featured,
+                "is_disabled": t.is_disabled,
+            }
+            for t in templates
+        ],
+    }
+
+
+class AdminTemplateUpdate(BaseModel):
+    """Update template (admin)."""
+
+    name: str | None = None
+    description: str | None = None
+    who_it_is_for: str | None = None
+    expected_outcome: str | None = None
+    suggested_workflow: str | None = None
+    book_type: str | None = None
+    genre: str | None = None
+    structure_framework: str | None = None
+    sort_order: int | None = None
+    is_featured: bool | None = None
+    is_disabled: bool | None = None
+    default_structure: dict | None = None
+    default_milestones: list | None = None
+    setup_questions: list | None = None
+    chapter_skeletons: list | None = None
+
+
+@router.patch("/templates/{template_id}")
+async def admin_update_template(
+    template_id: uuid.UUID,
+    data: AdminTemplateUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update template (admin)."""
+    result = await db.execute(select(ProjectTemplate).where(ProjectTemplate.id == template_id))
+    t = result.scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    if data.name is not None:
+        t.name = data.name
+    if data.description is not None:
+        t.description = data.description
+    if data.who_it_is_for is not None:
+        t.who_it_is_for = data.who_it_is_for
+    if data.expected_outcome is not None:
+        t.expected_outcome = data.expected_outcome
+    if data.suggested_workflow is not None:
+        t.suggested_workflow = data.suggested_workflow
+    if data.book_type is not None:
+        t.book_type = data.book_type
+    if data.genre is not None:
+        t.genre = data.genre
+    if data.structure_framework is not None:
+        t.structure_framework = data.structure_framework
+    if data.sort_order is not None:
+        t.sort_order = data.sort_order
+    if data.is_featured is not None:
+        t.is_featured = data.is_featured
+    if data.is_disabled is not None:
+        t.is_disabled = data.is_disabled
+    if data.default_structure is not None:
+        t.default_structure = data.default_structure
+    if data.default_milestones is not None:
+        t.default_milestones = data.default_milestones
+    if data.setup_questions is not None:
+        t.setup_questions = data.setup_questions
+    if data.chapter_skeletons is not None:
+        t.chapter_skeletons = data.chapter_skeletons
+    await db.flush()
+    await db.refresh(t)
+    return {"id": str(t.id), "slug": t.slug, "name": t.name}
+
+
+@router.post("/templates/{template_id}/duplicate")
+async def admin_duplicate_template(
+    template_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Duplicate template (admin). Creates new slug like {slug}-copy."""
+    result = await db.execute(select(ProjectTemplate).where(ProjectTemplate.id == template_id))
+    src = result.scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    new_slug = f"{src.slug}-copy"
+    existing = (await db.execute(select(ProjectTemplate).where(ProjectTemplate.slug == new_slug))).scalar_one_or_none()
+    if existing:
+        new_slug = f"{src.slug}-copy-{uuid.uuid4().hex[:8]}"
+    t = ProjectTemplate(
+        slug=new_slug,
+        category=src.category,
+        parent_id=src.parent_id,
+        name=f"{src.name} (copy)",
+        description=src.description,
+        who_it_is_for=src.who_it_is_for,
+        expected_outcome=src.expected_outcome,
+        suggested_workflow=src.suggested_workflow,
+        book_type=src.book_type,
+        genre=src.genre,
+        structure_framework=src.structure_framework,
+        default_structure=src.default_structure,
+        default_milestones=src.default_milestones,
+        default_planning_prompts=src.default_planning_prompts,
+        default_accountability=src.default_accountability,
+        ai_prompts=src.ai_prompts,
+        export_recommendations=src.export_recommendations,
+        setup_questions=src.setup_questions,
+        chapter_skeletons=src.chapter_skeletons,
+        sort_order=src.sort_order + 1,
+        is_featured=False,
+        is_disabled=False,
+    )
+    db.add(t)
+    await db.flush()
+    await db.refresh(t)
+    return {"id": str(t.id), "slug": t.slug, "name": t.name}
+
+
+class AdminTemplatesReorderRequest(BaseModel):
+    template_ids: list[uuid.UUID] = Field(..., min_length=1)
+
+
+@router.post("/templates/reorder")
+async def admin_reorder_templates(
+    data: AdminTemplatesReorderRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reorder templates by id list (admin)."""
+    template_ids = data.template_ids
+    result = await db.execute(select(ProjectTemplate).where(ProjectTemplate.id.in_(template_ids)))
+    templates = {t.id: t for t in result.scalars().all()}
+    for i, tid in enumerate(template_ids):
+        if tid in templates:
+            templates[tid].sort_order = i
+    await db.flush()
+    return {"ok": True}
+
+
+@router.get("/templates/usage")
+async def admin_template_usage(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Template usage analytics: projects and books per template."""
+    from sqlalchemy import func as sql_func
+
+    projects_q = (
+        select(Project.template_id, sql_func.count(Project.id).label("count"))
+        .where(Project.template_id.isnot(None))
+        .group_by(Project.template_id)
+    )
+    books_q = (
+        select(Book.template_id, sql_func.count(Book.id).label("count"))
+        .where(Book.template_id.isnot(None))
+        .group_by(Book.template_id)
+    )
+    pr = await db.execute(projects_q)
+    br = await db.execute(books_q)
+    by_template: dict[str, dict[str, int]] = {}
+    for tid, cnt in pr.all():
+        key = str(tid)
+        if key not in by_template:
+            by_template[key] = {"projects": 0, "books": 0}
+        by_template[key]["projects"] = cnt
+    for tid, cnt in br.all():
+        key = str(tid)
+        if key not in by_template:
+            by_template[key] = {"projects": 0, "books": 0}
+        by_template[key]["books"] = cnt
+    return {"by_template": by_template}
+
+
+# --- Writing framework management ---
+
+
+@router.get("/frameworks")
+async def admin_list_frameworks(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_disabled: bool = Query(False),
+    book_type: str | None = Query(None, description="fiction | nonfiction"),
+):
+    """List all writing frameworks (admin, includes disabled)."""
+    q = select(WritingFramework).order_by(WritingFramework.sort_order.asc(), WritingFramework.name.asc())
+    if not include_disabled:
+        q = q.where(WritingFramework.is_disabled.is_(False))
+    if book_type:
+        q = q.where(WritingFramework.book_type == book_type)
+    result = await db.execute(q)
+    frameworks = result.scalars().all()
+    return {
+        "frameworks": [
+            {
+                "id": str(f.id),
+                "slug": f.slug,
+                "book_type": f.book_type,
+                "name": f.name,
+                "description": f.description,
+                "ideal_genres": f.ideal_genres,
+                "sort_order": f.sort_order,
+                "is_featured": f.is_featured,
+                "is_disabled": f.is_disabled,
+            }
+            for f in frameworks
+        ],
+    }
+
+
+class AdminFrameworkUpdate(BaseModel):
+    """Update framework (admin)."""
+
+    name: str | None = None
+    description: str | None = None
+    ideal_use_cases: str | None = None
+    ideal_genres: list[str] | None = None
+    planning_stages: list | None = None
+    beat_stages: list | None = None
+    chapter_structure: dict | None = None
+    manuscript_scaffolding: dict | None = None
+    chapter_skeletons: list | None = None
+    milestone_logic: dict | None = None
+    accountability_mapping: dict | None = None
+    revision_checklist: list | None = None
+    ai_prompt_presets: dict | None = None
+    recommendation_rules: dict | None = None
+    scene_prompts: dict | None = None
+    sort_order: int | None = None
+    is_featured: bool | None = None
+    is_disabled: bool | None = None
+
+
+@router.patch("/frameworks/{framework_id}")
+async def admin_update_framework(
+    framework_id: uuid.UUID,
+    data: AdminFrameworkUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update framework (admin)."""
+    result = await db.execute(select(WritingFramework).where(WritingFramework.id == framework_id))
+    f = result.scalar_one_or_none()
+    if not f:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Framework not found")
+    for field in ["name", "description", "ideal_use_cases", "ideal_genres", "planning_stages", "beat_stages",
+                  "chapter_structure", "manuscript_scaffolding", "chapter_skeletons", "milestone_logic",
+                  "accountability_mapping", "revision_checklist", "ai_prompt_presets", "recommendation_rules",
+                  "scene_prompts", "sort_order", "is_featured", "is_disabled"]:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(f, field, val)
+    await db.flush()
+    await db.refresh(f)
+    return {"id": str(f.id), "slug": f.slug, "name": f.name}
+
+
+@router.post("/frameworks/{framework_id}/duplicate")
+async def admin_duplicate_framework(
+    framework_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Duplicate framework (admin). Creates new slug like {slug}-copy."""
+    result = await db.execute(select(WritingFramework).where(WritingFramework.id == framework_id))
+    src = result.scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Framework not found")
+    new_slug = f"{src.slug}-copy"
+    existing = (await db.execute(select(WritingFramework).where(WritingFramework.slug == new_slug))).scalar_one_or_none()
+    if existing:
+        new_slug = f"{src.slug}-copy-{uuid.uuid4().hex[:8]}"
+    f = WritingFramework(
+        slug=new_slug,
+        book_type=src.book_type,
+        name=f"{src.name} (copy)",
+        description=src.description,
+        ideal_use_cases=src.ideal_use_cases,
+        ideal_genres=src.ideal_genres,
+        planning_stages=src.planning_stages,
+        beat_stages=src.beat_stages,
+        chapter_structure=src.chapter_structure,
+        manuscript_scaffolding=src.manuscript_scaffolding,
+        chapter_skeletons=src.chapter_skeletons,
+        milestone_logic=src.milestone_logic,
+        accountability_mapping=src.accountability_mapping,
+        revision_checklist=src.revision_checklist,
+        ai_prompt_presets=src.ai_prompt_presets,
+        recommendation_rules=src.recommendation_rules,
+        scene_prompts=src.scene_prompts,
+        sort_order=src.sort_order + 1,
+        is_featured=False,
+        is_disabled=False,
+    )
+    db.add(f)
+    await db.flush()
+    await db.refresh(f)
+    return {"id": str(f.id), "slug": f.slug, "name": f.name}
+
+
+class AdminFrameworksReorderRequest(BaseModel):
+    framework_ids: list[uuid.UUID] = Field(..., min_length=1)
+
+
+@router.post("/frameworks/reorder")
+async def admin_reorder_frameworks(
+    data: AdminFrameworksReorderRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reorder frameworks by id list (admin)."""
+    fids = data.framework_ids
+    result = await db.execute(select(WritingFramework).where(WritingFramework.id.in_(fids)))
+    frameworks = {f.id: f for f in result.scalars().all()}
+    for i, fid in enumerate(fids):
+        if fid in frameworks:
+            frameworks[fid].sort_order = i
+    await db.flush()
+    return {"ok": True}
+
+
+@router.get("/frameworks/usage")
+async def admin_framework_usage(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Framework usage analytics: books per framework."""
+    from sqlalchemy import func as sql_func
+
+    books_q = (
+        select(Book.framework_id, sql_func.count(Book.id).label("count"))
+        .where(Book.framework_id.isnot(None))
+        .group_by(Book.framework_id)
+    )
+    br = await db.execute(books_q)
+    by_framework: dict[str, int] = {}
+    for fid, cnt in br.all():
+        by_framework[str(fid)] = cnt
+    return {"by_framework": by_framework}
 
 
 @router.get("/ai/model-roles/validate")

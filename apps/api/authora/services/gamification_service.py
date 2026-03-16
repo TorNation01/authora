@@ -128,14 +128,32 @@ async def record_words(
 
     stats.last_writing_date = today
 
-    # Personal bests
+    # Goal completion check
+    project_id = None
+    if book_id:
+        b = await db.execute(select(Book).where(Book.id == book_id))
+        book = b.scalar_one_or_none()
+        if book:
+            project_id = book.project_id
     daily_words = (existing.words_written if existing else 0) + words
+    week_start_g = _week_start(today)
+    week_words = await _get_week_words(db, user_id, week_start_g)
+    from authora.services.goal_service import check_goal_completion
+    completed_goals = await check_goal_completion(
+        db, user_id, words,
+        book_id=book_id, project_id=project_id,
+        words_today=daily_words,
+        words_this_week=week_words,
+    )
+    for g in completed_goals:
+        events.append({"type": "goal_completed", "goal_id": str(g.id), "target_type": g.target_type or "legacy"})
+
+    # Personal bests
     if daily_words > getattr(stats, "best_daily_words", 0):
         stats.best_daily_words = daily_words
         events.append({"type": "personal_best_daily", "words": daily_words})
 
-    week_start = _week_start(today)
-    week_words = await _get_week_words(db, user_id, week_start)
+    week_start = week_start_g
     if week_words > getattr(stats, "best_weekly_words", 0):
         stats.best_weekly_words = week_words
         events.append({"type": "personal_best_weekly", "words": week_words})

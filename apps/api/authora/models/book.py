@@ -18,7 +18,9 @@ if TYPE_CHECKING:
     from authora.models.chapter_section import ChapterSection
     from authora.models.note import Note
     from authora.models.project import Project
+    from authora.models.project_template import ProjectTemplate
     from authora.models.publishing_asset import PublishingAsset
+    from authora.models.writing_framework import WritingFramework
 
 
 class Book(Base):
@@ -32,11 +34,19 @@ class Book(Base):
     genre: Mapped[str | None] = mapped_column(String(255), nullable=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="fiction")  # fiction | nonfiction
     planner_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_templates.id", ondelete="SET NULL"), nullable=True
+    )
+    framework_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("writing_frameworks.id", ondelete="SET NULL"), nullable=True
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     project: Mapped["Project"] = relationship("Project", back_populates="books")
+    template: Mapped["ProjectTemplate | None"] = relationship("ProjectTemplate", foreign_keys=[template_id])
+    framework: Mapped["WritingFramework | None"] = relationship("WritingFramework", foreign_keys=[framework_id])
     chapters: Mapped[list["Chapter"]] = relationship("Chapter", back_populates="book", cascade="all, delete-orphan", order_by="Chapter.sort_order")
     notes: Mapped[list["Note"]] = relationship("Note", back_populates="book", cascade="all, delete-orphan")
     ghostwriter_workspace: Mapped["GhostwriterWorkspace | None"] = relationship(

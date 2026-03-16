@@ -30,10 +30,15 @@ export function GamificationWidgets() {
 
   if (!stats) return null;
 
-  const levelProgress = ((stats.xp % 1000) / 1000) * 100;
-  const milestonePct = stats.milestone_progress
-    ? (stats.milestone_progress[0] / stats.milestone_progress[1]) * 100
-    : 0;
+  const totalWords = Number(stats.total_words) || 0;
+  const xp = Number(stats.xp) || 0;
+  const level = Number(stats.level) || 1;
+  const currentStreak = Number(stats.current_streak) || 0;
+  const longestStreak = Number(stats.longest_streak) || 0;
+
+  const levelProgress = ((xp % 1000) / 1000) * 100;
+  const [m0, m1] = stats.milestone_progress ?? [0, 1];
+  const milestonePct = m1 > 0 ? (Number(m0) / Number(m1)) * 100 : 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -44,7 +49,7 @@ export function GamificationWidgets() {
               <Star className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold">{stats.level}</p>
+              <p className="text-lg font-bold">{level}</p>
               <p className="text-xs text-muted-foreground">Level</p>
             </div>
           </div>
@@ -59,11 +64,11 @@ export function GamificationWidgets() {
               <Flame className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-lg font-bold">{stats.current_streak}</p>
+              <p className="text-lg font-bold">{currentStreak}</p>
               <p className="text-xs text-muted-foreground">Day streak</p>
             </div>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Best: {stats.longest_streak} days</p>
+          <p className="mt-1 text-xs text-muted-foreground">Best: {longestStreak} days</p>
         </Card>
       </Link>
 
@@ -74,13 +79,13 @@ export function GamificationWidgets() {
               <Trophy className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-lg font-bold">{stats.total_words.toLocaleString()}</p>
+              <p className="text-lg font-bold">{totalWords.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Total words</p>
             </div>
           </div>
-          {stats.next_milestone && (
+          {stats.next_milestone != null && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Next: {stats.next_milestone.toLocaleString()}
+              Next: {Number(stats.next_milestone).toLocaleString()}
             </p>
           )}
         </Card>
@@ -93,7 +98,7 @@ export function GamificationWidgets() {
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-lg font-bold">{stats.xp.toLocaleString()}</p>
+              <p className="text-lg font-bold">{xp.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">XP</p>
             </div>
           </div>

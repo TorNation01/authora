@@ -29,8 +29,10 @@ interface UserRow {
 const PLAN_OPTIONS = [
   { value: '_default_', label: 'Default (from subscription)' },
   { value: 'free', label: 'Free' },
+  { value: 'starter', label: 'Starter' },
   { value: 'pro', label: 'Pro' },
-  { value: 'premium', label: 'Premium' },
+  { value: 'studio', label: 'Studio' },
+  { value: 'founder_lifetime', label: 'Founder Lifetime' },
 ];
 
 export default function AdminUsersPage() {

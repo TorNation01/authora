@@ -77,11 +77,11 @@ export function NotificationBell() {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[99988]"
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute right-0 top-full z-20 mt-1 w-80 rounded-lg border bg-popover shadow-lg">
+          <div className="absolute right-0 top-full z-[99989] mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-lg border bg-popover shadow-lg">
             <div className="border-b px-4 py-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Notifications</h3>

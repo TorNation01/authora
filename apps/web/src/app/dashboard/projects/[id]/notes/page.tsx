@@ -465,7 +465,7 @@ function NoteDetailDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[99990] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-background rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
