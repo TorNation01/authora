@@ -14,9 +14,9 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // /api/v1/* handled by app/api/v1/[...path]/route.ts (proxy with clear errors)
     return [
-      { source: '/api/v1/:path*', destination: `${apiUrl}/api/v1/:path*` },
       { source: '/health', destination: `${apiUrl}/health` },
       { source: '/health/ready', destination: `${apiUrl}/health/ready` },
     ];

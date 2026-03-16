@@ -1,13 +1,12 @@
 """RAG and semantic search API."""
 
 import uuid
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from authora.api.dependencies import CurrentUser
+from authora.api.dependencies import get_current_user
 from authora.api.resolvers import get_project_or_404
 from authora.database import get_db
+from authora.models import User
 from authora.services.embedding_service import is_embeddings_configured
 from authora.services.rag import semantic_search
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,8 +21,8 @@ async def rag_search(
     book_id: uuid.UUID | None = Query(None),
     source_types: str | None = Query(None, description="Comma-separated: note,chapter,chapter_brief,outline_chapter"),
     limit: int = Query(5, ge=1, le=20),
-    current_user: CurrentUser = Depends(),
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Semantic search within a project."""
     await get_project_or_404(db, project_id, current_user.id)
@@ -63,8 +62,8 @@ async def rag_search(
 @router.post("/reindex")
 async def rag_reindex_project(
     project_id: uuid.UUID,
-    current_user: CurrentUser = Depends(),
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Trigger reindex of project content. Admin or project owner."""
     await get_project_or_404(db, project_id, current_user.id)

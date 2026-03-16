@@ -56,5 +56,11 @@ class ContentComment(Base):
     parent: Mapped["ContentComment | None"] = relationship(
         "ContentComment",
         foreign_keys="ContentComment.parent_id",
-        backref="replies",
+        remote_side="ContentComment.id",
+        back_populates="replies",
+    )
+    replies: Mapped[list["ContentComment"]] = relationship(
+        "ContentComment",
+        back_populates="parent",
+        foreign_keys="ContentComment.parent_id",
     )
