@@ -83,12 +83,14 @@ export const FRAMEWORK_EDITOR_COPY = {
 // --- Finish Mode copy ---
 
 export const FINISH_MODE_COPY = {
-  imperfectProgress:
-    'You do not need perfect. You need progress.',
-  completeThenMove:
-    'Complete this stage, then move forward.',
-  oneFinishedBeatsTen:
-    'One finished section beats ten unfinished ideas.',
-  momentumCreatesBooks:
-    'Momentum creates books.',
+  imperfectProgress: 'You do not need perfect. You need progress.',
+  completeThenMove: 'Finish this stage, then keep moving.',
+  finishThisStage: 'Finish this stage',
+  oneFinishedBeatsTen: 'One finished chapter beats ten unfinished ideas.',
+  momentumCreatesBooks: 'Momentum creates books.',
+  doneOneSection: 'Done is built one section at a time.',
+  justFinishChapter: 'Just finish',
+  exit: 'Exit',
+  todaysFocus: "Today's focus",
+  nextUp: 'Next up',
 } as const;

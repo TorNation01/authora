@@ -16,6 +16,7 @@ import {
   PanelRight,
   BookOpen,
   Shield,
+  ClipboardList,
 } from 'lucide-react';
 import type { SectionStatus } from './ManuscriptSidebar';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ import { WritingStats } from './WritingStats';
 import { WritingSprintTimer } from './WritingSprintTimer';
 import { cn } from '@/lib/utils';
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference';
+type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision';
 
 interface EditorToolbarProps {
   chapterTitle: string;
@@ -59,10 +60,10 @@ interface EditorToolbarProps {
 function formatLastSaved(d: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
-  if (diffMs < 60_000) return 'just now';
-  if (diffMs < 3600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
-  if (diffMs < 86400_000) return `${Math.floor(diffMs / 3600_000)}h ago`;
-  return d.toLocaleDateString();
+  if (diffMs < 60_000) return 'Last saved just now';
+  if (diffMs < 3600_000) return `Saved ${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 86400_000) return `Saved ${Math.floor(diffMs / 3600_000)}h ago`;
+  return `Saved ${d.toLocaleDateString()}`;
 }
 
 export function EditorToolbar({
@@ -119,17 +120,17 @@ export function EditorToolbar({
         <WritingStats wordCount={chapterWordCount} />
         <span className="text-sm text-muted-foreground">{totalWordCount.toLocaleString()} total</span>
         {saveStatus === 'saving' && (
-          <span className="text-xs text-muted-foreground">Saving...</span>
+          <span className="text-xs text-muted-foreground">Saving…</span>
         )}
         {saveStatus === 'saved' && (
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="text-xs text-green-600 dark:text-green-500 cursor-default">
-                Saved{lastSaved ? ` ${formatLastSaved(lastSaved)}` : ''}
+                {lastSaved ? formatLastSaved(lastSaved) : 'Saved'}
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              Your work is saved automatically.{lastSaved ? ` Last saved ${formatLastSaved(lastSaved)}.` : ''}
+              All changes saved automatically.
             </TooltipContent>
           </Tooltip>
         )}
@@ -237,11 +238,24 @@ export function EditorToolbar({
               size="sm"
               onClick={() => onTogglePanel(panelMode === 'reference' ? 'none' : 'reference')}
             >
-          <BookOpen className="h-4 w-4 mr-1" />
-          Reference
+              <BookOpen className="h-4 w-4 mr-1" />
+              Reference
             </Button>
           </TooltipTrigger>
           <TooltipContent>{getTooltip('reference_panel') ?? 'Reference (Ctrl+D)'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={panelMode === 'revision' ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => onTogglePanel(panelMode === 'revision' ? 'none' : 'revision')}
+            >
+              <ClipboardList className="h-4 w-4 mr-1" />
+              Revision
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Work through the manuscript one issue at a time</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

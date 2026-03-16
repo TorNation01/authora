@@ -90,7 +90,7 @@ export function FinishModePanel({
             className="gap-1"
           >
             <Zap className="h-3.5 w-3.5" />
-            Just finish: {next_chapter_title || 'chapter'}
+            {FINISH_MODE_COPY.justFinishChapter}: {next_chapter_title || 'chapter'}
           </Button>
         )}
         {stats.days_to_finish != null && stats.days_to_finish > 0 && (
@@ -107,7 +107,7 @@ export function FinishModePanel({
           <WritingSprintTimer bookId={bookId} getWordsWritten={getWordsWritten} />
         )}
         <Button variant="ghost" size="sm" onClick={onExitFinishMode}>
-          Exit
+          {FINISH_MODE_COPY.exit}
         </Button>
       </div>
     );
@@ -121,7 +121,7 @@ export function FinishModePanel({
           <span className="font-semibold">Finish Mode</span>
         </div>
         <Button variant="ghost" size="sm" onClick={onExitFinishMode}>
-          Exit
+          {FINISH_MODE_COPY.exit}
         </Button>
       </div>
 
@@ -163,7 +163,7 @@ export function FinishModePanel({
       {dailyPlan && chapters_remaining > 0 && (
         <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3">
           <p className="text-xs font-medium text-primary uppercase tracking-wider mb-2">
-            Today&apos;s focus
+            {FINISH_MODE_COPY.todaysFocus}
           </p>
           <p className="text-sm mb-2">
             Write ~{dailyPlan.target_words} words in &quot;{dailyPlan.chapter_title}&quot;
@@ -185,7 +185,7 @@ export function FinishModePanel({
       {chapters_remaining > 0 && next_chapter_id && !dailyPlan && (
         <div className="rounded-lg border bg-card p-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-            Next up
+            {FINISH_MODE_COPY.nextUp}
           </p>
           <Button
             variant="default"

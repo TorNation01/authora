@@ -43,6 +43,17 @@ interface ExportValidation {
   valid: boolean;
   warnings: string[];
   errors: string[];
+  fixes?: Array<{ issue: string; suggestion: string }>;
+}
+
+interface CompilePreview {
+  structure: Array<{ type: string; label?: string; title?: string; word_count?: number }>;
+  total_words: number;
+  total_pages_estimate: number;
+  chapter_count: number;
+  warnings: string[];
+  included_chapters: string[];
+  excluded_chapters: Array<{ title: string; reason: string }>;
 }
 
 interface ExportHistoryItem {
@@ -52,6 +63,17 @@ interface ExportHistoryItem {
   created_at: string | null;
   options?: Record<string, unknown>;
 }
+
+const PRIORITY_EXPORTS = [
+  { id: 'clean-manuscript', label: 'Clean manuscript', desc: 'Polished copy ready for editing or submission', icon: FileText, ext: 'docx' },
+  { id: 'clean-manuscript-pdf', label: 'Print-friendly draft', desc: 'PDF formatted for physical review', icon: FileImage, ext: 'pdf' },
+  { id: 'editor-review', label: 'Review copy', desc: 'For editor feedback with acknowledgements', icon: FileText, ext: 'docx' },
+  { id: 'beta-reader', label: 'Beta reader package', desc: 'Manuscript, synopsis, and feedback form', icon: FileDown, ext: 'zip' },
+  { id: 'submission', label: 'Submission copy', desc: 'Professional format for agents and publishers', icon: FileText, ext: 'docx' },
+  { id: 'sample-chapters', label: 'Sample chapters', desc: 'First 3 chapters for proposals', icon: FileText, ext: 'docx' },
+  { id: 'workbook', label: 'Workbook export', desc: 'Printable workbook layout with prompt-friendly formatting and action spacing', icon: FileImage, ext: 'pdf' },
+  { id: 'ghostwriter', label: 'Client review package', desc: 'Approval-ready manuscript with synopsis, summaries, and handoff notes', icon: FileDown, ext: 'zip' },
+];
 
 const FORMATS = [
   { id: 'docx', label: 'Word (.docx)', desc: 'Editable, print-ready', icon: FileText },
@@ -82,6 +104,8 @@ export default function ExportCenterPage() {
   const [backupStyle, setBackupStyle] = useState(false);
   const [validation, setValidation] = useState<ExportValidation | null>(null);
   const [exportHistory, setExportHistory] = useState<ExportHistoryItem[]>([]);
+  const [compilePreview, setCompilePreview] = useState<CompilePreview | null>(null);
+  const [compilePreviewOpen, setCompilePreviewOpen] = useState(false);
 
   useEffect(() => {
     api<Project[]>('/api/v1/projects').then(setProjects).catch(() => setProjects([]));
@@ -173,6 +197,52 @@ export default function ExportCenterPage() {
     }
   };
 
+  const handlePriorityExport = async (exportType: string, ext: string) => {
+    if (!selectedBook) return;
+    if (validation && !validation.valid) {
+      toast({ title: 'Export blocked', description: validation.errors.join(' '), variant: 'destructive' });
+      return;
+    }
+    setExporting(exportType);
+    try {
+      const token = getToken();
+      const p = new URLSearchParams();
+      if (authorName.trim()) p.set('author_name', authorName.trim());
+      if (dedication.trim()) p.set('dedication', dedication.trim());
+      if (epigraph.trim()) p.set('epigraph', epigraph.trim());
+      if (copyrightNotice.trim()) p.set('copyright_notice', copyrightNotice.trim());
+      if (authorBio.trim()) p.set('author_bio', authorBio.trim());
+      if (acknowledgements.trim()) p.set('acknowledgements', acknowledgements.trim());
+      if (exportType === 'sample-chapters') p.set('max_chapters', '3');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/priority/${exportType}?${p}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Export failed');
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition');
+      const match = cd?.match(/filename="?([^";\n]+)"?/);
+      const filename = match?.[1] || `${selectedBook.title}_${exportType}.${ext}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Export complete', description: 'Your file is downloading.' });
+      api<{ exports: ExportHistoryItem[] }>(`/api/v1/export/books/${selectedBook.id}/export-history?limit=10`)
+        .then((r) => setExportHistory(r.exports || []))
+        .catch(() => {});
+    } catch (e) {
+      toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'Please try again.', variant: 'destructive' });
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const handleExportOutline = async () => {
     if (!selectedBook) return;
     setExporting('outline');
@@ -193,6 +263,38 @@ export default function ExportCenterPage() {
       toast({ title: 'Outline exported' });
     } catch (e) {
       toast({ title: 'Failed', variant: 'destructive' });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleCompilePreview = async () => {
+    if (!selectedBook) return;
+    setExporting('compile-preview');
+    try {
+      const token = getToken();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/compile-preview`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            compile_type: 'full',
+            exclude_notes_comments: true,
+            exclude_highlights: true,
+            exclude_revision_marks: true,
+          }),
+        }
+      );
+      if (!res.ok) throw new Error('Preview failed');
+      const data = await res.json();
+      setCompilePreview(data);
+      setCompilePreviewOpen(true);
+    } catch (e) {
+      toast({ title: 'Preview failed', variant: 'destructive' });
     } finally {
       setExporting(null);
     }
@@ -276,11 +378,11 @@ export default function ExportCenterPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
-        title="Export"
-        description="Download your book as Word, PDF, e-reader format, or plain text. Preview before you download."
+        title="Prepare your manuscript for the next step"
+        description="Compile your writing into a clean export for editing, review, submission, publishing prep, or delivery."
         actions={
           <HelpIcon
-            content="Export to Word, PDF, e-reader format, or plain text. One click to share with beta readers or publish."
+            content="Your manuscript can leave Authora ready for real use. Export a working draft or a polished copy—choose what fits the next stage of your process."
             articleId="export-overview"
           />
         }
@@ -288,7 +390,7 @@ export default function ExportCenterPage() {
 
       <HowThisWorks
         title="Export formats"
-        summary="Word for editing, PDF for print, e-reader format for Kindle and others. Choose what you need."
+        summary="Prepare a version that fits the next stage of the process. Keep your export clean and focused."
         articleId="export-formats"
       >
         <p><strong>DOCX</strong>: Industry standard. Use for agent queries, editing, collaboration.</p>
@@ -337,7 +439,8 @@ export default function ExportCenterPage() {
                 <>
                 <Card variant="soft" className="mb-4">
                   <CardHeader>
-                    <h3 className="font-semibold">Export options</h3>
+                    <h3 className="font-semibold">Choose what to include</h3>
+                    <p className="text-sm text-muted-foreground">Keep your export clean and focused.</p>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <label className="flex items-center gap-2">
@@ -347,7 +450,7 @@ export default function ExportCenterPage() {
                         onChange={(e) => setIncludeTitlePage(e.target.checked)}
                         className="rounded border-input"
                       />
-                      <span className="text-sm">Include title page</span>
+                      <span className="text-sm">Title page</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -374,8 +477,8 @@ export default function ExportCenterPage() {
                         onChange={(e) => setFormatStyle(e.target.value as 'manuscript' | 'print' | 'ebook')}
                         className="rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        <option value="manuscript">Manuscript (standard)</option>
-                        <option value="print">Print-friendly</option>
+                        <option value="manuscript">Clean manuscript</option>
+                        <option value="print">Print-friendly draft</option>
                         <option value="ebook">Ebook-friendly</option>
                       </select>
                     </div>
@@ -391,7 +494,7 @@ export default function ExportCenterPage() {
                     </div>
                     <details className="group mt-2">
                       <summary className="text-sm font-medium cursor-pointer text-muted-foreground hover:text-foreground">
-                        Front & back matter (optional)
+                        Front & back matter
                       </summary>
                       <div className="mt-3 space-y-2 pl-2 border-l-2 border-muted">
                         <div>
@@ -415,7 +518,7 @@ export default function ExportCenterPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs block mb-1">Copyright notice</label>
+                          <label className="text-xs block mb-1">Copyright</label>
                           <input
                             type="text"
                             value={copyrightNotice}
@@ -425,7 +528,7 @@ export default function ExportCenterPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs block mb-1">Author bio</label>
+                          <label className="text-xs block mb-1">About the author</label>
                           <textarea
                             value={authorBio}
                             onChange={(e) => setAuthorBio(e.target.value)}
@@ -435,11 +538,11 @@ export default function ExportCenterPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs block mb-1">Front matter (extra)</label>
+                          <label className="text-xs block mb-1">Preface / Introduction</label>
                           <textarea
                             value={frontMatter}
                             onChange={(e) => setFrontMatter(e.target.value)}
-                            placeholder="Additional front matter"
+                            placeholder="Preface, introduction, or other front matter"
                             rows={2}
                             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                           />
@@ -455,11 +558,11 @@ export default function ExportCenterPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs block mb-1">Back matter (extra)</label>
+                          <label className="text-xs block mb-1">Resources</label>
                           <textarea
                             value={backMatter}
                             onChange={(e) => setBackMatter(e.target.value)}
-                            placeholder="Appendix, glossary, etc."
+                            placeholder="Resources, appendix, glossary, or other back matter"
                             rows={2}
                             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                           />
@@ -470,7 +573,7 @@ export default function ExportCenterPage() {
                 </Card>
                 <Card variant="soft">
                   <CardHeader>
-                    <h3 className="font-semibold">Export preview</h3>
+                    <h3 className="font-semibold">Preview export</h3>
                     <p className="text-sm text-muted-foreground">
                       {preview.chapter_count} chapters • {preview.total_words.toLocaleString()} words
                     </p>
@@ -489,23 +592,118 @@ export default function ExportCenterPage() {
                 </>
               ) : null}
 
-              {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
-                <Card variant="soft" className="border-amber-200 dark:border-amber-900">
-                  <CardContent className="pt-4">
-                    <div className="flex gap-2">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                      <div className="text-sm">
-                        {!validation.valid && (
-                          <p className="font-medium text-destructive">Export blocked: {validation.errors.join(' ')}</p>
-                        )}
-                        {validation.warnings.length > 0 && (
-                          <p className="text-muted-foreground mt-1">{validation.warnings.join(' ')}</p>
-                        )}
+              {compilePreview && compilePreviewOpen && (
+                <Card variant="soft" className="border-primary/20">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <h3 className="font-semibold">Export readiness check</h3>
+                    <Button variant="ghost" size="sm" onClick={() => setCompilePreviewOpen(false)}>Close</Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {compilePreview.total_words.toLocaleString()} words • ~{compilePreview.total_pages_estimate} pages • {compilePreview.chapter_count} chapters
+                    </p>
+                    {compilePreview.warnings.length > 0 && (
+                      <div className="text-sm text-amber-600">
+                        {compilePreview.warnings.length > 0 && compilePreview.warnings.join(' ')}
                       </div>
+                    )}
+                    <div className="text-sm space-y-1 max-h-48 overflow-auto">
+                      {compilePreview.structure.map((s, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="text-muted-foreground">{s.type}</span>
+                          <span>{s.label || s.title || ''}</span>
+                          {s.word_count != null && <span className="text-muted-foreground">({s.word_count} words)</span>}
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
               )}
+
+              {validation && (
+                <Card
+                  variant="soft"
+                  className={
+                    !validation.valid
+                      ? 'border-destructive/30'
+                      : validation.warnings.length > 0
+                        ? 'border-amber-200 dark:border-amber-900'
+                        : 'border-emerald-200 dark:border-emerald-900/50'
+                  }
+                >
+                  <CardContent className="pt-4">
+                    <div className="flex gap-2">
+                      {validation.valid && validation.warnings.length === 0 ? (
+                        <div className="text-sm text-emerald-700 dark:text-emerald-400">
+                          <p className="font-medium">Your manuscript looks ready to export.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="text-sm flex-1">
+                            {!validation.valid && (
+                              <p className="font-medium text-destructive">
+                                {validation.errors.join(' ')}
+                              </p>
+                            )}
+                            {validation.valid && validation.warnings.length > 0 && (
+                              <p className="font-medium text-amber-700 dark:text-amber-400">
+                                A few sections may need attention before you export.
+                              </p>
+                            )}
+                            {validation.warnings.length > 0 && (
+                              <ul className="text-muted-foreground mt-1 list-disc list-inside space-y-0.5">
+                                {validation.warnings.map((w, i) => (
+                                  <li key={i}>{w}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {validation.valid && validation.warnings.length > 0 && (
+                              <p className="text-muted-foreground mt-2 text-xs">
+                                You can export anyway, or fix issues first.
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card variant="soft" className="border-primary/20">
+                <CardHeader>
+                  <h3 className="font-semibold text-lg">Compile manuscript</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Prepare a version that fits the next stage of the process. Export a working draft or a polished copy.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {PRIORITY_EXPORTS.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex flex-col gap-2 rounded-lg border border-border/50 bg-background/50 p-4 hover:border-primary/30 transition-colors"
+                      >
+                        <p.icon className="h-7 w-7 text-primary" />
+                        <div>
+                          <p className="font-medium">{p.label}</p>
+                          <p className="text-xs text-muted-foreground">{p.desc}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="mt-auto"
+                          onClick={() => handlePriorityExport(p.id, p.ext)}
+                          disabled={!!exporting}
+                        >
+                          {exporting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                          Export now
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {FORMATS.map((f) => (
@@ -531,6 +729,10 @@ export default function ExportCenterPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={handleCompilePreview} disabled={!!exporting}>
+                  {exporting === 'compile-preview' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+                  Preview export
+                </Button>
                 <Button variant="outline" onClick={handleFormatPreview} disabled={!!exporting}>
                   {exporting === 'preview' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
                   Preview formatting
@@ -553,9 +755,9 @@ export default function ExportCenterPage() {
               </div>
 
               <Card variant="soft" className="p-4">
-                <h3 className="font-medium mb-2">Publishing packages</h3>
+                <h3 className="font-medium mb-2">Publishing prep</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Pre-built bundles for beta readers, editors, and client handoff. Requires AI.
+                  Synopsis, blurbs, chapter summaries, and handoff materials. Requires AI.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button

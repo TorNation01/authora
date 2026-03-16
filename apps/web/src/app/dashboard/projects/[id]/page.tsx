@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { BookOpen, Plus, Search } from 'lucide-react';
+import { BookOpen, Plus, Search, Settings } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface Book {
@@ -18,21 +18,28 @@ interface Book {
   created_at: string;
 }
 
+interface ProjectData {
+  name: string;
+  guidance_mode?: string;
+}
+
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
   const [books, setBooks] = useState<Book[]>([]);
   const [projectName, setProjectName] = useState('');
+  const [guidanceMode, setGuidanceMode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      api<{ name: string }>(`/api/v1/projects/${projectId}`),
+      api<ProjectData>(`/api/v1/projects/${projectId}`),
       api<Book[]>(`/api/v1/projects/${projectId}/books`),
     ])
       .then(([proj, bks]) => {
         setProjectName(proj.name);
+        setGuidanceMode(proj.guidance_mode || null);
         setBooks(bks);
       })
       .catch(() => router.push('/dashboard'))
@@ -48,6 +55,17 @@ export default function ProjectPage() {
         backLabel="Back to Home"
         actions={
           <div className="flex gap-2">
+            {guidanceMode && (
+              <span className="rounded-full border bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
+                {guidanceMode}
+              </span>
+            )}
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/settings`}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href={`/dashboard/projects/${projectId}/search`}>
                 <Search className="h-4 w-4 mr-2" />

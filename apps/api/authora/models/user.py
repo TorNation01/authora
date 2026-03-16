@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from authora.models.ai_action_log import AIActionLog
     from authora.models.ai_revision import AIRevision
     from authora.models.entitlement_grant import EntitlementGrant
+    from authora.models.export_profile import ExportProfile
     from authora.models.plan import Plan
     from authora.models.profile import Profile
     from authora.models.project import Project
@@ -53,6 +54,9 @@ class User(Base):
         "EntitlementGrant", foreign_keys="EntitlementGrant.user_id", cascade="all, delete-orphan"
     )
     usage_records: Mapped[list["UsageRecord"]] = relationship("UsageRecord", back_populates="user", cascade="all, delete-orphan")
+    export_profiles: Mapped[list["ExportProfile"]] = relationship(
+        "ExportProfile", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Session(Base):

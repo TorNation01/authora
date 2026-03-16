@@ -27,6 +27,14 @@ import {
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { HelpIcon, HowThisWorks } from '@/components/help';
+import {
+  ACCOUNTABILITY_PAGE,
+  GOALS_COPY,
+  STREAK_COPY,
+  RECOVERY_COPY,
+  REMINDERS_COPY,
+  ENCOURAGEMENT_STYLES,
+} from '@/content/accountability-copy';
 
 interface Goal {
   id: string;
@@ -72,14 +80,6 @@ interface RecoveryPlan {
   suggested_schedule: Array<{ date: string; target: number }> | null;
   created_at: string;
 }
-
-const STYLES = [
-  { value: 'gentle', label: 'Gentle', desc: 'Soft nudges, no pressure' },
-  { value: 'balanced', label: 'Balanced', desc: 'Supportive check-ins' },
-  { value: 'firm', label: 'Firm', desc: 'Clear expectations' },
-  { value: 'coach', label: 'Coach', desc: 'Motivating and strategic' },
-  { value: 'structured', label: 'Structured', desc: 'Schedules and milestones' },
-];
 
 export default function AccountabilityPage() {
   const { toast } = useToast();
@@ -183,12 +183,12 @@ export default function AccountabilityPage() {
     <div className="p-6 lg:p-8 max-w-4xl space-y-8">
       <div className="flex items-start justify-between">
         <PageHeader
-          title="Progress"
-          description="Goals that support you—never punish. We adapt to your pace and help you finish."
+          title={ACCOUNTABILITY_PAGE.title}
+          description={ACCOUNTABILITY_PAGE.description}
           actions={
             <div className="flex items-center gap-2">
               <HelpIcon
-                content="Set daily or weekly word goals. We'll nudge you gently—or more firmly—based on what you prefer."
+                content={GOALS_COPY.setPace}
                 articleId="accountability-overview"
               />
               <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)}>
@@ -203,16 +203,14 @@ export default function AccountabilityPage() {
       {showSettings && settings && (
         <Card variant="sanctuary">
           <CardHeader>
-            <CardTitle>Reminders & encouragement</CardTitle>
-            <CardDescription>
-              Choose how we support you. Your style shapes our reminders and recovery plans.
-            </CardDescription>
+            <CardTitle>{REMINDERS_COPY.heading}</CardTitle>
+            <CardDescription>{REMINDERS_COPY.subheading}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium">How we encourage you</label>
+              <label className="text-sm font-medium">{REMINDERS_COPY.howWeEncourage}</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {STYLES.map((s) => (
+                {ENCOURAGEMENT_STYLES.map((s) => (
                   <Button
                     key={s.value}
                     variant={settings.accountability_style === s.value ? 'default' : 'outline'}
@@ -306,11 +304,9 @@ export default function AccountabilityPage() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              No reminders during quiet hours (e.g. 22:00–07:00).
-            </p>
+            <p className="text-xs text-muted-foreground">{REMINDERS_COPY.quietHours}</p>
             <div>
-              <label className="text-sm font-medium">Reminder cadence</label>
+              <label className="text-sm font-medium">{REMINDERS_COPY.reminderCadence}</label>
               <select
                 className="rounded border px-2 py-1 mt-1"
                 value={settings.reminder_cadence ?? 'daily'}
@@ -322,10 +318,8 @@ export default function AccountabilityPage() {
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium">Reminder types</label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Choose which reminders you want. Leave all checked for full support.
-              </p>
+              <label className="text-sm font-medium">{REMINDERS_COPY.reminderTypes}</label>
+              <p className="text-xs text-muted-foreground mb-2">{REMINDERS_COPY.reminderTypesHint}</p>
               <div className="flex flex-wrap gap-3">
                 {[
                   { id: 'daily_reminder', label: 'Daily goal' },
@@ -371,11 +365,9 @@ export default function AccountabilityPage() {
                 onClick={sendTestNotification}
                 disabled={testingNotification || !settings.reminder_enabled}
               >
-                {testingNotification ? 'Sending...' : 'Send test notification'}
+                {testingNotification ? 'Sending...' : REMINDERS_COPY.sendTest}
               </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sends in-app and email (if enabled) to verify your settings.
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{REMINDERS_COPY.sendTestHint}</p>
             </div>
             <div className="flex gap-2">
               <label className="text-sm">Daily goal (words)</label>
@@ -413,10 +405,10 @@ export default function AccountabilityPage() {
                 size="sm"
                 onClick={() => updateSettings({ plan_paused: !settings.plan_paused })}
               >
-                {settings.plan_paused ? 'Resume plan' : 'Pause plan'}
+                {settings.plan_paused ? REMINDERS_COPY.resumePlan : REMINDERS_COPY.pausePlan}
               </Button>
               {settings.plan_paused && (
-                <span className="text-sm text-muted-foreground">Reminders paused</span>
+                <span className="text-sm text-muted-foreground">{REMINDERS_COPY.remindersPaused}</span>
               )}
             </div>
           </CardContent>
@@ -424,12 +416,12 @@ export default function AccountabilityPage() {
       )}
 
       <HowThisWorks
-        title="How this works"
-        summary="Set goals, get nudges, and track progress. We adapt to your pace—no guilt."
+        title={ACCOUNTABILITY_PAGE.howThisWorksTitle}
+        summary={ACCOUNTABILITY_PAGE.howThisWorksSummary}
         articleId="accountability-overview"
       >
-        <p>Set daily or weekly word goals in settings. We count words from your manuscript (notes and outlines don&apos;t count).</p>
-        <p>Choose your style: Gentle (soft nudges), Balanced (supportive check-ins), or Structured (clear expectations). We send recovery nudges when you&apos;ve been away—ready when you are.</p>
+        <p>{GOALS_COPY.setPace} We count words from your manuscript (notes and outlines don&apos;t count).</p>
+        <p>{GOALS_COPY.smallSessionsCount} Choose your style: Gentle (soft nudges), Balanced (supportive check-ins), or Structured (clear expectations). We send recovery nudges when you&apos;ve been away—ready when you are.</p>
       </HowThisWorks>
 
       {overview && (
@@ -443,8 +435,8 @@ export default function AccountabilityPage() {
               <p className="text-2xl font-bold">{overview.words_today.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">
                 {overview.daily_goal
-                  ? `of ${overview.daily_goal} goal`
-                  : 'Set a daily goal in settings'}
+                  ? GOALS_COPY.ofGoal(overview.daily_goal)
+                  : GOALS_COPY.setDailyGoal}
               </p>
               {overview.daily_goal && overview.daily_goal > 0 && (
                 <Progress
@@ -464,8 +456,8 @@ export default function AccountabilityPage() {
               <p className="text-2xl font-bold">{overview.words_this_week.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">
                 {overview.weekly_goal
-                  ? `of ${overview.weekly_goal} goal`
-                  : 'Set a weekly goal in settings'}
+                  ? GOALS_COPY.ofGoal(overview.weekly_goal)
+                  : GOALS_COPY.setWeeklyGoal}
               </p>
               {overview.weekly_goal && overview.weekly_goal > 0 && (
                 <Progress
@@ -490,8 +482,8 @@ export default function AccountabilityPage() {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Streak</p>
               </div>
-              <p className="text-2xl font-bold">{overview.current_streak} days</p>
-              <p className="text-xs text-muted-foreground">Keep going!</p>
+              <p className="text-2xl font-bold">{STREAK_COPY.days(overview.current_streak)}</p>
+              <p className="text-xs text-muted-foreground">{STREAK_COPY.keepGoing}</p>
             </CardContent>
           </Card>
         </div>
@@ -502,7 +494,7 @@ export default function AccountabilityPage() {
           <CardContent className="flex items-start gap-4 pt-6">
             <BookOpen className="h-8 w-8 text-primary shrink-0" />
             <div>
-              <h3 className="font-semibold">Suggested next step</h3>
+              <h3 className="font-semibold">{ACCOUNTABILITY_PAGE.suggestedNextStep}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{overview.next_action}</p>
             </div>
           </CardContent>
@@ -529,7 +521,7 @@ export default function AccountabilityPage() {
                 {rp.message && <p className="text-sm">{rp.message}</p>}
                 {rp.suggested_daily_words && (
                   <p className="text-sm font-medium">
-                    Suggested: {rp.suggested_daily_words} words/day
+                    {RECOVERY_COPY.suggestedWordsPerDay(rp.suggested_daily_words)}
                   </p>
                 )}
                 {rp.suggested_schedule && rp.suggested_schedule.length > 0 && (
@@ -546,7 +538,7 @@ export default function AccountabilityPage() {
                   variant="outline"
                   onClick={() => acknowledgeRecovery(rp.id)}
                 >
-                  Got it
+                  {RECOVERY_COPY.gotIt}
                 </Button>
               </div>
             ))}

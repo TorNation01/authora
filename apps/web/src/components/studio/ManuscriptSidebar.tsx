@@ -1,9 +1,24 @@
 'use client';
 
+import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 export type SectionStatus = 'draft' | 'revising' | 'review' | 'done';
@@ -26,6 +41,9 @@ interface ManuscriptSidebarProps {
   onSelectChapter: (ch: Chapter) => void;
   onReorder: (chapterIds: string[]) => void;
   onAddChapter: () => void;
+  onRenameChapter?: (chapterId: string, newTitle: string) => void;
+  onDuplicateChapter?: (chapterId: string) => void;
+  onDeleteChapter?: (chapterId: string) => void;
   onStatusChange?: (chapterId: string, status: SectionStatus) => void;
   canEnterFinishMode?: boolean;
   suggestFinishMode?: boolean;
@@ -56,11 +74,17 @@ export function ManuscriptSidebar({
   onSelectChapter,
   onReorder,
   onAddChapter,
+  onRenameChapter,
+  onDuplicateChapter,
+  onDeleteChapter,
   canEnterFinishMode,
   suggestFinishMode,
   onEnterFinishMode,
   onStatusChange,
 }: ManuscriptSidebarProps) {
+  const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleDragEnd(result: any) {
     if (!result.destination) return;
@@ -138,7 +162,7 @@ export function ManuscriptSidebar({
               >
                 {chapters.map((ch, index) => (
                   <Draggable key={ch.id} draggableId={ch.id} index={index}>
-                    {(provided, snapshot) => (
+                    {(provided) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
@@ -173,6 +197,49 @@ export function ManuscriptSidebar({
                             )}
                           </div>
                         </button>
+                        {(onRenameChapter || onDuplicateChapter || onDeleteChapter) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {onRenameChapter && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRenameTarget({ id: ch.id, title: ch.title });
+                                    setRenameValue(ch.title);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4 mr-2" />
+                                  Rename
+                                </DropdownMenuItem>
+                              )}
+                              {onDuplicateChapter && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicateChapter(ch.id); }}>
+                                  <Copy className="h-4 w-4 mr-2" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                              )}
+                              {onDeleteChapter && (
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); onDeleteChapter(ch.id); }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     )}
                   </Draggable>
@@ -190,6 +257,44 @@ export function ManuscriptSidebar({
           Add chapter
         </Button>
       </div>
+
+      <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename chapter</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="rename">Title</Label>
+              <Input
+                id="rename"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameTarget) {
+                    onRenameChapter?.(renameTarget.id, renameValue.trim());
+                    setRenameTarget(null);
+                  }
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRenameTarget(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (renameTarget && renameValue.trim()) {
+                    onRenameChapter?.(renameTarget.id, renameValue.trim());
+                    setRenameTarget(null);
+                  }
+                }}
+                disabled={!renameValue.trim()}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

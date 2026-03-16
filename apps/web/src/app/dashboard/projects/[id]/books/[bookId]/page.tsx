@@ -15,6 +15,7 @@ import { AIWritingPanel } from '@/components/studio/AIWritingPanel';
 import { NotesPanel } from '@/components/studio/NotesPanel';
 import { ReferencePanel } from '@/components/studio/ReferencePanel';
 import { FindReplaceDialog } from '@/components/studio/FindReplaceDialog';
+import { RevisionPanel } from '@/components/studio/RevisionPanel';
 import { VersionHistoryDialog } from '@/components/studio/VersionHistoryDialog';
 import { RecoveryCenterDialog } from '@/components/studio/RecoveryCenterDialog';
 import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
@@ -51,7 +52,7 @@ interface Version {
   created_at: string;
 }
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference';
+type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision';
 
 export default function BookStudioPage() {
   const params = useParams();
@@ -287,6 +288,64 @@ export default function BookStudioPage() {
     }
   }, [projectId, bookId, book?.chapters.length, toast]);
 
+  const handleRenameChapter = useCallback(
+    async (chapterId: string, newTitle: string) => {
+      try {
+        await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${chapterId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ title: newTitle }),
+        });
+        setBook((b) =>
+          b ? { ...b, chapters: b.chapters.map((c) => (c.id === chapterId ? { ...c, title: newTitle } : c)) } : null
+        );
+        setActiveChapter((prev) => (prev?.id === chapterId ? { ...prev, title: newTitle } : prev));
+        toast({ title: 'Chapter renamed' });
+      } catch {
+        toast({ title: 'Failed to rename', variant: 'destructive' });
+      }
+    },
+    [projectId, bookId, toast]
+  );
+
+  const handleDuplicateChapter = useCallback(
+    async (chapterId: string) => {
+      try {
+        const ch = await api<Chapter>(
+          `/api/v1/projects/${projectId}/books/${bookId}/chapters/${chapterId}/duplicate`,
+          { method: 'POST' }
+        );
+        setBook((b) => (b ? { ...b, chapters: [...b.chapters, ch] } : null));
+        setActiveChapter(ch);
+        toast({ title: 'Chapter duplicated' });
+      } catch {
+        toast({ title: 'Failed to duplicate', variant: 'destructive' });
+      }
+    },
+    [projectId, bookId, toast]
+  );
+
+  const handleDeleteChapter = useCallback(
+    async (chapterId: string) => {
+      if (!book) return;
+      if (book.chapters.length <= 1) {
+        toast({ title: 'Cannot delete the only chapter', variant: 'destructive' });
+        return;
+      }
+      try {
+        await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${chapterId}`, {
+          method: 'DELETE',
+        });
+        const next = book.chapters.find((c) => c.id !== chapterId);
+        setBook((b) => (b ? { ...b, chapters: b.chapters.filter((c) => c.id !== chapterId) } : null));
+        setActiveChapter(activeChapter?.id === chapterId ? (next ?? null) : activeChapter);
+        toast({ title: 'Chapter deleted' });
+      } catch {
+        toast({ title: 'Failed to delete', variant: 'destructive' });
+      }
+    },
+    [projectId, bookId, book, activeChapter, toast]
+  );
+
   const handleStatusChange = useCallback(
     async (status: 'draft' | 'revising' | 'review' | 'done') => {
       if (!activeChapter) return;
@@ -432,6 +491,22 @@ export default function BookStudioPage() {
       ? tiptapToPlainText(activeChapter.content as Record<string, unknown>)
       : '';
 
+  const handleAddComment = useCallback(
+    async (startOffset: number, endOffset: number, body: string) => {
+      if (!activeChapter) return;
+      try {
+        await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ start_offset: startOffset, end_offset: endOffset, body }),
+        });
+        toast({ title: 'Comment added' });
+      } catch {
+        toast({ title: 'Failed to add comment', variant: 'destructive' });
+      }
+    },
+    [projectId, bookId, activeChapter?.id, toast]
+  );
+
   const handleLookup = useCallback((word: string) => {
     setLookupWord(word);
     setPanelMode('reference');
@@ -487,6 +562,9 @@ export default function BookStudioPage() {
           onSelectChapter={handleSelectChapter}
           onReorder={handleReorder}
           onAddChapter={handleAddChapter}
+          onRenameChapter={handleRenameChapter}
+          onDuplicateChapter={handleDuplicateChapter}
+          onDeleteChapter={handleDeleteChapter}
           canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
           suggestFinishMode={finishModeStats?.suggest_finish_mode}
           onEnterFinishMode={handleEnterFinishMode}
@@ -561,12 +639,12 @@ export default function BookStudioPage() {
 
         {distractionFree && (
           <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="text-sm text-muted-foreground">Focus mode — just you and the page</span>
+            <span className="text-sm text-muted-foreground">Focus mode — stay with the page</span>
             <div className="flex items-center gap-3">
               {status === 'saving' && <span className="text-xs text-muted-foreground">Saving…</span>}
               {status === 'saved' && lastSaved && (
                 <span className="text-xs text-green-600 dark:text-green-500">
-                  Saved {Date.now() - lastSaved.getTime() < 60_000 ? 'just now' : `${Math.floor((Date.now() - lastSaved.getTime()) / 60_000)}m ago`}
+                  {Date.now() - lastSaved.getTime() < 60_000 ? 'Last saved just now' : `Saved ${Math.floor((Date.now() - lastSaved.getTime()) / 60_000)}m ago`}
                 </span>
               )}
               {status === 'error' && (
@@ -627,11 +705,16 @@ export default function BookStudioPage() {
           ) : (
           <div className={cn('flex-1 overflow-auto', distractionFree ? 'p-8 max-w-3xl mx-auto' : 'p-6')}>
             {activeChapter ? (
-              <EditorReferenceContextMenu selection={editorSelection} onLookup={handleLookup}>
+              <EditorReferenceContextMenu
+                selection={editorSelection}
+                onLookup={handleLookup}
+                onAddComment={handleAddComment}
+                editorRef={editorRef}
+              >
                 <WritingStudioEditor
                 content={activeChapter.content}
                 onChange={handleChapterChange}
-                placeholder="Start writing—your words, your pace."
+                placeholder="Start where the words are ready."
                 distractionFree={distractionFree}
                 editorRef={editorRef}
                 onSelectionChange={setEditorSelection}
@@ -775,6 +858,16 @@ export default function BookStudioPage() {
               onActiveTabChange={setActiveReferenceTab}
             />
           )}
+
+          {panelMode === 'revision' && book && (
+            <RevisionPanel
+              projectId={projectId}
+              bookId={bookId}
+              chapters={sortedChapters}
+              activeChapterId={activeChapter?.id ?? null}
+              onSelectChapter={(id) => handleSelectChapter({ id } as Chapter)}
+            />
+          )}
         </div>
       </div>
 
@@ -782,6 +875,9 @@ export default function BookStudioPage() {
         open={showFindReplace}
         onOpenChange={setShowFindReplace}
         editorRef={editorRef}
+        chapters={book?.chapters ?? []}
+        activeChapterId={activeChapter?.id ?? null}
+        onSelectChapter={(id) => handleSelectChapter({ id } as Chapter)}
       />
       <VersionHistoryDialog
         open={showHistory}

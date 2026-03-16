@@ -97,7 +97,7 @@ export default function PublishingPrepPage() {
     <div className="p-6 lg:p-8 max-w-4xl">
       <PageHeader
         title="Publishing prep"
-        description="Create synopsis, blurbs, chapter summaries, and materials for agents or self-publishing."
+        description="Prepare synopsis, blurbs, chapter summaries, and handoff materials for agents, editors, or self-publishing."
         backHref="/dashboard/export"
         backLabel="Back to export"
       />
@@ -169,9 +169,9 @@ export default function PublishingPrepPage() {
           </div>
 
           <Card variant="soft" className="p-6">
-            <h3 className="font-semibold mb-2">Formatting guides</h3>
+            <h3 className="font-semibold mb-2">Formatting and export</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Use the export center to get print-friendly or ebook-friendly formatting.
+              Use the export center for print-friendly draft, clean manuscript, or submission copy.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" asChild>

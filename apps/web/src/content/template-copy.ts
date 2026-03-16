@@ -53,3 +53,30 @@ export const MICROCOPY = {
   strongStart: 'A strong start makes the writing easier.',
   keepMoving: 'Choose the path that helps you keep moving.',
 } as const;
+
+export const GUIDANCE_MODES = {
+  heading: 'Choose your guidance level',
+  subheading: 'Structure is here to support your process, not limit it.',
+  changeLater: 'You can change this later.',
+  chooseAmount: 'Choose the amount of guidance that helps you write best.',
+  guided: {
+    label: 'Guided',
+    description: 'Clear structure. Strong momentum. Let Authora guide the path while you shape the voice.',
+    badge: 'Full guidance',
+    supportNotCage: 'Use the framework as support, not a cage.',
+  },
+  flexible: {
+    label: 'Flexible',
+    description: 'A little structure, without the squeeze. Keep guidance where it helps.',
+    badge: 'Flexible',
+    evolveAsYouWrite: 'Let the project evolve as you write.',
+  },
+  freeform: {
+    label: 'Freeform',
+    description: 'Write your way. Keep the tools. Lose the rails.',
+    badge: 'Freeform',
+    railsCopy: 'Freeform mode keeps the tools, without the genre rails.',
+    processFlexible: 'Your process can stay flexible.',
+    structureOptional: 'Structure is optional here.',
+  },
+} as const;

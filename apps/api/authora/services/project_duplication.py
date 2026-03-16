@@ -38,7 +38,14 @@ async def duplicate_project(db: AsyncSession, project_id: uuid.UUID, user_id: uu
 
     name = new_name or f"{src.name} (copy)"
     now = datetime.now(timezone.utc)
-    new_project = Project(user_id=user_id, name=name, created_at=now, updated_at=now)
+    new_project = Project(
+        user_id=user_id,
+        name=name,
+        template_id=src.template_id,
+        guidance_mode=getattr(src, "guidance_mode", "guided"),
+        created_at=now,
+        updated_at=now,
+    )
     db.add(new_project)
     await db.flush()
 

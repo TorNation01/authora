@@ -66,6 +66,20 @@ EBOOK = ManuscriptTemplate(
     scene_break="* * *",
 )
 
+WORKBOOK = ManuscriptTemplate(
+    name="workbook",
+    font_name="Times New Roman",
+    font_size=12,
+    line_spacing=1.5,
+    top_margin_in=0.75,
+    bottom_margin_in=0.75,
+    left_margin_in=0.75,
+    right_margin_in=0.75,
+    first_line_indent=0.25,
+    header_footer=True,
+    scene_break="* * *",
+)
+
 
 def get_template(style: str) -> ManuscriptTemplate:
     """Get template by style name."""
@@ -73,6 +87,8 @@ def get_template(style: str) -> ManuscriptTemplate:
         return PRINT
     if style == "ebook":
         return EBOOK
+    if style == "workbook":
+        return WORKBOOK
     return MANUSCRIPT
 
 

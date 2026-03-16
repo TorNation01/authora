@@ -38,7 +38,7 @@ const emptyDoc = { type: 'doc', content: [{ type: 'paragraph' }] };
 export function WritingStudioEditor({
   content,
   onChange,
-  placeholder = 'Start writing...',
+  placeholder = 'Start where the words are ready.',
   className,
   disabled,
   distractionFree,

@@ -6,6 +6,54 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+# Front matter block kinds
+FRONT_MATTER_KINDS = (
+    "title_page",
+    "subtitle",
+    "copyright",
+    "dedication",
+    "epigraph",
+    "preface",
+    "introduction",
+    "foreword",
+    "disclaimer",
+    "custom",
+)
+
+# Back matter block kinds
+BACK_MATTER_KINDS = (
+    "acknowledgements",
+    "about_author",
+    "author_note",
+    "resources",
+    "next_book",
+    "call_to_action",
+    "workbook_appendix",
+    "references",
+    "glossary",
+    "bonus_material",
+    "custom",
+)
+
+
+class FrontMatterBlock(BaseModel):
+    """Single front matter block."""
+
+    kind: str = "custom"
+    title: str | None = None
+    content: str
+    sort_order: int = 0
+
+
+class BackMatterBlock(BaseModel):
+    """Single back matter block."""
+
+    kind: str = "custom"
+    title: str | None = None
+    content: str
+    sort_order: int = 0
+
+
 class ExportOptions(BaseModel):
     """Options for book export."""
 
@@ -20,7 +68,11 @@ class ExportOptions(BaseModel):
     copyright_notice: str | None = None
     author_bio: str | None = None
     author_name: str | None = None
-    format_style: str = Field(default="manuscript", pattern="^(manuscript|print|ebook)$")
+    subtitle: str | None = None
+    pen_name: str | None = None
+    format_style: str = Field(default="manuscript", pattern="^(manuscript|print|ebook|workbook)$")
+    front_matter_blocks: list[dict[str, Any]] | None = None
+    back_matter_blocks: list[dict[str, Any]] | None = None
 
 
 class ExportPreviewResponse(BaseModel):

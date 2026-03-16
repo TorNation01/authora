@@ -44,6 +44,9 @@ class ContentComment(Base):
     chapter_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), nullable=True)
     note_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("notes.id", ondelete="CASCADE"), nullable=True)
     parent_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("content_comments.id", ondelete="CASCADE"), nullable=True)
+    revision_pass_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("revision_passes.id", ondelete="SET NULL"), nullable=True
+    )
     start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -53,6 +56,9 @@ class ContentComment(Base):
 
     chapter: Mapped["Chapter | None"] = relationship("Chapter", back_populates="comments")
     note: Mapped["Note | None"] = relationship("Note", back_populates="comments")
+    revision_pass: Mapped["RevisionPass | None"] = relationship(
+        "RevisionPass", back_populates="comments", foreign_keys="ContentComment.revision_pass_id"
+    )
     parent: Mapped["ContentComment | None"] = relationship(
         "ContentComment",
         foreign_keys="ContentComment.parent_id",

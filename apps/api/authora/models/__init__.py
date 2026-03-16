@@ -48,6 +48,7 @@ from authora.models.fiction import (
     WorldElement,
 )
 from authora.models.export_job import ExportJob
+from authora.models.export_profile import ExportProfile
 from authora.models.editing import (
     EditorialAnalysis,
     EditorialJob,
@@ -68,6 +69,7 @@ from authora.models.book_settings import BookSettings
 from authora.models.phase import Phase
 from authora.models.chapter_section import ChapterSection
 from authora.models.content_annotation import ContentHighlight, ContentComment
+from authora.models.revision_pass import RevisionChecklistItem, RevisionPass, RevisionPassChapter
 from authora.models.reference_item import ReferenceItem
 from authora.models.ai_revision import AIRevision
 from authora.models.ai_action_log import AIActionLog
@@ -145,6 +147,7 @@ __all__ = [
     "GhostwriterWorkspace",
     "ChapterBrief",
     "ExportJob",
+    "ExportProfile",
     "Profile",
     "UserPreference",
     "WritingStyle",
@@ -154,6 +157,9 @@ __all__ = [
     "ChapterSection",
     "ContentHighlight",
     "ContentComment",
+    "RevisionPass",
+    "RevisionPassChapter",
+    "RevisionChecklistItem",
     "ReferenceItem",
     "AIRevision",
     "AIActionLog",

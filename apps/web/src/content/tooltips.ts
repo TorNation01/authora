@@ -16,19 +16,22 @@ export const HELP_TOOLTIPS: Record<string, string> = {
   export:
     "Download your manuscript as Word, PDF, e-reader format, or plain text. Pick your format and go.",
   accountability_goals:
-    "Set daily or weekly word goals. We'll nudge you gently—or more firmly—based on what you prefer.",
+    "Set a pace you can actually keep. Progress builds books. Small, steady sessions count.",
   gamification:
     "Earn badges as you write. Optional—turn off in settings if you prefer a quiet, distraction-free space.",
   writing_plan:
-    "Set a target finish date. We'll help you break it into milestones and chapter goals.",
+    "Set a target finish date. Every finished stage moves the manuscript forward.",
   reference_panel:
     "Look up definitions, synonyms, and readability. Select a word or phrase to analyze.",
   autosave:
     "Your work saves automatically as you type. No save button—just write.",
   distraction_free:
-    "Hide sidebars and panels for a calm, focused view. Just you and the page.",
+    'Clear the noise. Stay with the page.',
   publishing_prep:
     "Create synopsis, blurb, and query materials for agents or self-publishing.",
+  find_replace: 'Find in chapter or search manuscript. Replace carefully.',
+  revision_panel: 'Work through the manuscript one issue at a time.',
+  add_comment: 'Leave yourself a marker. Return to this later.',
 };
 
 export function getTooltip(key: string): string | undefined {

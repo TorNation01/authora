@@ -13,6 +13,15 @@
 - [FAQ](FAQ.md) – Frequently asked questions
 - [Troubleshooting](TROUBLESHOOTING.md) – Common issues and fixes
 
+## Export and Publishing Prep
+
+- [Export System](EXPORT_SYSTEM.md) – Export formats, profiles, compile engine
+- [Handoff Checklists](HANDOFF_CHECKLISTS.md) – Checklists for editor, beta reader, submission, ghostwriter, self-publishing, print-draft
+- [Beta Reader Prep](BETA_READER_PREP.md) – Beta reader copy preparation
+- [Editor Handoff](EDITOR_HANDOFF.md) – Editor handoff checklist
+- [Ghostwriter Delivery](GHOSTWRITER_DELIVERY.md) – Ghostwriter delivery checklist
+- [Submission Prep](SUBMISSION_PREP.md) – Submission sample preparation
+
 ## For Admins
 
 - [Admin Guide](ADMIN.md) – User management, feature flags, maintenance

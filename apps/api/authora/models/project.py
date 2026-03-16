@@ -1,6 +1,8 @@
 """Project model."""
 
 import uuid
+
+GUIDANCE_MODES = ("guided", "flexible", "freeform")
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
     from authora.models.book import Book
     from authora.models.note import Note
     from authora.models.project_template import ProjectTemplate
+    from authora.models.revision_pass import RevisionPass
     from authora.models.user import User
 
 
@@ -30,6 +33,7 @@ class Project(Base):
     template_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("project_templates.id", ondelete="SET NULL"), nullable=True
     )
+    guidance_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="guided")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -37,3 +41,6 @@ class Project(Base):
     template: Mapped["ProjectTemplate | None"] = relationship("ProjectTemplate", foreign_keys=[template_id])
     books: Mapped[list["Book"]] = relationship("Book", back_populates="project", cascade="all, delete-orphan")
     notes: Mapped[list["Note"]] = relationship("Note", back_populates="project", cascade="all, delete-orphan")
+    revision_passes: Mapped[list["RevisionPass"]] = relationship(
+        "RevisionPass", back_populates="project", cascade="all, delete-orphan"
+    )

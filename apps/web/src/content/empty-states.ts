@@ -26,14 +26,14 @@ export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
     action: 'Add chapter',
   },
   no_notes: {
-    title: 'Capture your ideas',
+    title: 'Keep the thought close',
     description:
-      'Jot down research, quotes, and inspiration here. Link notes to chapters so they\'re easy to find while you write.',
+      'Add a private note. Leave yourself a marker. Return to this later.',
     action: 'Add note',
   },
   no_highlights: {
-    title: 'No highlights yet',
-    description: 'Select text in your chapter to highlight. Handy for marking passages you want to revisit.',
+    title: 'Mark for revision',
+    description: 'Highlight key moments. Flag for rewrite. Check continuity.',
   },
   no_versions: {
     title: 'Your history will appear here',
@@ -45,9 +45,9 @@ export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
       'Write a little each day and watch your progress grow. Every word counts—we\'re cheering you on.',
   },
   no_goals: {
-    title: 'Set a gentle goal',
+    title: 'Set a pace you can keep',
     description:
-      'A daily or weekly word count can help you stay on track. We\'ll nudge you kindly—no pressure, just support.',
+      'Progress builds books. Small, steady sessions count. Set a daily or weekly goal and we\'ll support you—no guilt, just momentum.',
     action: 'Set goal',
   },
   no_exports: {
@@ -59,12 +59,12 @@ export const EMPTY_STATE_COPY: Record<string, EmptyStateCopy> = {
   empty_chapter: {
     title: 'Begin here',
     description:
-      'Start typing, or ask AI to generate a draft from your outline. Your voice, your pace.',
+      'This section is yours to shape. Write first. Refine after.',
   },
   empty_editor: {
     title: 'Choose a chapter',
     description:
-      'Pick a chapter from the sidebar to start writing, or add a new one. Take your time—we\'re here when you\'re ready.',
+      'Pick a chapter from the sidebar to start writing, or add a new one.',
   },
 };
 

@@ -9,23 +9,56 @@ from authora.services.export import tiptap_to_plain_text
 from authora.services.export_templates import get_template
 
 
+PLACEHOLDER_PATTERNS = (
+    "lorem ipsum",
+    "[placeholder]",
+    "[todo]",
+    "[tbd]",
+    "[insert",
+    "xxx",
+    "placeholder text",
+    "add content here",
+    "write here",
+)
+
+
 def validate_export_content(
     chapters: list[dict],
     *,
     book_title: str | None = None,
+    author_name: str | None = None,
+    require_author: bool = False,
+    check_placeholders: bool = True,
+    check_unresolved_comments: bool = False,
+    unresolved_comment_count: int = 0,
+    check_duplicate_headings: bool = True,
 ) -> dict[str, Any]:
-    """Validate content before export. Returns {valid, warnings, errors}."""
+    """
+    Validate content before export. Returns {valid, warnings, errors, fixes}.
+
+    Warnings do not block export; errors do.
+    """
     errors: list[str] = []
     warnings: list[str] = []
+    fixes: list[dict[str, str]] = []
 
     if not book_title or not str(book_title).strip():
         warnings.append("Book title is empty; export will use 'manuscript'.")
+        fixes.append({"issue": "missing_title", "suggestion": "Add a book title in project settings"})
+
+    if require_author and (not author_name or not str(author_name).strip()):
+        warnings.append("Author name is empty; export may show 'Author'.")
+        fixes.append({"issue": "missing_author", "suggestion": "Add author name in export options"})
 
     if not chapters:
         errors.append("No chapters to export.")
-        return {"valid": False, "warnings": warnings, "errors": errors}
+        return {"valid": False, "warnings": warnings, "errors": errors, "fixes": fixes}
 
     empty_chapters: list[str] = []
+    placeholder_chapters: list[str] = []
+    duplicate_headings: list[str] = []
+    seen_headings: dict[str, list[str]] = {}
+
     for i, ch in enumerate(chapters):
         title = ch.get("title") or f"Chapter {i + 1}"
         content = ch.get("content")
@@ -33,13 +66,40 @@ def validate_export_content(
         if not text or not text.strip():
             empty_chapters.append(str(title))
 
+        if check_placeholders and text:
+            lower = text.lower()
+            for pat in PLACEHOLDER_PATTERNS:
+                if pat in lower:
+                    placeholder_chapters.append(str(title))
+                    break
+
+        if check_duplicate_headings and title:
+            key = title.strip().lower()
+            if key in seen_headings:
+                seen_headings[key].append(title)
+                if len(seen_headings[key]) == 2:
+                    duplicate_headings.append(key)
+            else:
+                seen_headings[key] = [title]
+
     if empty_chapters:
-        warnings.append(f"Empty or placeholder chapters: {', '.join(empty_chapters[:5])}{'...' if len(empty_chapters) > 5 else ''}")
+        warnings.append("Empty section detected.")
+        fixes.append({"issue": "empty_chapters", "suggestion": "Add content or exclude these chapters"})
+
+    if placeholder_chapters:
+        warnings.append("Placeholder text found.")
+
+    if duplicate_headings:
+        warnings.append(f"Duplicate chapter headings: {', '.join(duplicate_headings[:5])}")
+
+    if check_unresolved_comments and unresolved_comment_count > 0:
+        warnings.append("Unresolved notes still present.")
 
     return {
         "valid": len(errors) == 0,
         "warnings": warnings,
         "errors": errors,
+        "fixes": fixes,
     }
 
 
@@ -290,7 +350,9 @@ def export_full_docx(
             doc.add_paragraph(f"{i}.\t{ch['title']}", style="Normal")
         add_break()
 
-    for ch in chapters_data:
+    for i, ch in enumerate(chapters_data):
+        if i > 0:
+            add_break()
         doc.add_heading(ch["title"], level=1)
         for block in ch["text"].split("\n\n"):
             block = block.strip()
@@ -455,7 +517,9 @@ def export_full_pdf(chapters: list[dict], params: ExportParams) -> bytes:
         story.append(PageBreak())
 
     chapters_data = _build_chapters_data(chapters, use_structured=True)
-    for ch in chapters_data:
+    for i, ch in enumerate(chapters_data):
+        if i > 0:
+            story.append(PageBreak())
         story.append(Paragraph(safe(ch["title"]), styles["Heading1"]))
         story.append(Spacer(1, 12))
         for para in ch["text"].split("\n\n"):
@@ -829,6 +893,162 @@ def export_formatting_preview_html(
         parts.append(f"<p>{bm}</p>")
     parts.append("</div>")
     return "".join(parts)
+
+
+def export_full_markdown(chapters: list[dict], params: ExportParams) -> bytes:
+    """Export to Markdown with front/back matter."""
+    parts = []
+    if params.include_title_page:
+        parts.append(f"# {params.book_title}")
+        parts.append("")
+        parts.append(f"*{params.author_name}*")
+        parts.append("")
+        parts.append("---")
+        parts.append("")
+
+    if params.copyright_notice:
+        parts.append(params.copyright_notice)
+        parts.append("")
+    if params.dedication:
+        parts.append(f"*{params.dedication}*")
+        parts.append("")
+    if params.epigraph:
+        parts.append(f"> {params.epigraph}")
+        parts.append("")
+    if params.front_matter:
+        parts.append(params.front_matter)
+        parts.append("")
+        parts.append("---")
+        parts.append("")
+
+    if params.include_toc and chapters:
+        parts.append("## Table of Contents")
+        parts.append("")
+        for i, ch in enumerate(chapters, 1):
+            parts.append(f"{i}. {ch.get('title', 'Untitled')}")
+        parts.append("")
+        parts.append("---")
+        parts.append("")
+
+    chapters_data = _build_chapters_data(chapters, use_structured=True)
+    for ch in chapters_data:
+        parts.append(f"# {ch['title']}")
+        parts.append("")
+        parts.append(ch["text"])
+        parts.append("")
+
+    if params.include_acknowledgements and params.acknowledgements:
+        parts.append("---")
+        parts.append("## Acknowledgements")
+        parts.append("")
+        parts.append(params.acknowledgements)
+        parts.append("")
+    if params.author_bio:
+        parts.append("## About the Author")
+        parts.append("")
+        parts.append(params.author_bio)
+        parts.append("")
+    if params.back_matter:
+        parts.append("---")
+        parts.append("## Back Matter")
+        parts.append("")
+        parts.append(params.back_matter)
+
+    return "\n".join(parts).encode("utf-8")
+
+
+def export_full_html(chapters: list[dict], params: ExportParams) -> bytes:
+    """Export to standalone HTML with front/back matter."""
+    html_parts = [
+        "<!DOCTYPE html>",
+        "<html lang='en'>",
+        "<head><meta charset='utf-8'><title>" + _html_escape(params.book_title) + "</title>",
+        "<style>body{font-family:Georgia,serif;max-width:700px;margin:2em auto;padding:0 1em;line-height:1.6;}",
+        "h1,h2,h3{margin-top:1.5em;} .scene-break{text-align:center;margin:2em 0;}",
+        "</style></head><body>",
+    ]
+    if params.include_title_page:
+        html_parts.append(f"<h1>{_html_escape(params.book_title)}</h1>")
+        html_parts.append(f"<p><em>{_html_escape(params.author_name)}</em></p>")
+        html_parts.append("<hr>")
+    if params.copyright_notice:
+        html_parts.append(f"<p>{_html_escape(params.copyright_notice)}</p>")
+    if params.dedication:
+        html_parts.append(f"<p><em>{_html_escape(params.dedication)}</em></p>")
+    if params.epigraph:
+        html_parts.append(f"<blockquote>{_html_escape(params.epigraph)}</blockquote>")
+    if params.front_matter:
+        for p in params.front_matter.split("\n\n"):
+            if p.strip():
+                html_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+    if params.include_toc and chapters:
+        html_parts.append("<h2>Table of Contents</h2><ol>")
+        for ch in chapters:
+            html_parts.append(f"<li>{_html_escape(ch.get('title', 'Untitled'))}</li>")
+        html_parts.append("</ol><hr>")
+    chapters_data = _build_chapters_data(chapters, use_structured=True)
+    for ch in chapters_data:
+        html_parts.append(f"<h2>{_html_escape(ch['title'])}</h2>")
+        for block in ch["text"].split("\n\n"):
+            block = block.strip()
+            if not block:
+                continue
+            if block in SCENE_BREAK_MARKERS or block == "* * *":
+                html_parts.append('<p class="scene-break">* * *</p>')
+            elif block.startswith("#"):
+                level = min(len(block) - len(block.lstrip("#")), 3)
+                text = block.lstrip("#").strip()
+                html_parts.append(f"<h{level}>{_html_escape(text)}</h{level}>")
+            elif block.startswith(">"):
+                html_parts.append(f"<blockquote>{_html_escape(block[1:].strip())}</blockquote>")
+            else:
+                html_parts.append(f"<p>{_html_escape(block).replace(chr(10), '<br>')}</p>")
+    if params.include_acknowledgements and params.acknowledgements:
+        html_parts.append("<h2>Acknowledgements</h2>")
+        for p in params.acknowledgements.split("\n\n"):
+            if p.strip():
+                html_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+    if params.author_bio:
+        html_parts.append("<h2>About the Author</h2>")
+        for p in params.author_bio.split("\n\n"):
+            if p.strip():
+                html_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+    if params.back_matter:
+        for p in params.back_matter.split("\n\n"):
+            if p.strip():
+                html_parts.append(f"<p>{_html_escape(p.strip())}</p>")
+    html_parts.append("</body></html>")
+    return "\n".join(html_parts).encode("utf-8")
+
+
+def export_full_json(chapters: list[dict], params: ExportParams) -> bytes:
+    """Export to structured JSON for archive/import."""
+    import json
+
+    chapters_data = _build_chapters_data(chapters, use_structured=True)
+    data = {
+        "meta": {
+            "title": params.book_title,
+            "author": params.author_name,
+            "format_version": "1.0",
+        },
+        "front_matter": {
+            "copyright": params.copyright_notice,
+            "dedication": params.dedication,
+            "epigraph": params.epigraph,
+            "custom": params.front_matter,
+        },
+        "chapters": [
+            {"title": ch["title"], "text": ch["text"], "word_count": len(ch["text"].split())}
+            for ch in chapters_data
+        ],
+        "back_matter": {
+            "acknowledgements": params.acknowledgements,
+            "author_bio": params.author_bio,
+            "custom": params.back_matter,
+        },
+    }
+    return json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
 
 
 def export_chapters_zip(chapters: list[dict], book_title: str, format: str = "docx") -> bytes:

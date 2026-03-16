@@ -105,6 +105,7 @@ async def create_project_from_wizard(
             framework_id=data.framework_id,
             target_words=data.target_words,
             target_date=data.target_date,
+            guidance_mode=data.guidance_mode,
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -142,7 +143,11 @@ async def create_project(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Project limit reached ({current}/{limit}). Upgrade to Premium for more.",
         )
-    project = Project(user_id=current_user.id, name=data.name)
+    project = Project(
+        user_id=current_user.id,
+        name=data.name,
+        guidance_mode=getattr(data, "guidance_mode", "guided") or "guided",
+    )
     db.add(project)
     await db.flush()
     audit = AuditLogger(db)
@@ -176,6 +181,10 @@ async def update_project(
     project = await get_project_or_404(db, project_id, current_user.id)
     if data.name is not None:
         project.name = data.name
+    if data.guidance_mode is not None:
+        if data.guidance_mode not in ("guided", "flexible", "freeform"):
+            raise HTTPException(status_code=400, detail="Invalid guidance_mode")
+        project.guidance_mode = data.guidance_mode
     await db.flush()
     await db.refresh(project)
     return ProjectResponse.model_validate(project)

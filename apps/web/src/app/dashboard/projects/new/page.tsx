@@ -31,6 +31,7 @@ import {
   CUSTOM_PROJECT,
   CATEGORY_DESCRIPTIONS,
   MICROCOPY,
+  GUIDANCE_MODES,
 } from '@/content/template-copy';
 import {
   FRAMEWORK_SELECTION,
@@ -113,7 +114,10 @@ export default function NewProjectPage() {
     try {
       const project = await api<{ id: string }>('/api/v1/projects', {
         method: 'POST',
-        body: JSON.stringify({ name: projectName || 'Untitled Project' }),
+        body: JSON.stringify({
+          name: projectName || 'Untitled Project',
+          guidance_mode: 'freeform',
+        }),
       });
       toast({ title: 'Project created' });
       router.push(`/dashboard/projects/${project.id}`);
@@ -153,7 +157,7 @@ export default function NewProjectPage() {
         {
           method: 'POST',
           body: JSON.stringify({
-            template_id: selectedTemplateId || null,
+            template_id: guidanceMode === 'freeform' ? null : (selectedTemplateId || null),
             project_name: projectName.trim(),
             book_title: bookTitle.trim() || projectName.trim(),
             book_type: template?.book_type || selectedCategory?.template?.book_type || 'fiction',
@@ -162,6 +166,7 @@ export default function NewProjectPage() {
             structure_framework: structureFramework || null,
             target_words: targetWords ? parseInt(targetWords, 10) : null,
             target_date: targetDate.trim() || null,
+            guidance_mode: guidanceMode,
           }),
         }
       );
@@ -376,6 +381,30 @@ export default function NewProjectPage() {
         <CardContent className="space-y-6">
           {step === 1 && (
             <div className="space-y-6">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{GUIDANCE_MODES.heading}</p>
+                <p className="text-xs text-muted-foreground">{GUIDANCE_MODES.chooseAmount}</p>
+                <p className="text-xs text-muted-foreground">{GUIDANCE_MODES.changeLater}</p>
+                <div className="flex flex-wrap gap-2">
+                  {(['guided', 'flexible', 'freeform'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setGuidanceMode(m)}
+                      className={`rounded-lg border-2 px-4 py-3 text-left text-sm transition-colors ${
+                        guidanceMode === m
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="font-medium block">{GUIDANCE_MODES[m].label}</span>
+                      <span className="text-xs text-muted-foreground line-clamp-2">
+                        {GUIDANCE_MODES[m].description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-sm text-muted-foreground">{MICROCOPY.keepMoving}</p>
               {featuredLaunch.length > 0 && (
                 <div>

@@ -50,8 +50,18 @@ FREEFORM_MILESTONE_TYPES = [
 def get_default_milestones_for_template(
     template: ProjectTemplate | None,
     book_type: str = "fiction",
+    guidance_mode: str = "guided",
 ) -> list[dict[str, Any]]:
-    """Get default milestones from template or fallback to book type."""
+    """Get default milestones from template or fallback to book type.
+    Freeform: generic milestones only. Flexible: lighter template defaults.
+    """
+    if guidance_mode == "freeform":
+        return [
+            {"id": "outline", "label": "Outline complete", "type": "planning", "sort_order": 0},
+            {"id": "draft", "label": "First draft complete", "type": "draft", "sort_order": 1},
+            {"id": "revision", "label": "First revision pass", "type": "revision", "sort_order": 2},
+            {"id": "final", "label": "Final polish", "type": "revision", "sort_order": 3},
+        ]
     defaults = template.default_milestones if template and template.default_milestones else None
     if defaults:
         return [
@@ -106,7 +116,8 @@ async def generate_milestones_for_book(
 
     book, project, template = row
     book_type = getattr(book, "type", None) or "fiction"
-    defs = get_default_milestones_for_template(template, book_type)
+    guidance_mode = getattr(project, "guidance_mode", "guided")
+    defs = get_default_milestones_for_template(template, book_type, guidance_mode)
 
     chapters_result = await db.execute(
         select(Chapter).where(Chapter.book_id == book_id, Chapter.deleted_at.is_(None)).order_by(Chapter.sort_order)

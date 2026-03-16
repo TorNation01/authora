@@ -122,8 +122,9 @@ async def get_progress_dashboard(
                 elif not next_milestone:
                     next_milestone = {"id": str(m.id), "title": m.title, "target_words": m.target_words}
 
-            # Framework stage (from book_settings or framework)
-            if current_book.framework_id:
+            # Framework stage (from book_settings or framework) - only when guided
+            guidance_mode = getattr(proj, "guidance_mode", "guided")
+            if guidance_mode == "guided" and current_book.framework_id:
                 framework_stage = "framework_enabled"
 
             # Finish mode stats

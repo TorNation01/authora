@@ -10,12 +10,22 @@ class ProjectCreate(BaseModel):
     """Create project."""
 
     name: str = Field(..., min_length=1, max_length=255)
+    guidance_mode: str = Field(
+        default="guided",
+        pattern="^(guided|flexible|freeform)$",
+        description="Genre guidance: guided (full), flexible (lighter), freeform (none)",
+    )
 
 
 class ProjectUpdate(BaseModel):
     """Update project."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
+    guidance_mode: str | None = Field(
+        None,
+        pattern="^(guided|flexible|freeform)$",
+        description="Genre guidance: guided (full), flexible (lighter), freeform (none)",
+    )
 
 
 class ProjectResponse(BaseModel):
@@ -24,6 +34,7 @@ class ProjectResponse(BaseModel):
     id: UUID
     user_id: UUID
     name: str
+    guidance_mode: str
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -52,3 +63,8 @@ class ProjectWizardRequest(BaseModel):
     framework_id: UUID | None = Field(None, description="Writing framework ID (overrides template)")
     target_words: int | None = Field(None, ge=0)
     target_date: str | None = Field(None, max_length=50)
+    guidance_mode: str = Field(
+        default="guided",
+        pattern="^(guided|flexible|freeform)$",
+        description="Genre guidance: guided (full), flexible (lighter), freeform (none)",
+    )

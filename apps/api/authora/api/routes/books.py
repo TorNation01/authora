@@ -287,6 +287,35 @@ async def delete_chapter(
     await db.delete(chapter)
 
 
+@router.post("/{book_id}/chapters/{chapter_id}/duplicate", response_model=ChapterResponse, status_code=status.HTTP_201_CREATED)
+async def duplicate_chapter(
+    project_id: uuid.UUID,
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Duplicate chapter (content and title copy, new id)."""
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
+    chapter = result.scalar_one_or_none()
+    if not chapter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chapter not found")
+    max_order = max((c.sort_order for c in book.chapters), default=-1)
+    new_chapter = Chapter(
+        book_id=book_id,
+        title=f"{chapter.title} (copy)",
+        sort_order=max_order + 1,
+        content=dict(chapter.content) if chapter.content else {},
+        word_count=chapter.word_count,
+        section_status=chapter.section_status,
+    )
+    db.add(new_chapter)
+    await db.flush()
+    await db.refresh(new_chapter)
+    return ChapterResponse.model_validate(new_chapter)
+
+
 # Finish Mode
 @router.get("/{book_id}/finish-mode")
 async def get_finish_mode(

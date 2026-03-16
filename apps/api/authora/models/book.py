@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from authora.models.project import Project
     from authora.models.project_template import ProjectTemplate
     from authora.models.publishing_asset import PublishingAsset
+    from authora.models.revision_pass import RevisionPass
     from authora.models.writing_framework import WritingFramework
 
 
@@ -57,6 +58,9 @@ class Book(Base):
     )
     publishing_assets: Mapped[list["PublishingAsset"]] = relationship(
         "PublishingAsset", back_populates="book", cascade="all, delete-orphan"
+    )
+    revision_passes: Mapped[list["RevisionPass"]] = relationship(
+        "RevisionPass", back_populates="book", cascade="all, delete-orphan"
     )
 
 
@@ -97,6 +101,9 @@ class Chapter(Base):
     )
     ai_revisions: Mapped[list["AIRevision"]] = relationship(
         "AIRevision", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    revision_pass_progress: Mapped[list["RevisionPassChapter"]] = relationship(
+        "RevisionPassChapter", back_populates="chapter", cascade="all, delete-orphan"
     )
 
 
