@@ -90,6 +90,17 @@ class SetupAdmin(BaseModel):
         return v.lower()
 
 
+class SetupStripe(BaseModel):
+    """Stripe billing (optional)."""
+
+    enabled: bool = Field(default=False)
+    stripe_secret_key: str | None = None
+    stripe_publishable_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_success_url: str | None = None
+    stripe_cancel_url: str | None = None
+
+
 class SetupPreferences(BaseModel):
     """Backup, reminders, analytics."""
 
@@ -127,6 +138,7 @@ class SetupApplyRequest(BaseModel):
     email: SetupEmail | None = None
     admin: SetupAdmin | None = None
     preferences: SetupPreferences | None = None
+    stripe: SetupStripe | None = None
     mode: SetupMode | None = None
     secret_key: str | None = None
 

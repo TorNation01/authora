@@ -19,7 +19,11 @@ fi
 
 echo "Restoring from $BACKUP_FILE..."
 
-if docker compose ps postgres 2>/dev/null | grep -q "Up"; then
+# Try prod compose first, then dev
+if docker compose -f docker-compose.yml -f docker-compose.prod.yml ps postgres 2>/dev/null | grep -q "Up"; then
+  echo "Restoring via Docker (prod)..."
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres pg_restore -U authora -d authora --clean --if-exists < "$BACKUP_FILE" || true
+elif docker compose ps postgres 2>/dev/null | grep -q "Up"; then
   echo "Restoring via Docker..."
   docker compose exec -T postgres pg_restore -U authora -d authora --clean --if-exists < "$BACKUP_FILE" || true
 else

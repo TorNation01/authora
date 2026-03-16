@@ -145,10 +145,34 @@ async def create_customer_portal_session(
     return {"url": session.url}
 
 
+def _get_webhook_secret() -> str | None:
+    """Resolve webhook secret: STRIPE_WEBHOOK_SECRET, or test/live variant based on key prefix."""
+    s = get_settings()
+    if s.stripe_webhook_secret:
+        return s.stripe_webhook_secret
+    # Infer live vs test from secret key prefix
+    key = s.stripe_secret_key or ""
+    if key.startswith("sk_live_"):
+        return s.stripe_webhook_secret_live
+    if key.startswith("sk_test_"):
+        return s.stripe_webhook_secret_test
+    return s.stripe_webhook_secret_live or s.stripe_webhook_secret_test
+
+
+def is_stripe_live_mode() -> bool:
+    """True if using live Stripe keys (sk_live_, pk_live_)."""
+    s = get_settings()
+    if s.stripe_live_mode is not None:
+        return s.stripe_live_mode
+    key = s.stripe_secret_key or ""
+    return key.startswith("sk_live_")
+
+
 async def handle_webhook(payload: bytes, sig_header: str) -> dict | None:
     """
     Handle Stripe webhook. Verify signature and dispatch events.
     Returns {"handled": True} or error dict. Caller should return 200 on success.
+    Uses STRIPE_WEBHOOK_SECRET, or STRIPE_WEBHOOK_SECRET_TEST/LIVE based on key prefix.
     """
     if not _stripe_available():
         return {"error": "Stripe not configured"}
@@ -156,9 +180,9 @@ async def handle_webhook(payload: bytes, sig_header: str) -> dict | None:
     import stripe
 
     stripe.api_key = get_settings().stripe_secret_key
-    webhook_secret = get_settings().stripe_webhook_secret
+    webhook_secret = _get_webhook_secret()
     if not webhook_secret:
-        return {"error": "STRIPE_WEBHOOK_SECRET not set"}
+        return {"error": "STRIPE_WEBHOOK_SECRET not set (or STRIPE_WEBHOOK_SECRET_TEST/LIVE for test/live keys)"}
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)

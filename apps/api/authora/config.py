@@ -170,6 +170,11 @@ class Settings(BaseSettings):
     stripe_secret_key: Optional[str] = None
     stripe_publishable_key: Optional[str] = None
     stripe_webhook_secret: Optional[str] = None
+    # Optional: separate webhook secrets for test vs live (STRIPE_WEBHOOK_SECRET takes precedence)
+    stripe_webhook_secret_test: Optional[str] = None
+    stripe_webhook_secret_live: Optional[str] = None
+    # true = live mode (sk_/pk_live_), false = test mode (sk_/pk_test_). Default: infer from key prefix
+    stripe_live_mode: Optional[bool] = None
     stripe_success_url: str = "http://localhost:3000/billing?success=1"
     stripe_cancel_url: str = "http://localhost:3000/billing?canceled=1"
 

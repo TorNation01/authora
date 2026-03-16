@@ -7,10 +7,29 @@ AUTHORA is Stripe-ready. Configure environment variables and create products/pri
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `STRIPE_SECRET_KEY` | Stripe secret key (sk_live_* or sk_test_*) | For checkout/portal |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (pk_*) | For frontend |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (pk_live_* or pk_test_*) | For frontend |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (whsec_*) | For webhooks |
-| `STRIPE_SUCCESS_URL` | Redirect after successful checkout | Optional, default: /billing?success=1 |
-| `STRIPE_CANCEL_URL` | Redirect when checkout cancelled | Optional, default: /billing?canceled=1 |
+| `STRIPE_WEBHOOK_SECRET_TEST` | Webhook secret for test mode | Optional; used when key is sk_test_* |
+| `STRIPE_WEBHOOK_SECRET_LIVE` | Webhook secret for live mode | Optional; used when key is sk_live_* |
+| `STRIPE_LIVE_MODE` | Force live (true) or test (false) | Optional; inferred from key prefix |
+| `STRIPE_SUCCESS_URL` | Redirect after successful checkout | Optional |
+| `STRIPE_CANCEL_URL` | Redirect when checkout cancelled | Optional |
+| `FEATURE_BILLING` | Enable billing limits and Stripe UI | Set `true` to enable |
+
+## Test vs Live Mode
+
+- **Test mode**: Use `sk_test_*` and `pk_test_*` keys. No real charges. Use `STRIPE_WEBHOOK_SECRET_TEST` or `STRIPE_WEBHOOK_SECRET` with a test webhook secret.
+- **Live mode**: Use `sk_live_*` and `pk_live_*` keys. Real charges. Use `STRIPE_WEBHOOK_SECRET_LIVE` or `STRIPE_WEBHOOK_SECRET` with a live webhook secret.
+
+The app infers mode from the secret key prefix. Set `STRIPE_LIVE_MODE=true` or `false` to override.
+
+**Production**: Always use live keys and a live webhook secret. Never use test keys in production.
+
+## Validation
+
+When `STRIPE_SECRET_KEY` is set in production, `validate-env.sh` warns if:
+- `STRIPE_WEBHOOK_SECRET` (or `STRIPE_WEBHOOK_SECRET_LIVE`) is not set
+- `STRIPE_PUBLISHABLE_KEY` is not set
 
 ## Stripe Dashboard Setup
 
@@ -39,7 +58,7 @@ For each product, create prices:
 
 ### 3. Update Plan Records
 
-Set Stripe price IDs on plans (via migration or admin):
+Set Stripe price IDs on plans (via migration, admin, or SQL):
 
 ```sql
 UPDATE plans SET
@@ -52,25 +71,12 @@ WHERE slug = 'starter';
 
 ### 4. Configure Webhook
 
+See [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md) for full guidance.
+
 1. Stripe Dashboard → Developers → Webhooks → Add endpoint
 2. URL: `https://your-api.example.com/api/v1/billing/webhooks/stripe`
-3. Events to listen for:
-   - `checkout.session.completed`
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `invoice.paid`
-   - `invoice.payment_failed`
+3. Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`
 4. Copy the webhook signing secret to `STRIPE_WEBHOOK_SECRET`
-
-### 5. Webhook Handler Implementation
-
-The current webhook handler verifies the signature and returns `{ handled: true }`. Extend `authora/services/stripe_service.py` `handle_webhook` to:
-
-- On `checkout.session.completed`: create/update Subscription, set stripe_customer_id, stripe_subscription_id
-- On `customer.subscription.updated`: sync status, period_end, cancel_at_period_end
-- On `customer.subscription.deleted`: set status to canceled
-- On `invoice.payment_failed`: set grace_period_end, optionally notify user
 
 ## API Endpoints
 
@@ -79,6 +85,7 @@ The current webhook handler verifies the signature and returns `{ handled: true 
 | `/api/v1/billing/checkout/create` | POST | Create Stripe Checkout session |
 | `/api/v1/billing/customer-portal` | POST | Create Customer Portal session |
 | `/api/v1/billing/webhooks/stripe` | POST | Stripe webhook (no auth) |
+| `/api/v1/billing/admin/health` | GET | Admin: billing health check |
 
 ## Checkout Flow
 
@@ -88,14 +95,6 @@ The current webhook handler verifies the signature and returns `{ handled: true 
 4. Stripe sends `checkout.session.completed` webhook
 5. API creates/updates Subscription record
 6. User is redirected to success_url
-
-## Customer Portal
-
-For managing subscription (upgrade, downgrade, cancel, update payment):
-
-1. Frontend calls `POST /api/v1/billing/customer-portal` with `{ return_url? }`
-2. API returns `{ url }` — redirect user to Stripe Customer Portal
-3. User manages subscription, returns to return_url
 
 ## Coupons and Promotion Codes
 

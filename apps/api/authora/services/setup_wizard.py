@@ -205,6 +205,18 @@ def apply_config(req: SetupApplyRequest) -> tuple[bool, str]:
         if req.email.from_email:
             updates["FROM_EMAIL"] = req.email.from_email
 
+    if req.stripe and req.stripe.enabled:
+        if req.stripe.stripe_secret_key:
+            updates["STRIPE_SECRET_KEY"] = req.stripe.stripe_secret_key
+        if req.stripe.stripe_publishable_key:
+            updates["STRIPE_PUBLISHABLE_KEY"] = req.stripe.stripe_publishable_key
+        if req.stripe.stripe_webhook_secret:
+            updates["STRIPE_WEBHOOK_SECRET"] = req.stripe.stripe_webhook_secret
+        if req.stripe.stripe_success_url:
+            updates["STRIPE_SUCCESS_URL"] = req.stripe.stripe_success_url
+        if req.stripe.stripe_cancel_url:
+            updates["STRIPE_CANCEL_URL"] = req.stripe.stripe_cancel_url
+
     if req.preferences:
         updates["BACKUP_ENABLED"] = str(req.preferences.backup_enabled).lower()
         updates["BACKUP_RETENTION_DAYS"] = str(req.preferences.backup_retention_days)

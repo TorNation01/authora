@@ -21,7 +21,7 @@ echo "Docker: $(docker --version)"
 # Require .env
 if [ ! -f .env ]; then
   echo "ERROR: .env required. Copy .env.example and configure."
-  echo "  cp .env.example .env"
+  echo "  cp .env.production.example .env"
   echo "  # Edit .env with SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL"
   exit 1
 fi
@@ -60,7 +60,7 @@ echo "Starting database and Redis..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d postgres redis
 
 echo "Waiting for PostgreSQL..."
-until docker compose exec -T postgres pg_isready -U authora 2>/dev/null; do
+until docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres pg_isready -U authora 2>/dev/null; do
   sleep 2
 done
 
@@ -71,10 +71,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm \
   -e DATABASE_URL="${DATABASE_URL}" api \
   alembic upgrade head || echo "WARN: Migrations failed. Run manually: docker compose run --rm api alembic upgrade head"
 
-# Start full stack
+# Start full stack (including Caddy via prod profile)
 echo ""
 echo "Starting full stack..."
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
 
 echo ""
 echo "=== Production bootstrap complete ==="

@@ -1,0 +1,23 @@
+# AUTHORA Staging overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml --profile staging up -d
+# Uses .env.staging or .env with staging values
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-authora-staging}
+    # Keep port for staging debug; remove in prod
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  api:
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://authora:authora@postgres:5432/authora}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","https://staging.example.com"]}
+
+  web:
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      API_URL: ${API_URL:-http://api:8000}

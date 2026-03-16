@@ -2,6 +2,12 @@
 
 AUTHORA integrates into the Anakatech ecosystem through an optional adapter layer. For ecosystem conventions, see [ANAKATECH_CONVENTIONS.md](./ANAKATECH_CONVENTIONS.md). Integration is modular, environment-driven, and does not affect standalone operation.
 
+## Strategy Documents
+
+- **[ANAKATECH_INTEGRATION_STRATEGY](ANAKATECH_INTEGRATION_STRATEGY.md)** — Overall strategy, what stays standalone, what can integrate
+- **[STANDALONE_VS_CONNECTED_MODE](STANDALONE_VS_CONNECTED_MODE.md)** — Mode comparison and switching
+- **[OPTIONAL_CONNECTOR_LAYER](OPTIONAL_CONNECTOR_LAYER.md)** — Adapter architecture and usage
+
 ## Architecture Overview
 
 The integration layer lives in `authora/integration/` and provides:

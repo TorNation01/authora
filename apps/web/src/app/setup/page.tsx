@@ -12,16 +12,17 @@ import { useConfig } from '@/contexts/ConfigProvider';
 import { useToast } from '@/hooks/use-toast';
 
 const STEPS = [
-  { id: 'branding', title: 'Branding', desc: 'App name and tagline' },
+  { id: 'branding', title: 'Site Name', desc: 'App name and tagline' },
   { id: 'domain', title: 'Domain & SSL', desc: 'Domain and security' },
   { id: 'database', title: 'Database', desc: 'PostgreSQL connection' },
   { id: 'redis', title: 'Redis', desc: 'Redis connection' },
-  { id: 'storage', title: 'Storage', desc: 'File storage' },
-  { id: 'ai', title: 'AI Provider', desc: 'OpenAI or Anthropic' },
-  { id: 'email', title: 'Email', desc: 'Optional email provider' },
   { id: 'admin', title: 'Admin Account', desc: 'First admin user' },
-  { id: 'preferences', title: 'Preferences', desc: 'Backup, reminders, analytics' },
-  { id: 'finalize', title: 'Go Live', desc: 'Apply and complete' },
+  { id: 'email', title: 'Email', desc: 'Optional email provider' },
+  { id: 'storage', title: 'Storage', desc: 'File storage' },
+  { id: 'ai', title: 'AI Provider', desc: 'OpenAI, Anthropic, or Ollama' },
+  { id: 'stripe', title: 'Stripe', desc: 'Optional billing integration' },
+  { id: 'preferences', title: 'Backup & Preferences', desc: 'Backup, reminders, analytics' },
+  { id: 'finalize', title: 'Launch', desc: 'Apply and complete' },
 ];
 
 export default function SetupPage() {
@@ -60,6 +61,12 @@ export default function SetupPage() {
     analytics_enabled: false,
     telemetry_enabled: false,
     mode: 'local' as 'local' | 'cloud',
+    stripe_enabled: false,
+    stripe_secret_key: '',
+    stripe_publishable_key: '',
+    stripe_webhook_secret: '',
+    stripe_success_url: '',
+    stripe_cancel_url: '',
   });
 
   useEffect(() => {
@@ -133,6 +140,14 @@ export default function SetupPage() {
             analytics_enabled: form.analytics_enabled,
             telemetry_enabled: form.telemetry_enabled,
           },
+          stripe: form.stripe_enabled ? {
+            enabled: true,
+            stripe_secret_key: form.stripe_secret_key || undefined,
+            stripe_publishable_key: form.stripe_publishable_key || undefined,
+            stripe_webhook_secret: form.stripe_webhook_secret || undefined,
+            stripe_success_url: form.stripe_success_url || undefined,
+            stripe_cancel_url: form.stripe_cancel_url || undefined,
+          } : { enabled: false },
           mode: { mode: form.mode },
         }),
       });
@@ -185,6 +200,14 @@ export default function SetupPage() {
             analytics_enabled: form.analytics_enabled,
             telemetry_enabled: form.telemetry_enabled,
           },
+          stripe: form.stripe_enabled ? {
+            enabled: true,
+            stripe_secret_key: form.stripe_secret_key || undefined,
+            stripe_publishable_key: form.stripe_publishable_key || undefined,
+            stripe_webhook_secret: form.stripe_webhook_secret || undefined,
+            stripe_success_url: form.stripe_success_url || undefined,
+            stripe_cancel_url: form.stripe_cancel_url || undefined,
+          } : { enabled: false },
           mode: { mode: form.mode },
         }),
       });
@@ -566,6 +589,74 @@ export default function SetupPage() {
                     placeholder="Admin"
                   />
                 </div>
+              </div>
+            )}
+
+            {currentStep?.id === 'stripe' && (
+              <div className="space-y-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.stripe_enabled}
+                    onChange={(e) => setForm((f) => ({ ...f, stripe_enabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Enable Stripe billing (optional)</span>
+                </label>
+                {form.stripe_enabled && (
+                  <>
+                    <div>
+                      <Label htmlFor="stripe_publishable_key">Stripe Publishable Key</Label>
+                      <Input
+                        id="stripe_publishable_key"
+                        type="password"
+                        value={form.stripe_publishable_key}
+                        onChange={(e) => setForm((f) => ({ ...f, stripe_publishable_key: e.target.value }))}
+                        placeholder="pk_live_... or pk_test_..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe_secret_key">Stripe Secret Key</Label>
+                      <Input
+                        id="stripe_secret_key"
+                        type="password"
+                        value={form.stripe_secret_key}
+                        onChange={(e) => setForm((f) => ({ ...f, stripe_secret_key: e.target.value }))}
+                        placeholder="sk_live_... or sk_test_..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe_webhook_secret">Webhook Secret</Label>
+                      <Input
+                        id="stripe_webhook_secret"
+                        type="password"
+                        value={form.stripe_webhook_secret}
+                        onChange={(e) => setForm((f) => ({ ...f, stripe_webhook_secret: e.target.value }))}
+                        placeholder="whsec_..."
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Configure webhook at https://dashboard.stripe.com/webhooks → POST /api/v1/billing/webhooks/stripe
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe_success_url">Success URL</Label>
+                      <Input
+                        id="stripe_success_url"
+                        value={form.stripe_success_url}
+                        onChange={(e) => setForm((f) => ({ ...f, stripe_success_url: e.target.value }))}
+                        placeholder="https://app.example.com/billing?success=1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe_cancel_url">Cancel URL</Label>
+                      <Input
+                        id="stripe_cancel_url"
+                        value={form.stripe_cancel_url}
+                        onChange={(e) => setForm((f) => ({ ...f, stripe_cancel_url: e.target.value }))}
+                        placeholder="https://app.example.com/billing?canceled=1"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

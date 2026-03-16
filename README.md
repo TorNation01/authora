@@ -97,6 +97,9 @@ docker compose up -d
 | [OPERATOR_QUICK_REFERENCE.md](docs/OPERATOR_QUICK_REFERENCE.md) | Exact terminal commands |
 | [OPERATOR_COMMANDS.md](docs/OPERATOR_COMMANDS.md) | Full operator command reference |
 | [ANAKATECH_INTEGRATION.md](docs/ANAKATECH_INTEGRATION.md) | Anakatech ecosystem integration |
+| [ANAKATECH_INTEGRATION_STRATEGY.md](docs/ANAKATECH_INTEGRATION_STRATEGY.md) | Integration strategy, standalone-first |
+| [STANDALONE_VS_CONNECTED_MODE.md](docs/STANDALONE_VS_CONNECTED_MODE.md) | Standalone vs connected mode |
+| [OPTIONAL_CONNECTOR_LAYER.md](docs/OPTIONAL_CONNECTOR_LAYER.md) | Optional adapter layer |
 | [ANAKATECH_CONVENTIONS.md](docs/ANAKATECH_CONVENTIONS.md) | Ecosystem conventions |
 
 ## Project Structure

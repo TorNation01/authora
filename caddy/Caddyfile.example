@@ -1,23 +1,66 @@
 # AUTHORA Caddy - Option 2 domain architecture
 # Run: ./scripts/generate-caddyfile.sh (uses DOMAIN_API, DOMAIN_MARKETING, DOMAIN_APP, ACME_EMAIL)
+#
+# Features: secure headers, gzip, WebSocket, upload size limits
 
 {
     email admin@authora.studio
 }
 
+# Secure headers applied to all sites
+(security_headers) {
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+}
+
 api.authora.studio {
-    reverse_proxy api:8000
+    import security_headers
+    reverse_proxy api:8000 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+        header_up Host {host}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
     encode gzip
+    request_body {
+        max_size 100MB
+    }
 }
 
 authora.studio {
-    reverse_proxy web:3000
+    import security_headers
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+        header_up Host {host}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
     encode gzip
+    request_body {
+        max_size 100MB
+    }
 }
 
 app.authora.studio {
-    reverse_proxy web:3000
+    import security_headers
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+        header_up Host {host}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
     encode gzip
+    request_body {
+        max_size 100MB
+    }
 }
 
 www.authora.studio {

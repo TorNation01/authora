@@ -1,5 +1,8 @@
-# AUTHORA dev compose - postgres, redis, api, web
-# Usage: docker compose up -d
+# AUTHORA Docker Compose - profiles: dev (default), staging, prod
+# Usage:
+#   dev:     docker compose up -d
+#   staging: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+#   prod:    docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
 
 services:
   postgres:
@@ -41,6 +44,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
       CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://web:3000"]'
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

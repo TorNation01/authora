@@ -30,7 +30,7 @@ if [ "$MODE" = "prod" ]; then
   docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
   docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm \
     -e DATABASE_URL="${DATABASE_URL}" api alembic upgrade head
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
 else
   docker compose build --no-cache
   docker compose run --rm -e DATABASE_URL="${DATABASE_URL:-postgresql://authora:authora@localhost:5432/authora}" api alembic upgrade head

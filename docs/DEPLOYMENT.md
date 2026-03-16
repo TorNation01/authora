@@ -17,6 +17,9 @@
 
 ## Related Documentation
 
+- **[DEPLOY_QUICKSTART](DEPLOY_QUICKSTART.md)** – One-command deploy (clone → copy env → deploy → setup wizard)
+- **[UBUNTU_COMMAND_PACK](UBUNTU_COMMAND_PACK.md)** – Copy-paste terminal commands for Ubuntu
+- **[UBUNTU_SERVER_DEPLOYMENT](UBUNTU_SERVER_DEPLOYMENT.md)** – Launch-ready Ubuntu deployment path
 - **[OPERATIONS_QUICKSTART](OPERATIONS_QUICKSTART.md)** – Copy-paste commands
 - **[Exact Commands](DEPLOYMENT-COMMANDS.md)** – Full command reference
 - [UBUNTU_INSTALL](UBUNTU_INSTALL.md) – Fresh Ubuntu bootstrap
@@ -25,19 +28,23 @@
 - [BACKUP_AND_RESTORE](BACKUP_AND_RESTORE.md) – Backup and restore
 - [Cloudflare Deployment](DEPLOYMENT-CLOUDFLARE.md) – Deploy behind Cloudflare
 - [SSL & Domain Setup](DEPLOYMENT-SSL-DOMAIN.md) – TLS/HTTPS and DNS
+- [Billing Deployment](BILLING_DEPLOYMENT.md) – Stripe, tiers, promo codes, subscriptions
 
 ## Quick Start (Development)
 
 ```bash
-# One-command dev setup
-./scripts/deploy.sh dev
+# One-command deploy (clone → copy env → deploy)
+git clone https://github.com/TorNation01/authora.git && cd authora && cp .env.example .env && ./scripts/deploy.sh
 
-# Then start the app
-npm run dev:api   # Backend on http://localhost:8000
-npm run dev       # Frontend on http://localhost:3000
+# Then complete setup wizard at http://localhost:3000/setup
+```
 
-# Or run full stack in Docker
-docker compose up -d
+Or from an existing clone:
+
+```bash
+./scripts/deploy.sh
+# or
+npm run deploy
 ```
 
 ## Prerequisites

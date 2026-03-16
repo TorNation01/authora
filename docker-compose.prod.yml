@@ -1,11 +1,12 @@
-# AUTHORA production overrides
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# AUTHORA Production overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
 # Requires .env with: SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_MARKETING_URL, NEXT_PUBLIC_APP_URL
 # Optional: DOMAIN_API, DOMAIN_MARKETING, DOMAIN_APP, CORS_ORIGINS, ACME_EMAIL (for Caddyfile generation)
 
 services:
   caddy:
     image: caddy:2-alpine
+    profiles: ["prod"]
     restart: unless-stopped
     ports:
       - "80:80"
@@ -31,6 +32,7 @@ services:
 
   api:
     restart: unless-stopped
+    env_file: .env
     volumes:
       - authora_storage:/app/storage
     environment:
@@ -38,6 +40,10 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       CORS_ORIGINS: ${CORS_ORIGINS:-["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_ENABLED: ${OLLAMA_ENABLED:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434}
     # No port exposure - accessed via Caddy reverse proxy
     ports: []
 

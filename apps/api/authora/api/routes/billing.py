@@ -584,6 +584,39 @@ async def admin_entitlement_audit_log(
     ]
 
 
+# --- Billing health (admin) ---
+
+
+@router.get("/admin/health")
+async def admin_billing_health(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Admin: billing/Stripe health check. Verifies config, webhook secret, plan data."""
+    await _require_admin(current_user, db)
+    from authora.services.stripe_service import _stripe_available, is_stripe_live_mode, _get_webhook_secret
+
+    s = get_settings()
+    stripe_configured = _stripe_available()
+    webhook_secret_set = bool(_get_webhook_secret()) if stripe_configured else False
+    live_mode = is_stripe_live_mode() if stripe_configured else None
+
+    # Plan count
+    r = await db.execute(select(Plan))
+    plans = r.scalars().all()
+    plans_with_stripe = sum(1 for p in plans if getattr(p, "stripe_price_id_monthly", None) or getattr(p, "stripe_price_id_yearly", None) or getattr(p, "stripe_price_id_lifetime", None))
+
+    return {
+        "stripe_configured": stripe_configured,
+        "webhook_secret_set": webhook_secret_set,
+        "live_mode": live_mode,
+        "feature_billing": getattr(s, "feature_billing", False),
+        "plans_count": len(plans),
+        "plans_with_stripe_prices": plans_with_stripe,
+        "status": "ok" if (not stripe_configured or webhook_secret_set) else "degraded",
+    }
+
+
 # --- Stripe checkout and webhooks ---
 
 class CheckoutCreateRequest(BaseModel):

@@ -1,5 +1,12 @@
 # AUTHORA Billing & Commercial Readiness
 
+## Related Documentation
+
+- **[STRIPE_SETUP](STRIPE_SETUP.md)** – Stripe env vars, test vs live mode, products/prices
+- **[BILLING_DEPLOYMENT](BILLING_DEPLOYMENT.md)** – Production deployment checklist
+- **[ADMIN_TIER_OVERRIDES](ADMIN_TIER_OVERRIDES.md)** – Grants, promo codes, plan overrides
+- **[WEBHOOK_SETUP](WEBHOOK_SETUP.md)** – Stripe webhook verification
+
 ## Overview
 
 AUTHORA includes a subscription-ready billing architecture:

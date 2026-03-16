@@ -16,8 +16,15 @@ BACKUP_FILE="$OUTPUT_DIR/authora_$TIMESTAMP.dump"
 
 mkdir -p "$OUTPUT_DIR"
 
-if docker compose ps postgres 2>/dev/null | grep -q "Up"; then
+# Prefer prod compose if .env suggests production
+COMPOSE_FILES="-f docker-compose.yml"
+[ -f docker-compose.prod.yml ] && COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.prod.yml"
+
+if docker compose $COMPOSE_FILES ps postgres 2>/dev/null | grep -q "Up"; then
   echo "Backing up via Docker..."
+  docker compose $COMPOSE_FILES exec -T postgres pg_dump -U authora -Fc authora > "$BACKUP_FILE"
+elif docker compose ps postgres 2>/dev/null | grep -q "Up"; then
+  echo "Backing up via Docker (dev)..."
   docker compose exec -T postgres pg_dump -U authora -Fc authora > "$BACKUP_FILE"
 else
   echo "Backing up via local pg_dump..."
