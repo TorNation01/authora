@@ -81,6 +81,7 @@ from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
 from authora.models.subscription import Subscription
 from authora.models.usage_record import UsageRecord
+from authora.models.content_embedding import ContentEmbedding, IndexingJob
 
 __all__ = [
     "AccountabilitySettings",
@@ -161,4 +162,6 @@ __all__ = [
     "Plan",
     "Subscription",
     "UsageRecord",
+    "ContentEmbedding",
+    "IndexingJob",
 ]

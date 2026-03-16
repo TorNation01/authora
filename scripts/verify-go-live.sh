@@ -1,13 +1,14 @@
 #!/bin/bash
 # AUTHORA Go-Live Verification
-# Usage: ./scripts/verify-go-live.sh [base_url]
-# Runs comprehensive checks before/after go-live.
-# base_url: http://localhost:8000 or https://api.yourdomain.com
+# Usage: ./scripts/verify-go-live.sh [api_url] [web_url...]
+# api_url: http://localhost:8000 (dev) or https://api.authora.studio (prod)
+# web_url: optional, for CORS check (e.g. https://authora.studio https://app.authora.studio)
 
 set -e
 
 BASE_URL="${1:-http://localhost:8000}"
-WEB_URL="${2:-}"
+shift || true
+WEB_URLS=("$@")
 FAIL=0
 
 echo "=== AUTHORA Go-Live Verification ==="
@@ -41,14 +42,19 @@ else
   echo "   WARN (docs may be disabled)"
 fi
 
-# 4. CORS / OPTIONS (if web URL provided)
-if [ -n "$WEB_URL" ]; then
+# 4. CORS / OPTIONS (if web URL(s) provided)
+if [ ${#WEB_URLS[@]} -gt 0 ]; then
   echo "4. CORS"
-  if curl -sf -X OPTIONS "$BASE_URL/api/v1/health" -H "Origin: $WEB_URL" -H "Access-Control-Request-Method: GET" -I 2>/dev/null | grep -q "Access-Control"; then
-    echo "   PASS"
-  else
-    echo "   WARN (check CORS_ORIGINS)"
-  fi
+  CORS_OK=1
+  for WEB_URL in "${WEB_URLS[@]}"; do
+    if [ -n "$WEB_URL" ] && curl -sf -X OPTIONS "$BASE_URL/api/v1/config" -H "Origin: $WEB_URL" -H "Access-Control-Request-Method: GET" -I 2>/dev/null | grep -q "Access-Control"; then
+      echo "   PASS $WEB_URL"
+    else
+      echo "   WARN $WEB_URL (check CORS_ORIGINS)"
+      CORS_OK=0
+    fi
+  done
+  [ $CORS_OK -eq 0 ] && FAIL=1
 else
   echo "4. CORS (skip - no web URL)"
 fi

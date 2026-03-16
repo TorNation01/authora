@@ -185,6 +185,8 @@ def apply_config(req: SetupApplyRequest) -> tuple[bool, str]:
         updates["OLLAMA_ENABLED"] = str(req.ai.ollama_enabled).lower()
         if req.ai.ollama_base_url:
             updates["OLLAMA_BASE_URL"] = req.ai.ollama_base_url
+        if req.ai.ollama_hardware_tier:
+            updates["OLLAMA_HARDWARE_TIER"] = req.ai.ollama_hardware_tier
 
     if req.email and req.email.enabled:
         if req.email.smtp_host:

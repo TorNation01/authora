@@ -96,11 +96,11 @@ npm run db:seed
 ```bash
 ./scripts/healthcheck.sh http://localhost:8000
 # Or production:
-./scripts/healthcheck.sh https://api.yourdomain.com
+./scripts/healthcheck.sh https://api.authora.studio
 ```
 
 ## Go-Live Verification
 
 ```bash
-./scripts/verify-go-live.sh https://api.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio
 ```

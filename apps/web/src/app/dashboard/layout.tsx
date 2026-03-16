@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { getToken, getRefreshToken, clearTokens } from '@/lib/auth';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { getMarketingBaseUrl } from '@/lib/config';
 import { UserProvider, type UserInfo } from '@/contexts/UserContext';
 import { HelpProvider } from '@/contexts/HelpContext';
 import { HelpCenter, Walkthrough } from '@/components/help';
@@ -60,8 +61,13 @@ export default function DashboardLayout({
     }
     clearTokens();
     toast({ title: 'Signed out' });
-    router.push(config.feature_flags.standalone_landing ? '/' : '/sso');
-    router.refresh();
+    const home = config.feature_flags.standalone_landing ? (getMarketingBaseUrl() || '/') : '/sso';
+    if (home.startsWith('http')) {
+      window.location.href = home;
+    } else {
+      router.push(home);
+      router.refresh();
+    }
   }
 
   if (!ready) {

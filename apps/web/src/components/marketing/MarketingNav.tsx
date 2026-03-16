@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { getAppBaseUrl } from '@/lib/config';
 import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -44,17 +45,17 @@ export function MarketingNav() {
         <div className="flex items-center gap-4">
           {feature_flags.standalone_auth && (
             <>
-              <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
+              <Link href={`${getAppBaseUrl()}/login`} className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
                 Sign in
               </Link>
               <Button asChild size="sm">
-                <Link href="/register">Start free</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Start free</Link>
               </Button>
             </>
           )}
           {!feature_flags.standalone_auth && feature_flags.sso_ready && (
             <Button asChild size="sm">
-              <Link href="/sso">Sign in</Link>
+              <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
             </Button>
           )}
           <button
@@ -83,11 +84,11 @@ export function MarketingNav() {
             ))}
             {feature_flags.standalone_auth && (
               <div className="flex gap-3 pt-2">
-                <Link href="/login" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>
+                <Link href={`${getAppBaseUrl()}/login`} className="text-sm font-medium" onClick={() => setMobileOpen(false)}>
                   Sign in
                 </Link>
                 <Button asChild size="sm">
-                  <Link href="/register" onClick={() => setMobileOpen(false)}>
+                  <Link href={`${getAppBaseUrl()}/register`} onClick={() => setMobileOpen(false)}>
                     Start free
                   </Link>
                 </Button>

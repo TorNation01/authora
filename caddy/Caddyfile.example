@@ -1,17 +1,25 @@
-# AUTHORA Caddy Reverse Proxy - Example
-# Copy to Caddyfile and replace domains/email.
-# Or run: ./scripts/generate-caddyfile.sh (uses DOMAIN_API, DOMAIN_WEB, ACME_EMAIL from .env)
+# AUTHORA Caddy - Option 2 domain architecture
+# Run: ./scripts/generate-caddyfile.sh (uses DOMAIN_API, DOMAIN_MARKETING, DOMAIN_APP, ACME_EMAIL)
 
 {
-    email admin@yourdomain.com
+    email admin@authora.studio
 }
 
-api.yourdomain.com {
+api.authora.studio {
     reverse_proxy api:8000
     encode gzip
 }
 
-app.yourdomain.com {
+authora.studio {
     reverse_proxy web:3000
     encode gzip
+}
+
+app.authora.studio {
+    reverse_proxy web:3000
+    encode gzip
+}
+
+www.authora.studio {
+    redir https://authora.studio{uri} permanent
 }

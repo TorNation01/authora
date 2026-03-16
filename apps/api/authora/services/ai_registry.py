@@ -4,6 +4,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from authora.config import get_settings
+from authora.services.model_role_registry import (
+    get_cloud_model_for_role,
+    get_ollama_model_for_role,
+    task_to_role,
+)
 
 # Task types for model routing
 TASK_WRITING_ASSIST = "writing_assist"
@@ -112,6 +117,7 @@ def get_provider_for_task(
     preferred_provider: str | None = None,
     preferred_model: str | None = None,
     mode: str | None = None,
+    db_overrides: dict[str, str] | None = None,
 ) -> tuple[Any, str, str]:
     """
     Get (provider, model, provider_name) for a task.
@@ -127,32 +133,45 @@ def get_provider_for_task(
 
     if preferred_provider and preferred_provider in instances and preferred_provider in providers_ordered:
         p = instances[preferred_provider]
-        model = preferred_model or _get_model_for_task(p, task, preferred_provider)
+        model = preferred_model or _get_model_for_task(p, task, preferred_provider, db_overrides)
         return p, model, preferred_provider
 
     for provider_name in providers_ordered:
         if provider_name not in instances:
             continue
         provider = instances[provider_name]
-        model = _get_model_for_task(provider, task, provider_name)
+        model = _get_model_for_task(provider, task, provider_name, db_overrides)
         return provider, model, provider_name
 
     return None, "", ""
 
 
-def _get_model_for_task(provider: Any, task: str, provider_name: str) -> str:
-    """Resolve model for task and provider."""
+def _get_model_for_task(
+    provider: Any,
+    task: str,
+    provider_name: str,
+    db_overrides: dict[str, str] | None = None,
+) -> str:
+    """Resolve model for task and provider via role-based registry."""
     settings = get_settings()
     if provider_name == "ollama":
-        return settings.get_ollama_model_for_task(task)
+        role = task_to_role(task)
+        return get_ollama_model_for_role(role, db_overrides=db_overrides)
     if provider_name == "openai":
-        return settings.ai_model or "gpt-4o-mini"
+        role = task_to_role(task)
+        return get_cloud_model_for_role(role, "openai", settings.ai_model)
     if provider_name == "anthropic":
-        return settings.ai_model or "claude-3-haiku-20240307"
+        role = task_to_role(task)
+        return get_cloud_model_for_role(role, "anthropic", settings.ai_model)
     return settings.ai_model or "gpt-4o-mini"
 
 
-def get_fallback_chain(task: str, provider_name: str, mode: str | None = None) -> list[tuple[Any, str, str]]:
+def get_fallback_chain(
+    task: str,
+    provider_name: str,
+    mode: str | None = None,
+    db_overrides: dict[str, str] | None = None,
+) -> list[tuple[Any, str, str]]:
     """Get fallback chain: [(provider, model, name), ...] after primary."""
     settings = get_settings()
     effective_mode = mode or settings.ai_provider_mode
@@ -168,7 +187,7 @@ def get_fallback_chain(task: str, provider_name: str, mode: str | None = None) -
         if not started or name not in instances:
             continue
         p = instances[name]
-        model = _get_model_for_task(p, task, name)
+        model = _get_model_for_task(p, task, name, db_overrides)
         chain.append((p, model, name))
     return chain
 

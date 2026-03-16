@@ -56,5 +56,5 @@ docker compose ps
 
 Use UptimeRobot, Pingdom, or similar:
 
-- `https://api.yourdomain.com/health` every 5 min
+- `https://api.authora.studio/health` every 5 min
 - Alert on 2+ consecutive failures

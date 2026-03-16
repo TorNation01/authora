@@ -36,7 +36,7 @@ export default function SetupPage() {
   const [form, setForm] = useState({
     product_name: 'AUTHORA',
     tagline: 'AI-Powered Book Builder',
-    domain: 'localhost',
+    domain: 'authora.studio',  # Option 2: marketing; app at app.authora.studio
     use_ssl: false,
     database_url: 'postgresql://authora:authora@localhost:5432/authora',
     redis_url: 'redis://localhost:6379/0',
@@ -309,7 +309,7 @@ export default function SetupPage() {
                     id="domain"
                     value={form.domain}
                     onChange={(e) => setForm((f) => ({ ...f, domain: e.target.value }))}
-                    placeholder="localhost or your-domain.com"
+                    placeholder="authora.studio or localhost"
                   />
                 </div>
                 <label className="flex items-center gap-2">

@@ -32,8 +32,8 @@ Response shape:
 {
   "product_name": "My Writing App",
   "tagline": "Write Your Book",
-  "logo_url": "https://example.com/logo.png",
-  "favicon_url": "https://example.com/favicon.ico",
+  "logo_url": "https://authora.studio/logo.png",
+  "favicon_url": "https://authora.studio/favicon.ico",
   "primary_color": "#6366f1",
   "show_powered_by": false
 }

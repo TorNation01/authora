@@ -8,8 +8,9 @@ Use Cloudflare as reverse proxy, DNS, and optional WAF for AUTHORA.
 
 1. Add your domain to Cloudflare (or use existing).
 2. Create A/AAAA records:
-   - `api.yourdomain.com` → your server IP
-   - `app.yourdomain.com` → your server IP
+   - `api.authora.studio` → your server IP
+   - `authora.studio` → your server IP
+   - `app.authora.studio` → your server IP
 3. Set proxy status to **Proxied** (orange cloud) for SSL and DDoS protection.
 
 ---
@@ -45,7 +46,7 @@ If you don’t want to expose ports 80/443:
 
 1. Install `cloudflared` on the server.
 2. Create a tunnel: `cloudflared tunnel create authora`.
-3. Configure ingress (e.g. `https://api.yourdomain.com` → `http://localhost:8000`).
+3. Configure ingress (e.g. `https://api.authora.studio` → `http://localhost:8000`).
 4. Run `cloudflared tunnel run authora`.
 
 ---
@@ -53,11 +54,14 @@ If you don’t want to expose ports 80/443:
 ## 4. Environment Variables
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-DOMAIN_API=api.yourdomain.com
-DOMAIN_WEB=app.yourdomain.com
-ACME_EMAIL=admin@yourdomain.com
-CORS_ORIGINS=["https://app.yourdomain.com"]
+NEXT_PUBLIC_API_URL=https://api.authora.studio
+NEXT_PUBLIC_MARKETING_URL=https://authora.studio
+NEXT_PUBLIC_APP_URL=https://app.authora.studio
+DOMAIN_API=api.authora.studio
+DOMAIN_MARKETING=authora.studio
+DOMAIN_APP=app.authora.studio
+ACME_EMAIL=admin@authora.studio
+CORS_ORIGINS=["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]
 ```
 
 ---

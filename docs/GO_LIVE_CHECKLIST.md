@@ -1,16 +1,19 @@
 # AUTHORA Go-Live Checklist
 
-Pre- and post-deployment validation for production go-live.
+Pre- and post-deployment validation for production go-live (Option 2: authora.studio, app.authora.studio, api.authora.studio).
 
 ## Pre-Deploy
 
 - [ ] `.env` configured with production values
 - [ ] `SECRET_KEY` changed (not default) — `openssl rand -hex 32`
-- [ ] `NEXT_PUBLIC_API_URL` set to public API URL (e.g. `https://api.yourdomain.com`)
-- [ ] `DOMAIN_API`, `DOMAIN_WEB`, `ACME_EMAIL` set for Caddy
-- [ ] `./scripts/validate-env.sh production` passes
+- [ ] `NEXT_PUBLIC_API_URL` = `https://api.authora.studio`
+- [ ] `NEXT_PUBLIC_MARKETING_URL` = `https://authora.studio`
+- [ ] `NEXT_PUBLIC_APP_URL` = `https://app.authora.studio`
+- [ ] `CORS_ORIGINS` = `["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]`
+- [ ] `DOMAIN_API`, `DOMAIN_MARKETING`, `DOMAIN_APP`, `ACME_EMAIL` set for Caddy
+- [ ] `./scripts/validate-env.sh production` passes (if available)
 - [ ] `caddy/Caddyfile` exists (run `./scripts/generate-caddyfile.sh` if needed)
-- [ ] DNS A records point to server for `DOMAIN_API` and `DOMAIN_WEB`
+- [ ] DNS A/CNAME for `api.authora.studio`, `authora.studio`, `app.authora.studio`
 - [ ] Firewall allows 80, 443 (and 22 for SSH)
 
 ## Deploy
@@ -28,25 +31,25 @@ npm run deploy:prod
 ## Post-Deploy Verification
 
 ```bash
-./scripts/verify-go-live.sh https://api.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio
 ```
 
 Or manual:
 
 1. **API health**
    ```bash
-   curl -sf https://api.yourdomain.com/health
+   curl -sf https://api.authora.studio/health
    # Expect: {"status":"ok","app":"AUTHORA"}
    ```
 
 2. **Readiness**
    ```bash
-   curl -sf https://api.yourdomain.com/health/ready
+   curl -sf https://api.authora.studio/health/ready
    # Expect: {"status":"ready","checks":{"database":true,"redis":true}}
    ```
 
 3. **Web app**
-   - Open https://app.yourdomain.com
+   - Open https://authora.studio
    - Login or register
    - Create a project
 
@@ -68,6 +71,15 @@ Or manual:
 ```bash
 ./scripts/rollback.sh ./backups/authora_YYYYMMDD_HHMMSS.dump prod
 ```
+
+## Domain Documentation
+
+- [DOMAIN_ARCHITECTURE.md](DOMAIN_ARCHITECTURE.md) — Option 2 structure (authora.studio, app.authora.studio, api.authora.studio)
+- [DOMAIN_ENV_EXAMPLES.md](DOMAIN_ENV_EXAMPLES.md) — Exact env values
+- [DOMAIN_REVERSE_PROXY.md](DOMAIN_REVERSE_PROXY.md) — Reverse proxy setup
+- [DOMAIN_DNS_RECORDS.md](DOMAIN_DNS_RECORDS.md) — DNS record summary
+- [DOMAIN_SSL_GO_LIVE.md](DOMAIN_SSL_GO_LIVE.md) — SSL and go-live checklist
+- [DOMAIN_AUTH_SESSION.md](DOMAIN_AUTH_SESSION.md) — Auth/session/cookie strategy
 
 ## Known Manual Steps
 

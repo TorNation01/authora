@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Plus, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface Book {
@@ -47,12 +47,20 @@ export default function ProjectPage() {
         backHref="/dashboard"
         backLabel="Back to Home"
         actions={
-          <Button asChild>
-            <Link href={`/dashboard/projects/${projectId}/books/new`}>
-              <Plus className="h-4 w-4 mr-2" />
-              New book
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/search`}>
+                <Search className="h-4 w-4 mr-2" />
+                Search
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/dashboard/projects/${projectId}/books/new`}>
+                <Plus className="h-4 w-4 mr-2" />
+                New book
+              </Link>
+            </Button>
+          </div>
         }
       />
 

@@ -255,21 +255,25 @@ async def build_workspace_context(
     book_type: BookType,
     chapter_id: UUID | None = None,
     include_recent: bool = True,
+    project_id: UUID | None = None,
+    rag_query: str | None = None,
+    user_id: UUID | None = None,
 ) -> str:
-    """Build workspace context for AI prompts."""
+    """Build workspace context for AI prompts. Optionally augments with RAG-retrieved chunks."""
+    parts: list[str] = []
     if book_type == BookType.FICTION:
         from authora.services.fiction_ai import build_fiction_context
 
-        return await build_fiction_context(
+        parts.append(await build_fiction_context(
             db, book_id, chapter_id, include_recent=include_recent
-        )
-    if book_type == BookType.NONFICTION:
+        ))
+    elif book_type == BookType.NONFICTION:
         from authora.services.nonfiction_ai import build_nonfiction_context
 
-        return await build_nonfiction_context(
+        parts.append(await build_nonfiction_context(
             db, book_id, chapter_id, include_recent=include_recent
-        )
-    if chapter_id and include_recent:
+        ))
+    elif chapter_id and include_recent:
         from sqlalchemy import select
 
         from authora.models import Chapter
@@ -282,8 +286,36 @@ async def build_workspace_context(
         if ch and ch.content:
             text = tiptap_to_plain_text(ch.content)
             if text:
-                return f"CURRENT CHAPTER (last ~2000 chars):\n{text[-2000:]}"
-    return ""
+                parts.append(f"CURRENT CHAPTER (last ~2000 chars):\n{text[-2000:]}")
+
+    if rag_query and project_id and user_id:
+        from authora.config import get_settings
+        from authora.services.embedding_service import is_embeddings_configured
+        from authora.services.rag import semantic_search
+
+        s = get_settings()
+        if is_embeddings_configured():
+            from authora.services.hardware_model_mapping import get_rag_limits_for_tier
+            from authora.services.hardware_tier import get_hardware_tier
+
+            limit = s.rag_max_chunks
+            if s.ollama_enabled:
+                profile = get_hardware_tier(getattr(s, "ollama_hardware_tier", None))
+                tier_limits = get_rag_limits_for_tier(profile.tier)
+                limit = tier_limits.get("rag_max_chunks", limit)
+            chunks = await semantic_search(
+                db, project_id, rag_query,
+                user_id=user_id, book_id=book_id,
+                limit=limit,
+            )
+            if chunks:
+                rag_text = "\n\n---\n\n".join(
+                    f"[{r.source_type}] {r.content_text[:800]}{'...' if len(r.content_text) > 800 else ''}"
+                    for r in chunks
+                )
+                parts.append(f"RELEVANT CONTEXT FROM YOUR PROJECT:\n{rag_text}")
+
+    return "\n\n".join(p for p in parts if p)
 
 
 def get_action_definition(action_id: str) -> ActionDefinition | None:

@@ -682,3 +682,212 @@ async def admin_ollama_models(current_user: AdminUser):
         }
     except Exception as e:
         return {"models": [], "error": str(e)}
+
+
+# --- Embeddings / RAG admin ---
+
+
+@router.get("/ai/embeddings")
+async def admin_embeddings_config(current_user: AdminUser):
+    """Embeddings and RAG config."""
+    from authora.services.embedding_service import get_embedding_provider, is_embeddings_configured
+
+    s = get_settings()
+    provider = get_embedding_provider()
+    return {
+        "embeddings_enabled": is_embeddings_configured(),
+        "embeddings_provider": s.embeddings_provider,
+        "ollama_embedding_model": s.ollama_embedding_model,
+        "ollama_embedding_base_url": s.ollama_embedding_base_url or s.ollama_base_url,
+        "rag_max_chunks": s.rag_max_chunks,
+        "rag_chunk_size": s.rag_chunk_size,
+        "provider_ok": (await provider.health_check())[0] if provider else False,
+    }
+
+
+@router.get("/ai/embeddings/ollama/health")
+async def admin_embeddings_ollama_health(current_user: AdminUser):
+    """Check Ollama embeddings connectivity."""
+    from authora.infrastructure.embedding_provider.ollama_embedding_provider import (
+        OllamaEmbeddingProvider,
+    )
+
+    s = get_settings()
+    base_url = s.ollama_embedding_base_url or s.ollama_base_url
+    p = OllamaEmbeddingProvider(base_url=base_url, model=s.ollama_embedding_model)
+    ok, msg = await p.health_check()
+    return {"ok": ok, "message": msg}
+
+
+@router.get("/ai/embeddings/ollama/models")
+async def admin_embeddings_ollama_models(current_user: AdminUser):
+    """List Ollama embedding models."""
+    from authora.infrastructure.embedding_provider.ollama_embedding_provider import (
+        OllamaEmbeddingProvider,
+    )
+
+    s = get_settings()
+    base_url = s.ollama_embedding_base_url or s.ollama_base_url
+    p = OllamaEmbeddingProvider(base_url=base_url, model=s.ollama_embedding_model)
+    try:
+        models = await p.list_embedding_models()
+        return {"models": [{"name": m.get("name")} for m in models], "base_url": base_url}
+    except Exception as e:
+        return {"models": [], "error": str(e)}
+
+
+# --- Model role mapping (Ollama task→model assignments) ---
+
+
+@router.get("/ai/model-roles")
+async def admin_ai_model_roles(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get role→model mappings, hardware tier, available Ollama models, and fallback chains."""
+    from authora.services.ai_model_settings import get_ai_model_role_overrides
+    from authora.services.model_role_registry import (
+        CLOUD_FALLBACK_MODELS,
+        OLLAMA_DEFAULT_MODELS,
+        ROLE_IDS,
+        get_all_role_mappings,
+    )
+    from authora.services.hardware_tier import get_hardware_tier, TIER_LABELS, TIER_DESCRIPTIONS
+    from authora.services.hardware_model_mapping import (
+        get_tier_recommended_mapping,
+        get_fallback_chain_for_role,
+        apply_fallback_to_mappings,
+        get_rag_limits_for_tier,
+    )
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    s = get_settings()
+    db_overrides = await get_ai_model_role_overrides(db)
+    mappings = get_all_role_mappings(db_overrides=db_overrides)
+
+    profile = get_hardware_tier(getattr(s, "ollama_hardware_tier", None))
+    tier_recommended = get_tier_recommended_mapping(profile.tier)
+    fallback_chains = {role: get_fallback_chain_for_role(role) for role in ROLE_IDS}
+    rag_limits = get_rag_limits_for_tier(profile.tier)
+
+    ollama_models: list[dict[str, Any]] = []
+    available_names: set[str] = set()
+    if s.ollama_enabled:
+        try:
+            p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+            raw = await p.list_models()
+            ollama_models = [{"name": m.get("name"), "size": m.get("size")} for m in raw]
+            available_names = {m.get("name") for m in raw if m.get("name")}
+        except Exception:
+            ollama_models = []
+
+    effective_mappings = mappings
+    if s.ollama_enabled and available_names:
+        current = {r: mappings[r]["ollama"] for r in ROLE_IDS}
+        effective = apply_fallback_to_mappings(current, available_names, profile.tier)
+        effective_mappings = {
+            r: {"ollama": effective[r], **{k: v for k, v in mappings[r].items() if k != "ollama"}}
+            for r in ROLE_IDS
+        }
+
+    return {
+        "roles": ROLE_IDS,
+        "mappings": mappings,
+        "effective_mappings": effective_mappings,
+        "defaults": OLLAMA_DEFAULT_MODELS,
+        "tier_recommended": tier_recommended,
+        "cloud_fallbacks": CLOUD_FALLBACK_MODELS,
+        "ollama_models": ollama_models,
+        "ollama_base_url": s.ollama_base_url if s.ollama_enabled else None,
+        "db_overrides": db_overrides,
+        "hardware_tier": {
+            "id": profile.tier,
+            "label": TIER_LABELS.get(profile.tier, profile.tier),
+            "description": TIER_DESCRIPTIONS.get(profile.tier, ""),
+            "source": profile.source,
+            "detection_message": profile.detection_message,
+            "ram_gb": profile.total_ram_gb,
+            "vram_gb": profile.vram_gb,
+        },
+        "fallback_chains": fallback_chains,
+        "rag_limits": rag_limits,
+    }
+
+
+class ModelRoleUpdate(BaseModel):
+    mappings: dict[str, str] = Field(..., description="Role ID → model name (e.g. quick_assist_model: qwen3:4b)")
+
+
+@router.put("/ai/model-roles")
+async def admin_update_model_roles(
+    data: ModelRoleUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update role→model overrides (stored in Setting)."""
+    from authora.services.ai_model_settings import save_ai_model_role_overrides
+
+    saved = await save_ai_model_role_overrides(db, data.mappings)
+    await db.commit()
+    return {"ok": True, "mappings": saved}
+
+
+@router.post("/ai/model-roles/apply-recommended")
+async def admin_apply_recommended_model_roles(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Apply hardware-tier recommended mapping, with fallback when models missing."""
+    from authora.services.ai_model_settings import save_ai_model_role_overrides
+    from authora.services.hardware_tier import get_hardware_tier
+    from authora.services.hardware_model_mapping import (
+        get_tier_recommended_mapping,
+        apply_fallback_to_mappings,
+        get_available_ollama_models,
+    )
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    s = get_settings()
+    if not s.ollama_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ollama is not enabled")
+
+    profile = get_hardware_tier(getattr(s, "ollama_hardware_tier", None))
+    recommended = get_tier_recommended_mapping(profile.tier)
+    available = await get_available_ollama_models(s.ollama_base_url)
+    effective = apply_fallback_to_mappings(recommended, available, profile.tier)
+    saved = await save_ai_model_role_overrides(db, effective)
+    await db.commit()
+    return {"ok": True, "mappings": saved, "tier": profile.tier}
+
+
+@router.get("/ai/model-roles/validate")
+async def admin_validate_model_roles(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Validate that selected models exist in Ollama."""
+    from authora.services.ai_model_settings import get_ai_model_role_overrides
+    from authora.services.model_role_registry import get_ollama_model_for_role, ROLE_IDS
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    s = get_settings()
+    if not s.ollama_enabled:
+        return {"valid": False, "message": "Ollama is not enabled", "results": {}}
+
+    db_overrides = await get_ai_model_role_overrides(db)
+    try:
+        p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+        available = {m.get("name") for m in await p.list_models() if m.get("name")}
+    except Exception as e:
+        return {"valid": False, "message": str(e), "results": {}}
+
+    results: dict[str, dict[str, Any]] = {}
+    all_valid = True
+    for role in ROLE_IDS:
+        model = get_ollama_model_for_role(role, db_overrides=db_overrides)
+        found = model in available
+        if not found:
+            all_valid = False
+        results[role] = {"model": model, "valid": found}
+
+    return {"valid": all_valid, "results": results, "available_count": len(available)}

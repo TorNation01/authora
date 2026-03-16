@@ -271,8 +271,8 @@ npm run health
 ### Production (via domain)
 
 ```bash
-curl -sf https://api.yourdomain.com/health
-curl -sf https://api.yourdomain.com/health/ready
+curl -sf https://api.authora.studio/health
+curl -sf https://api.authora.studio/health/ready
 ```
 
 Expected: `{"status":"ok"}` and `{"status":"ready","checks":{...}}`

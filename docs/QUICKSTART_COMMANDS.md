@@ -19,7 +19,7 @@ chmod +x scripts/*.sh
 
 # 3. Configure
 cp .env.example .env
-nano .env   # Set SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL, DOMAIN_API, DOMAIN_WEB, ACME_EMAIL
+nano .env   # Set SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_*_URL, DOMAIN_*, CORS_ORIGINS, ACME_EMAIL
 
 # 4. Validate and deploy
 source .env && ./scripts/validate-env.sh production
@@ -115,7 +115,7 @@ cd /path/to/authora
 
 ```bash
 ./scripts/healthcheck.sh
-# Or production: ./scripts/healthcheck.sh https://api.yourdomain.com
+# Or production: ./scripts/healthcheck.sh https://api.authora.studio
 ```
 
 ---
@@ -123,7 +123,7 @@ cd /path/to/authora
 ## Go-Live Verify
 
 ```bash
-./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio
 ```
 
 ---

@@ -33,12 +33,18 @@ async def complete_stream(
     max_tokens: int = 2048,
     task: str = "general",
     project_prefs: dict | None = None,
+    db_overrides: dict[str, str] | None = None,
 ) -> AsyncGenerator[str, None]:
     """Stream AI completion. Uses provider registry and fallback. Yields text chunks."""
     from authora.services.ai_provider import complete_with_retry
 
     async for chunk in complete_with_retry(
-        prompt, system_prompt, max_tokens, task=task, project_prefs=project_prefs
+        prompt,
+        system_prompt,
+        max_tokens,
+        task=task,
+        project_prefs=project_prefs,
+        db_overrides=db_overrides,
     ):
         yield chunk
 
@@ -49,6 +55,7 @@ async def complete_sync(
     max_tokens: int = 2048,
     task: str = "general",
     project_prefs: dict | None = None,
+    db_overrides: dict[str, str] | None = None,
 ) -> AICompletionResult:
     """Non-streaming completion with token metadata. Uses provider registry and fallback."""
     from authora.services.ai_registry import get_fallback_chain, get_provider_for_task
@@ -56,8 +63,9 @@ async def complete_sync(
     provider, model, provider_name = get_provider_for_task(
         task=task,
         project_prefs=project_prefs,
+        db_overrides=db_overrides,
     )
-    fallbacks = get_fallback_chain(task, provider_name) if provider else []
+    fallbacks = get_fallback_chain(task, provider_name, db_overrides=db_overrides) if provider else []
     chain = [(provider, model, provider_name)] + fallbacks
 
     last_err: Exception | None = None

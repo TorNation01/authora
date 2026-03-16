@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { BookOpen } from 'lucide-react';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { getAppBaseUrl } from '@/lib/config';
 
 export function HeroSection() {
   const config = useConfig();
@@ -29,7 +30,7 @@ export function HeroSection() {
             {feature_flags.standalone_auth && (
               <>
                 <Button asChild size="lg" className="min-w-[200px]" data-analytics="cta-start-writing">
-                  <Link href="/register">Start writing free</Link>
+                  <Link href={`${getAppBaseUrl()}/register`}>Start writing free</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="min-w-[200px]">
                   <Link href="/demo">Request demo</Link>
@@ -38,7 +39,7 @@ export function HeroSection() {
             )}
             {!feature_flags.standalone_auth && feature_flags.sso_ready && (
               <Button asChild size="lg" className="min-w-[200px]">
-                <Link href="/sso">Sign in</Link>
+                <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
               </Button>
             )}
           </div>

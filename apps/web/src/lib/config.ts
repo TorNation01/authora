@@ -139,3 +139,29 @@ export function getConfigSync(): AppConfig {
 export function clearConfigCache(): void {
   cachedConfig = null;
 }
+
+/** App subdomain base URL for links from marketing (e.g. https://app.authora.studio). Empty for local dev (use relative paths). */
+export function getAppBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return '';
+    const app = process.env.NEXT_PUBLIC_APP_URL;
+    if (app) return app.replace(/\/$/, '');
+    if (host === 'authora.studio' || host === 'www.authora.studio') return 'https://app.authora.studio';
+  }
+  const app = process.env.NEXT_PUBLIC_APP_URL;
+  if (app) return app.replace(/\/$/, '');
+  return '';
+}
+
+/** Marketing base URL for links from app (e.g. https://authora.studio). Empty for local dev. */
+export function getMarketingBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return '';
+    const m = process.env.NEXT_PUBLIC_MARKETING_URL;
+    if (m) return m.replace(/\/$/, '');
+    if (host === 'app.authora.studio') return 'https://authora.studio';
+  }
+  return process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, '') || '';
+}

@@ -128,7 +128,7 @@ For a single-command production deploy from scratch:
 ## 6. First Admin Creation Instructions
 
 **Option A: Setup wizard (web)**
-1. Visit `https://your-domain/setup` (or `http://localhost:3000/setup` in dev)
+1. Visit `https://app.authora.studio/setup` (or `http://localhost:3000/setup` in dev)
 2. Complete the 10-step wizard (DB, Redis, branding, admin user)
 3. Admin account is created at finalize
 
@@ -142,7 +142,7 @@ npm run db:seed
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"YourSecurePassword","name":"Admin"}'
+  -d '{"email":"admin@authora.studio","password":"YourSecurePassword","display_name":"Admin"}'
 ```
 
 **Option D: Local admin creation (feature flag)**
@@ -153,9 +153,9 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 
 ## 7. Post-Deploy Validation Checklist
 
-- [ ] **Health**: `curl https://api.yourdomain.com/health` returns `{"status":"ok"}`
-- [ ] **Readiness**: `curl https://api.yourdomain.com/health/ready` returns `{"status":"ready"}`
-- [ ] **Web loads**: `https://app.yourdomain.com` loads marketing/landing
+- [ ] **Health**: `curl https://api.authora.studio/health` returns `{"status":"ok"}`
+- [ ] **Readiness**: `curl https://api.authora.studio/health/ready` returns `{"status":"ready"}`
+- [ ] **Web loads**: `https://authora.studio` loads marketing/landing
 - [ ] **Login**: Can sign in with admin account
 - [ ] **Dashboard**: Projects, journey, accountability visible
 - [ ] **Create project**: Can create project and book

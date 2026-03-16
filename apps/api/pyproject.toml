@@ -29,6 +29,7 @@ dependencies = [
     "reportlab>=4.0.0",
     "ebooklib>=0.18.0",
     "structlog>=24.1.0",
+    "pgvector>=0.2.0",
 ]
 
 [project.optional-dependencies]

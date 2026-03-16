@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { setTokens } from '@/lib/auth';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { getMarketingBaseUrl } from '@/lib/config';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -57,7 +58,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <Link
-          href="/"
+          href={getMarketingBaseUrl() || '/'}
           className="mb-8 inline-block font-serif text-xl font-bold text-foreground hover:text-primary transition-colors"
         >
           {config.branding.product_name}

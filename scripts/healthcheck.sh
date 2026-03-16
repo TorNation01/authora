@@ -1,7 +1,7 @@
 #!/bin/bash
 # AUTHORA Health Check
 # Usage: ./scripts/healthcheck.sh [base_url]
-# base_url: http://localhost:8000 (default) or https://api.yourdomain.com
+# base_url: http://localhost:8000 (default) or https://api.authora.studio (prod)
 # Exit 0 if healthy, 1 otherwise.
 
 set -e

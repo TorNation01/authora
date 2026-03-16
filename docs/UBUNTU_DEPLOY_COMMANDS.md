@@ -100,9 +100,9 @@ nano .env
 - `SECRET_KEY` — generate: `openssl rand -hex 32`
 - `DATABASE_URL` — e.g. `postgresql://authora:PASSWORD@postgres:5432/authora`
 - `REDIS_URL` — e.g. `redis://redis:6379/0`
-- `NEXT_PUBLIC_API_URL` — e.g. `https://api.yourdomain.com`
-- `DOMAIN_API` — e.g. `api.yourdomain.com`
-- `DOMAIN_WEB` — e.g. `app.yourdomain.com`
+- `NEXT_PUBLIC_API_URL` — e.g. `https://api.authora.studio`
+- `DOMAIN_API` — e.g. `api.authora.studio`
+- `DOMAIN_WEB` — e.g. `authora.studio`
 - `ACME_EMAIL` — for Let's Encrypt
 
 **Validate:**
@@ -178,7 +178,7 @@ Default: `admin@authora.local` / `admin123`
 
 ```bash
 cd authora
-./scripts/healthcheck.sh https://api.yourdomain.com
+./scripts/healthcheck.sh https://api.authora.studio
 ```
 
 ---
@@ -187,7 +187,7 @@ cd authora
 
 ```bash
 cd authora
-./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio
 ```
 
 ---
@@ -266,4 +266,4 @@ crontab -e
 | 6. Caddyfile | `./scripts/generate-caddyfile.sh` |
 | 7. Deploy | `./scripts/bootstrap-prod.sh` |
 | 8. First admin | `./scripts/first-admin.sh --docker --prod` |
-| 9. Verify | `./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com` |
+| 9. Verify | `./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio` |

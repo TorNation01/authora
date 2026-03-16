@@ -18,8 +18,14 @@ const crimson = Crimson_Pro({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_MARKETING_URL || process.env.NEXT_PUBLIC_WEB_URL || 'https://authora.studio'),
   title: 'AUTHORA - AI-Powered Book Builder',
   description: 'Your guided writing journey from idea to finished book',
+  openGraph: {
+    url: '/',
+    siteName: 'AUTHORA',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({

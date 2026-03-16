@@ -83,12 +83,29 @@ class Settings(BaseSettings):
     ollama_enabled: bool = False
     ollama_base_url: str = "http://localhost:11434"
     ollama_model_default: str = "llama3.2"
-    # Task-specific Ollama models (JSON or env: OLLAMA_MODEL_WRITING_ASSIST=llama3.2)
+    # Hardware tier: 1=light, 2=balanced, 3=strong, 4=premium. Auto-detected if unset.
+    ollama_hardware_tier: Optional[str] = None
+    # Legacy task-specific (superseded by role-based)
     ollama_model_writing_assist: Optional[str] = None
     ollama_model_fiction_ideation: Optional[str] = None
     ollama_model_nonfiction_structure: Optional[str] = None
     ollama_model_ghostwriting: Optional[str] = None
     ollama_model_editing_polish: Optional[str] = None
+    # Role-based model mapping (OLLAMA_MODEL_QUICK_ASSIST, etc.)
+    ollama_model_quick_assist: Optional[str] = None
+    ollama_model_default_writing: Optional[str] = None
+    ollama_model_premium_drafting: Optional[str] = None
+    ollama_model_embeddings: Optional[str] = None
+    ollama_model_optional_vision: Optional[str] = None
+
+    # Embeddings (RAG / semantic search)
+    embeddings_provider: str = "ollama"  # ollama | openai (future)
+    embeddings_enabled: bool = False
+    ollama_embedding_model: str = "nomic-embed-text"
+    ollama_embedding_base_url: Optional[str] = None  # defaults to ollama_base_url
+    rag_max_chunks: int = 5
+    rag_chunk_size: int = 800
+    rag_chunk_overlap: int = 100
 
     # Export
     max_export_size_mb: int = 50

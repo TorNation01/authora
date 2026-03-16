@@ -39,13 +39,13 @@ Admins can override a user's plan via billing API or admin users API:
 
 ```bash
 # Billing API
-curl -X PATCH "https://api.example.com/api/v1/billing/admin/users/{user_id}/plan" \
+curl -X PATCH "https://api.authora.studio/api/v1/billing/admin/users/{user_id}/plan" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"plan_slug": "premium"}'   # or {"billing_exempt": true}
 
 # Admin users API (includes plan override)
-curl -X PATCH "https://api.example.com/api/v1/admin/users/{user_id}" \
+curl -X PATCH "https://api.authora.studio/api/v1/admin/users/{user_id}" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"plan_override_slug": "premium"}'   # or "" to clear

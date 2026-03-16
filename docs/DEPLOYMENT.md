@@ -94,11 +94,11 @@ Overrides for production:
 Edit `caddy/Caddyfile` with your domains:
 
 ```
-api.yourdomain.com {
+api.authora.studio {
     reverse_proxy api:8000
 }
 
-app.yourdomain.com {
+authora.studio {
     reverse_proxy web:3000
 }
 ```

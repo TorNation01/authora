@@ -225,7 +225,7 @@ cd authora
 **Production API URL:**
 
 ```bash
-./scripts/healthcheck.sh https://api.yourdomain.com
+./scripts/healthcheck.sh https://api.authora.studio
 ```
 
 **Via npm:**
@@ -295,7 +295,7 @@ cd authora
 **Production:**
 
 ```bash
-./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio
 ```
 
 Second arg (web URL) is optional; used for CORS check.
@@ -335,7 +335,7 @@ Second arg (web URL) is optional; used for CORS check.
 
 ```cron
 # Reminders (hourly)
-0 * * * * cd /path/to/authora && curl -X POST -H "X-Cron-Secret: YOUR_CRON_SECRET" https://api.yourdomain.com/api/v1/accountability/cron/reminders
+0 * * * * cd /path/to/authora && curl -X POST -H "X-Cron-Secret: YOUR_CRON_SECRET" https://api.authora.studio/api/v1/accountability/cron/reminders
 
 # Backup (daily 2am)
 0 2 * * * cd /path/to/authora && ./scripts/backup.sh

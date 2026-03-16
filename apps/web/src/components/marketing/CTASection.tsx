@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { getAppBaseUrl } from '@/lib/config';
 
 export function CTASection() {
   const config = useConfig();
@@ -21,7 +22,7 @@ export function CTASection() {
           {feature_flags.standalone_auth && (
             <>
               <Button asChild size="lg" className="min-w-[200px]">
-                <Link href="/register">Create your account</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Create your account</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="min-w-[200px]">
                 <Link href="/demo">Request a demo</Link>
@@ -30,7 +31,7 @@ export function CTASection() {
           )}
           {!feature_flags.standalone_auth && feature_flags.sso_ready && (
             <Button asChild size="lg" className="min-w-[200px]">
-              <Link href="/sso">Sign in</Link>
+              <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
             </Button>
           )}
         </div>

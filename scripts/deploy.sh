@@ -46,7 +46,7 @@ if [ "$MODE" = "prod" ]; then
   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
   echo ""
-  echo "Production deploy complete. Verify: ./scripts/healthcheck.sh https://api.yourdomain.com"
+  echo "Production deploy complete. Verify: ./scripts/healthcheck.sh https://api.authora.studio"
 else
   echo "Starting PostgreSQL and Redis..."
   docker compose up -d postgres redis

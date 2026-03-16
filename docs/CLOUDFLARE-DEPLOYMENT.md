@@ -17,22 +17,24 @@ tunnel: <TUNNEL_ID>
 credentials-file: /path/to/<TUNNEL_ID>.json
 
 ingress:
-  - hostname: api.yourdomain.com
+  - hostname: api.authora.studio
     service: http://localhost:8000
-  - hostname: app.yourdomain.com
+  - hostname: authora.studio
+    service: http://localhost:3000
+  - hostname: app.authora.studio
     service: http://localhost:3000
   - service: http_status:404
 ```
 
 4. Run: `cloudflared tunnel run authora`
-5. In Cloudflare Dashboard: DNS → CNAME api.yourdomain.com → <tunnel-id>.cfargotunnel.com
+5. In Cloudflare Dashboard: DNS → CNAME api.authora.studio → your-tunnel-id.cfargotunnel.com
 
 ### Option 2: Cloudflare Proxy (orange cloud)
 
 Point your domain to your server IP. Cloudflare proxies traffic.
 
-1. Add A record: `api.yourdomain.com` → your server IP
-2. Add A record: `app.yourdomain.com` → your server IP
+1. Add A record: `api.authora.studio` → your server IP
+2. Add A record: `authora.studio` → your server IP
 3. Enable proxy (orange cloud)
 4. SSL/TLS mode: Full (strict) if you have origin certs, or Full
 5. Run Caddy/Nginx with Let's Encrypt on origin
@@ -48,8 +50,8 @@ Point your domain to your server IP. Cloudflare proxies traffic.
 When behind Cloudflare, ensure:
 
 ```
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-CORS_ORIGINS=["https://app.yourdomain.com","https://yourdomain.com"]
+NEXT_PUBLIC_API_URL=https://api.authora.studio
+CORS_ORIGINS=["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]
 ```
 
 ## Cloudflare Settings

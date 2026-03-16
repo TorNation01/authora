@@ -78,8 +78,8 @@ Override via environment:
 ```env
 BRANDING_PRODUCT_NAME=My Writing App
 BRANDING_TAGLINE=Write Your Book
-BRANDING_LOGO_URL=https://example.com/logo.png
-BRANDING_FAVICON_URL=https://example.com/favicon.ico
+BRANDING_LOGO_URL=https://authora.studio/logo.png
+BRANDING_FAVICON_URL=https://authora.studio/favicon.ico
 BRANDING_PRIMARY_COLOR=#6366f1
 BRANDING_SHOW_POWERED_BY=false
 ```
@@ -133,7 +133,7 @@ Example iframe integration:
 
 ```html
 <iframe
-  src="https://authora.example.com/dashboard?token=..."
+  src="https://app.authora.studio/dashboard?token=..."
   data-authora-embed="true"
   title="AUTHORA"
 ></iframe>

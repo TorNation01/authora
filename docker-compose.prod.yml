@@ -1,7 +1,7 @@
 # AUTHORA production overrides
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-# Requires .env with: SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL
-# Optional: DOMAIN_API, DOMAIN_WEB, ACME_EMAIL (for Caddyfile generation)
+# Requires .env with: SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL, NEXT_PUBLIC_MARKETING_URL, NEXT_PUBLIC_APP_URL
+# Optional: DOMAIN_API, DOMAIN_MARKETING, DOMAIN_APP, CORS_ORIGINS, ACME_EMAIL (for Caddyfile generation)
 
 services:
   caddy:
@@ -37,6 +37,7 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]}
     # No port exposure - accessed via Caddy reverse proxy
     ports: []
 
@@ -44,8 +45,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.example.com}
-      API_URL: ${API_URL:-${NEXT_PUBLIC_API_URL:-https://api.example.com}}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.authora.studio}
+      NEXT_PUBLIC_MARKETING_URL: ${NEXT_PUBLIC_MARKETING_URL:-https://authora.studio}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://app.authora.studio}
+      API_URL: ${API_URL:-${NEXT_PUBLIC_API_URL:-https://api.authora.studio}}
     ports: []
 
 volumes:

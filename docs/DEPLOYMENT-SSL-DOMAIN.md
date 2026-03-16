@@ -16,11 +16,14 @@ For Caddy + Let’s Encrypt, port 80 must be reachable (or use DNS-01).
 ### .env Configuration
 
 ```env
-DOMAIN_API=api.yourdomain.com
-DOMAIN_WEB=app.yourdomain.com
-ACME_EMAIL=admin@yourdomain.com
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-CORS_ORIGINS=["https://app.yourdomain.com"]
+DOMAIN_API=api.authora.studio
+DOMAIN_MARKETING=authora.studio
+DOMAIN_APP=app.authora.studio
+ACME_EMAIL=admin@authora.studio
+NEXT_PUBLIC_API_URL=https://api.authora.studio
+NEXT_PUBLIC_MARKETING_URL=https://authora.studio
+NEXT_PUBLIC_APP_URL=https://app.authora.studio
+CORS_ORIGINS=["https://authora.studio","https://www.authora.studio","https://app.authora.studio"]
 ```
 
 ---
@@ -50,7 +53,7 @@ If using Nginx instead of Caddy:
 sudo apt install certbot python3-certbot-nginx
 
 # Obtain certs
-sudo certbot --nginx -d api.yourdomain.com -d app.yourdomain.com
+sudo certbot --nginx -d api.authora.studio -d authora.studio -d app.authora.studio -d www.authora.studio
 ```
 
 Example Nginx config:
@@ -58,9 +61,9 @@ Example Nginx config:
 ```nginx
 server {
     listen 443 ssl;
-    server_name api.yourdomain.com;
-    ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;
+    server_name api.authora.studio;
+    ssl_certificate /etc/letsencrypt/live/api.authora.studio/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.authora.studio/privkey.pem;
     location / {
         proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
@@ -80,7 +83,7 @@ Caddy redirects HTTP to HTTPS by default. For Nginx:
 ```nginx
 server {
     listen 80;
-    server_name api.yourdomain.com app.yourdomain.com;
+    server_name api.authora.studio authora.studio;
     return 301 https://$host$request_uri;
 }
 ```

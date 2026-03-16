@@ -45,10 +45,10 @@ nano .env
 # Set: SECRET_KEY=$(openssl rand -hex 32)
 #      DATABASE_URL=postgresql://authora:YOUR_PASSWORD@postgres:5432/authora
 #      REDIS_URL=redis://redis:6379/0
-#      NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-#      DOMAIN_API=api.yourdomain.com
-#      DOMAIN_WEB=app.yourdomain.com
-#      ACME_EMAIL=admin@yourdomain.com
+#      NEXT_PUBLIC_API_URL=https://api.authora.studio
+#      DOMAIN_API=api.authora.studio
+#      DOMAIN_WEB=authora.studio
+#      ACME_EMAIL=admin@authora.studio
 
 # 4. Generate Caddyfile
 ./scripts/generate-caddyfile.sh
@@ -120,11 +120,11 @@ Default: `admin@authora.local` / `admin123` — change immediately.
 
 ## Post-Deploy Validation Checklist
 
-- [ ] `curl -sf https://api.yourdomain.com/health` → `{"status":"ok"}`
-- [ ] `curl -sf https://api.yourdomain.com/health/ready` → `{"status":"ready"}`
-- [ ] Open https://app.yourdomain.com — login/register works
+- [ ] `curl -sf https://api.authora.studio/health` → `{"status":"ok"}`
+- [ ] `curl -sf https://api.authora.studio/health/ready` → `{"status":"ready"}`
+- [ ] Open https://authora.studio — login/register works
 - [ ] Create project, create book — no errors
-- [ ] `./scripts/verify-go-live.sh https://api.yourdomain.com` passes
+- [ ] `./scripts/verify-go-live.sh https://api.authora.studio` passes
 
 ## Go-Live Checklist
 

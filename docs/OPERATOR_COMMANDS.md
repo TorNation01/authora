@@ -266,7 +266,7 @@ cd /path/to/authora
 **Production API URL:**
 
 ```bash
-./scripts/healthcheck.sh https://api.yourdomain.com
+./scripts/healthcheck.sh https://api.authora.studio
 ```
 
 **Via npm:**
@@ -296,7 +296,7 @@ cd /path/to/authora
 **Production (API + Web URLs):**
 
 ```bash
-./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio
 ```
 
 ---

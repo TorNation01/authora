@@ -22,9 +22,9 @@ class SetupBranding(BaseModel):
 
 
 class SetupDomain(BaseModel):
-    """Domain and SSL configuration."""
+    """Domain and SSL configuration (Option 2: marketing=authora.studio, app=app.authora.studio)."""
 
-    domain: str = Field(default="localhost", max_length=255)
+    domain: str = Field(default="authora.studio", max_length=255)
     use_ssl: bool = Field(default=False, description="Expect HTTPS in production")
     ssl_auto: bool = Field(default=True, description="Use automatic SSL (e.g. Let's Encrypt)")
 
@@ -61,6 +61,7 @@ class SetupAI(BaseModel):
     anthropic_api_key: str | None = None
     ollama_enabled: bool = False
     ollama_base_url: str = Field(default="http://localhost:11434", max_length=255)
+    ollama_hardware_tier: Literal["1", "2", "3", "4"] | None = None
 
 
 class SetupEmail(BaseModel):

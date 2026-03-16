@@ -1,6 +1,6 @@
 # AUTHORA Go-Live Command Checklist (One Page)
 
-**Run from project root.** Replace `yourdomain.com` with your domain.
+**Run from project root.** Primary production domain: authora.studio.
 
 ---
 
@@ -9,13 +9,13 @@
 ```bash
 cd /path/to/authora
 cp .env.example .env
-nano .env   # SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_API_URL, DOMAIN_API, DOMAIN_WEB, ACME_EMAIL
+nano .env   # SECRET_KEY, DATABASE_URL, REDIS_URL, NEXT_PUBLIC_*_URL, DOMAIN_*, CORS_ORIGINS, ACME_EMAIL
 openssl rand -hex 32   # Use for SECRET_KEY
 source .env && ./scripts/validate-env.sh production
 ./scripts/generate-caddyfile.sh   # If caddy/Caddyfile missing
 ```
 
-- [ ] DNS A records: `api.yourdomain.com`, `app.yourdomain.com` → server IP
+- [ ] DNS A records: `api.authora.studio`, `authora.studio`, `app.authora.studio` → server IP
 - [ ] Firewall: 80, 443, 22 open
 
 ---
@@ -33,12 +33,12 @@ cd /path/to/authora
 
 ```bash
 ./scripts/first-admin.sh --docker --prod
-./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com
+./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio https://app.authora.studio
 ```
 
-- [ ] `curl -sf https://api.yourdomain.com/health` → `{"status":"ok",...}`
-- [ ] `curl -sf https://api.yourdomain.com/health/ready` → `{"status":"ready",...}`
-- [ ] Open https://app.yourdomain.com — login, create project
+- [ ] `curl -sf https://api.authora.studio/health` → `{"status":"ok",...}`
+- [ ] `curl -sf https://api.authora.studio/health/ready` → `{"status":"ready",...}`
+- [ ] Open https://authora.studio — login, create project
 - [ ] Login: `admin@authora.local` / `admin123` — change password
 
 ---
@@ -69,5 +69,5 @@ crontab -e
 | Backup | `./scripts/backup.sh` |
 | Restore | `./scripts/restore.sh ./backups/authora_*.dump` |
 | Rollback | `./scripts/rollback.sh ./backups/authora_*.dump prod` |
-| Health | `./scripts/healthcheck.sh https://api.yourdomain.com` |
-| Verify | `./scripts/verify-go-live.sh https://api.yourdomain.com https://app.yourdomain.com` |
+| Health | `./scripts/healthcheck.sh https://api.authora.studio` |
+| Verify | `./scripts/verify-go-live.sh https://api.authora.studio https://authora.studio https://app.authora.studio` |

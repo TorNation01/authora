@@ -72,6 +72,7 @@ async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
 async def get_ai_config():
     """AI provider config for frontend. Public endpoint."""
     from authora.services.ai_registry import list_available_providers
+    from authora.services.embedding_service import is_embeddings_configured
 
     settings = get_settings()
     providers = list_available_providers()
@@ -81,4 +82,6 @@ async def get_ai_config():
         "ollama_enabled": settings.ollama_enabled,
         "ollama_base_url": settings.ollama_base_url if settings.ollama_enabled else None,
         "has_ai": bool(settings.openai_api_key or settings.anthropic_api_key or settings.ollama_enabled),
+        "embeddings_enabled": is_embeddings_configured(),
+        "rag_max_chunks": settings.rag_max_chunks,
     }

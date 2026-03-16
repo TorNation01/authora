@@ -9,11 +9,11 @@ Caddy auto-provisions Let's Encrypt certificates.
 3. Caddy handles ACME challenge and renewal
 
 ```caddyfile
-api.yourdomain.com {
+api.authora.studio {
     reverse_proxy api:8000
 }
 
-app.yourdomain.com {
+authora.studio {
     reverse_proxy web:3000
 }
 ```
@@ -21,7 +21,7 @@ app.yourdomain.com {
 ## Let's Encrypt with Nginx
 
 1. Install certbot: `apt install certbot python3-certbot-nginx`
-2. Get certificates: `certbot certonly --nginx -d api.yourdomain.com -d app.yourdomain.com`
+2. Get certificates: `certbot certonly --nginx -d api.authora.studio -d authora.studio`
 3. Certificates in `/etc/letsencrypt/live/<domain>/`
 4. Use `nginx/authora.conf` and update paths
 5. Renewal: `certbot renew` (add to cron: `0 0 1 * * certbot renew --quiet`)
@@ -31,7 +31,7 @@ app.yourdomain.com {
 ```bash
 docker run -it --rm -v /etc/letsencrypt:/etc/letsencrypt \
   -v /var/www/html:/var/www/html certbot/certbot certonly \
-  --standalone -d api.yourdomain.com -d app.yourdomain.com
+  --standalone -d api.authora.studio -d authora.studio
 ```
 
 ## Cloudflare Origin Certificates

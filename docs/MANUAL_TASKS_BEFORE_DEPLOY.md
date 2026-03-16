@@ -12,8 +12,8 @@
 | Set `CRON_SECRET` | **Yes** (when reminders enabled) | `openssl rand -hex 32`; cron must send `X-Cron-Secret` header |
 | Set `DATABASE_URL` | **Yes** | Production PostgreSQL connection string |
 | Set `REDIS_URL` | **Yes** | Production Redis URL |
-| Set `NEXT_PUBLIC_API_URL` | **Yes** | Public API URL (e.g. https://api.yourdomain.com) |
-| Set `CORS_ORIGINS` | **Yes** | Include your web origin (e.g. https://app.yourdomain.com) |
+| Set `NEXT_PUBLIC_API_URL` | **Yes** | Public API URL (e.g. https://api.authora.studio) |
+| Set `CORS_ORIGINS` | **Yes** | Include your web origin (e.g. https://authora.studio) |
 | Set AI keys | **Optional** | `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` for AI features |
 | Set `DEBUG=false` | **Yes** | Production mode |
 
@@ -25,7 +25,7 @@ Add to crontab (or equivalent):
 
 ```bash
 # Reminders (every hour; daily/weekly fire at appropriate times)
-0 * * * * curl -X POST -H "X-Cron-Secret: YOUR_CRON_SECRET" https://api.yourdomain.com/api/v1/accountability/cron/reminders
+0 * * * * curl -X POST -H "X-Cron-Secret: YOUR_CRON_SECRET" https://api.authora.studio/api/v1/accountability/cron/reminders
 
 # Backup (daily 2am)
 0 2 * * * cd /path/to/authora && ./scripts/backup.sh
@@ -52,7 +52,7 @@ After first deploy:
 ## 4. SSL / Domain
 
 - Use Caddy (included in docker-compose.prod.yml) or reverse proxy
-- Set `DOMAIN_API`, `DOMAIN_WEB`, `ACME_EMAIL` in Caddyfile
+- Set `DOMAIN_API`, `DOMAIN_WEB`, `ACME_EMAIL` in Caddyfile (e.g. api.authora.studio, authora.studio) or run `./scripts/generate-caddyfile.sh`
 - Run `./scripts/generate-caddyfile.sh` if using Caddy
 
 ---

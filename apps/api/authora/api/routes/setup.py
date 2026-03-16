@@ -29,6 +29,36 @@ def _require_standalone():
         )
 
 
+@router.get("/hardware-tier")
+async def setup_hardware_tier():
+    """Get detected or configured hardware tier for Ollama model selection."""
+    _require_standalone()
+    from authora.config import get_settings
+    from authora.services.hardware_tier import (
+        get_hardware_tier,
+        TIER_IDS,
+        TIER_LABELS,
+        TIER_DESCRIPTIONS,
+    )
+    from authora.services.hardware_model_mapping import get_tier_recommended_mapping
+
+    s = get_settings()
+    configured = getattr(s, "ollama_hardware_tier", None)
+    profile = get_hardware_tier(configured)
+    recommended = get_tier_recommended_mapping(profile.tier)
+    return {
+        "tier": profile.tier,
+        "label": TIER_LABELS.get(profile.tier, profile.tier),
+        "description": TIER_DESCRIPTIONS.get(profile.tier, ""),
+        "source": profile.source,
+        "detection_message": profile.detection_message,
+        "ram_gb": profile.total_ram_gb,
+        "vram_gb": profile.vram_gb,
+        "tiers": [{"id": t, "label": TIER_LABELS[t], "description": TIER_DESCRIPTIONS[t]} for t in TIER_IDS],
+        "recommended_mapping": recommended,
+    }
+
+
 @router.get("/status")
 async def setup_status():
     """Check if setup is complete. Works even when DB is not yet configured."""

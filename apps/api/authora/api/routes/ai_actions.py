@@ -150,13 +150,17 @@ async def run_action_stream(
 
     task = action_to_task(data.action_id, data.book_type)
 
+    rag_query = (selection or context or "")[:500]
     workspace_context = await build_workspace_context(
-            db,
-            data.book_id,
-            BookType(data.book_type),
-            chapter_id=data.chapter_id,
-            include_recent=bool(data.chapter_id),
-        )
+        db,
+        data.book_id,
+        BookType(data.book_type),
+        chapter_id=data.chapter_id,
+        include_recent=bool(data.chapter_id),
+        project_id=book.project_id,
+        rag_query=rag_query if rag_query.strip() else None,
+        user_id=current_user.id,
+    )
 
     system_prompt = build_system_prompt(
         AIMode(data.mode),
@@ -169,11 +173,22 @@ async def run_action_stream(
         await record_usage(db, current_user.id, "ai_actions", 1)
 
     from authora.services.ai_service import log_ai_action
-    from authora.services.ai_provider import get_provider
+    from authora.services.ai_model_settings import get_ai_model_role_overrides, get_effective_model_overrides
+    from authora.services.ai_registry import get_provider_for_task
+    from authora.services.hardware_model_mapping import get_available_ollama_models
 
-    provider = get_provider()
-    provider_name = provider.name if provider else None
-    model_name = get_settings().ai_model if provider_name else None
+    db_overrides = await get_ai_model_role_overrides(db)
+    if settings.ollama_enabled:
+        available = await get_available_ollama_models(settings.ollama_base_url)
+        db_overrides = await get_effective_model_overrides(db, db_overrides, available)
+    provider, model, provider_name = get_provider_for_task(
+        task=task,
+        project_prefs=project_prefs,
+        preferred_provider=data.preferred_provider,
+        preferred_model=data.preferred_model,
+        db_overrides=db_overrides,
+    )
+    model_name = model if provider_name else None
 
     async def generate():
         collected = []
@@ -186,6 +201,7 @@ async def run_action_stream(
                 project_prefs=project_prefs,
                 preferred_provider=data.preferred_provider,
                 preferred_model=data.preferred_model,
+                db_overrides=db_overrides,
             ):
                 collected.append(chunk)
                 yield chunk
