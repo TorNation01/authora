@@ -171,6 +171,9 @@ async def create_chapter(
     )
     db.add(chapter)
     await db.flush()
+    from authora.services.onboarding_analytics import record_first_chapter_created
+
+    await record_first_chapter_created(db, current_user.id, chapter.id, book_id)
     await db.refresh(chapter)
     return ChapterResponse.model_validate(chapter)
 

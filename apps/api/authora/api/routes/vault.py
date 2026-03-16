@@ -311,6 +311,9 @@ async def create_idea(
     )
     db.add(idea)
     await db.flush()
+    from authora.services.onboarding_analytics import record_first_idea_captured
+
+    await record_first_idea_captured(db, current_user.id)
     await db.refresh(idea)
     return IdeaResponse.model_validate(idea)
 

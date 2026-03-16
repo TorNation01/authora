@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { BookOpen, Plus, Search, Settings, Users, Library } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -99,8 +100,8 @@ export default function ProjectPage() {
       ) : books.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="h-6 w-6" />}
-          title="No books yet"
-          description="Add your first book to start planning and writing. Choose fiction or non-fiction—we'll tailor the experience."
+          title={getEmptyStateConfig('no_books')!.title}
+          description={getEmptyStateConfig('no_books')!.description}
           action={{
             label: 'Create book',
             href: `/dashboard/projects/${projectId}/books/new`,

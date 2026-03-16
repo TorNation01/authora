@@ -33,13 +33,14 @@ async def create_project_from_wizard(
     target_words: int | None = None,
     target_date: str | None = None,
     guidance_mode: str = "guided",
+    knowledge_mode: str | None = None,
 ) -> tuple[Project, Book]:
     """Create project and book from template (or blank)."""
     from authora.services.billing_service import check_book_limit, check_project_limit
 
     if guidance_mode not in GUIDANCE_MODES:
         guidance_mode = "guided"
-    if knowledge_mode not in KNOWLEDGE_MODES:
+    if not knowledge_mode or knowledge_mode not in KNOWLEDGE_MODES:
         knowledge_mode = "fiction" if book_type == "fiction" else "nonfiction"
 
     allowed, current, limit = await check_project_limit(db, user_id)

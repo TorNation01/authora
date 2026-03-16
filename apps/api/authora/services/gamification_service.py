@@ -90,6 +90,17 @@ async def record_words(
     if streak > stats.longest_streak:
         stats.longest_streak = streak
 
+    # Activation analytics: first streak, first writing session
+    if words > 0:
+        from authora.services.onboarding_analytics import (
+            record_first_streak_started,
+            record_first_writing_session_started,
+        )
+
+        await record_first_writing_session_started(db, user_id)
+        if streak >= 1:
+            await record_first_streak_started(db, user_id)
+
     # Base XP: words
     xp_gained = calculate_xp(XPSource.WORDS, words)
     stats.xp += xp_gained
@@ -179,6 +190,9 @@ async def record_words(
                 )
                 db.add(ach)
                 events.append({"type": "milestone", "words": t, "xp": milestone_xp})
+                from authora.services.onboarding_analytics import record_first_milestone_completed
+
+                await record_first_milestone_completed(db, user_id, f"milestone_{t}")
                 if notify:
                     svc = _get_notification_service(db)
                     await svc.send_in_app(

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
@@ -29,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { GamificationWidgets } from '@/components/gamification/GamificationWidgets';
 import { FirstUseBanner } from '@/components/help';
+import { DashboardQuickStart } from '@/components/onboarding/DashboardQuickStart';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
 import { UpgradeCallout } from '@/components/billing/UpgradeCallout';
 
@@ -54,6 +56,13 @@ interface JourneySummary {
   };
 }
 
+interface UserPreferences {
+  preferences?: {
+    onboarding_completed?: boolean;
+    onboarding_progress?: { step_index: number };
+  };
+}
+
 function buildProjectsUrl(params: { status?: string; q?: string; sort?: string }) {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set('status', params.status);
@@ -69,6 +78,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [recentProject, setRecentProject] = useState<Project | null>(null);
   const [journey, setJourney] = useState<JourneySummary | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('active');
@@ -90,7 +100,11 @@ export default function DashboardPage() {
       fetchProjects(),
       api<Project | null>('/api/v1/projects/recent').catch(() => null).then(setRecentProject),
       api<JourneySummary>('/api/v1/journey').catch(() => ({ has_journey: false })),
-    ]).then(([, , j]) => setJourney(j)).finally(() => setLoading(false));
+      api<UserPreferences>('/api/v1/auth/me/preferences').catch(() => ({ preferences: {} })),
+    ]).then(([, , j, p]) => {
+      setJourney(j);
+      setPreferences(p);
+    }).finally(() => setLoading(false));
   }, [fetchProjects]);
 
   useEffect(() => {
@@ -152,7 +166,10 @@ export default function DashboardPage() {
     ? { label: 'Create your first project', href: '/dashboard/projects/new' }
     : { label: 'New project', href: '/dashboard/projects/new' };
 
-  const showJourneyPrompt = journey?.has_journey === false;
+  const onboardingComplete = preferences?.preferences?.onboarding_completed === true;
+  const hasOnboardingProgress = (preferences?.preferences?.onboarding_progress?.step_index ?? 0) > 0;
+  const showResumeSetup = !onboardingComplete && hasOnboardingProgress;
+  const showJourneyPrompt = journey?.has_journey === false && !showResumeSetup;
   const showNextStep = journey?.has_journey && journey?.next_step && !journey.next_step.journey_complete;
 
   return (
@@ -174,6 +191,25 @@ export default function DashboardPage() {
       <UsageDisplay />
       <UpgradeCallout />
       <GamificationWidgets />
+
+      {showResumeSetup && (
+        <Card variant="soft" className="mb-6 border-primary/20">
+          <div className="p-4 flex flex-row items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="font-medium">Complete your setup</p>
+              <p className="text-sm text-muted-foreground">
+                You started setting up your writing space. Pick up where you left off—a few minutes to finish.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/onboarding">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Resume setup
+              </Link>
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {showJourneyPrompt && (
         <Card variant="soft" className="mb-6">
@@ -229,20 +265,16 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {recentProject && projects.length > 1 && !recentProject.deleted_at && (
-        <Link href={`/dashboard/projects/${recentProject.id}`}>
-          <Card variant="elevated" className="mb-6 border-primary/20 hover:border-primary/40 transition-colors cursor-pointer">
-            <div className="p-4 flex flex-row items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Continue writing</p>
-                <p className="font-medium">{recentProject.name}</p>
-              </div>
-              <Button variant="ghost" size="sm">
-                Open
-              </Button>
-            </div>
-          </Card>
-        </Link>
+      {projects.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Quick start</h3>
+          <DashboardQuickStart
+            projectId={(recentProject && !recentProject.deleted_at ? recentProject : projects[0])?.id}
+            recentProjectName={(recentProject && !recentProject.deleted_at ? recentProject : projects[0])?.name}
+            hasJourney={journey?.has_journey}
+            nextStepTitle={journey?.next_step?.task?.title}
+          />
+        </div>
       )}
 
       {loading ? (
@@ -252,8 +284,8 @@ export default function DashboardPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="h-6 w-6" />}
-          title="Your writing space is ready"
-          description="Create your first project to begin. We'll guide you through planning and writing—no rush."
+          title={getEmptyStateConfig('no_projects')!.title}
+          description={getEmptyStateConfig('no_projects')!.description}
           action={{ label: 'Create project', href: '/dashboard/projects/new' }}
         />
       ) : (

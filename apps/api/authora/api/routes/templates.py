@@ -136,6 +136,33 @@ async def get_template(
     return TemplateResponse.model_validate(template)
 
 
+@router.get("/starters", response_model=list[dict])
+async def list_starters(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """List starter templates with template IDs resolved from slugs.
+    Returns { id, template_id } for each starter. Frontend merges with starter-templates.ts.
+    """
+    from authora.data.starter_definitions import get_starter_metadata
+
+    slugs = [m["template_slug"] for m in get_starter_metadata() if m.get("template_slug")]
+    q = select(ProjectTemplate.slug, ProjectTemplate.id).where(
+        ProjectTemplate.slug.in_(slugs),
+        ProjectTemplate.is_disabled.is_(False),
+    )
+    result = await db.execute(q)
+    slug_to_id = {row.slug: str(row.id) for row in result.all()}
+
+    return [
+        {
+            "id": m["id"],
+            "template_id": slug_to_id.get(m["template_slug"]) if m.get("template_slug") else None,
+        }
+        for m in get_starter_metadata()
+    ]
+
+
 @router.get("/slug/{slug}", response_model=TemplateResponse)
 async def get_template_by_slug(
     slug: str,

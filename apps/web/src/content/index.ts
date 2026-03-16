@@ -14,3 +14,4 @@ export * from './framework-copy';
 export * from './accountability-copy';
 export * from './editor-copy';
 export * from './vault-copy';
+export * from './onboarding-copy';

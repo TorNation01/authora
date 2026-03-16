@@ -17,6 +17,7 @@ import {
   PenLine,
   Sparkles,
 } from 'lucide-react';
+import { FIRST_BOOK_JOURNEY } from '@/content/onboarding-copy';
 
 interface JourneyTask {
   id: string;
@@ -58,14 +59,14 @@ interface JourneyData {
 }
 
 const PHASE_LABELS: Record<string, string> = {
-  idea: 'Idea',
-  concept: 'Concept shaping',
-  outline: 'Outline',
-  chapter_planning: 'Chapter planning',
-  drafting: 'Drafting',
-  revision: 'Revision',
-  polish: 'Polish',
-  export_prep: 'Export & publish prep',
+  idea: FIRST_BOOK_JOURNEY.phases.define,
+  concept: FIRST_BOOK_JOURNEY.phases.structure,
+  outline: FIRST_BOOK_JOURNEY.phases.structure,
+  chapter_planning: FIRST_BOOK_JOURNEY.phases.opening,
+  drafting: FIRST_BOOK_JOURNEY.phases.moving,
+  revision: FIRST_BOOK_JOURNEY.phases.revise,
+  polish: FIRST_BOOK_JOURNEY.phases.revise,
+  export_prep: FIRST_BOOK_JOURNEY.phases.export,
 };
 
 export default function JourneyPage() {
@@ -114,8 +115,8 @@ export default function JourneyPage() {
     return (
       <div className="p-6 lg:p-8 max-w-5xl">
         <PageHeader
-          title="Your writing journey"
-          description="A gentle roadmap from idea to finished book"
+          title={FIRST_BOOK_JOURNEY.heading}
+          description={FIRST_BOOK_JOURNEY.subheading}
         />
         <Card variant="sanctuary" className="max-w-md">
           <CardHeader>

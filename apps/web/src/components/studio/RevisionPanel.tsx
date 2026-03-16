@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
 import { REVISION_PASS_TYPES } from '@/content/editor-copy';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import { useToast } from '@/hooks/use-toast';
 
 interface Chapter {
@@ -275,9 +276,9 @@ export function RevisionPanel({
             })}
           </div>
         )}
-        {!loading && totalUnresolved === 0 && (
+        {!loading && totalUnresolved === 0 && passes.length === 0 && (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            No revision notes. Add comments as you read through your draft.
+            {getEmptyStateConfig('no_revision_passes')!.description}
           </p>
         )}
       </div>

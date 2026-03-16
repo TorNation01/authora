@@ -33,6 +33,7 @@ import {
   SOURCE_MANAGER,
   VAULT_SEARCH,
 } from '@/content/vault-copy';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import * as Tabs from '@radix-ui/react-tabs';
 import { cn } from '@/lib/utils';
 import { VaultQuickCapture } from '@/components/vault/VaultQuickCapture';
@@ -383,11 +384,12 @@ function IdeasTab({
   onCreateClick: () => void;
 }) {
   if (ideas.length === 0) {
+    const config = getEmptyStateConfig('no_ideas')!;
     return (
       <EmptyState
         icon={<Lightbulb className="h-6 w-6" />}
-        title="No ideas yet"
-        description="Capture ideas above or add structured idea cards. Everything you capture stays here."
+        title={config.title}
+        description={config.description}
         action={{ label: 'Add idea', onClick: onCreateClick }}
       />
     );
@@ -421,11 +423,12 @@ function CharactersTab({
   onCreateClick: () => void;
 }) {
   if (characters.length === 0) {
+    const config = getEmptyStateConfig('no_characters')!;
     return (
       <EmptyState
         icon={<Users className="h-6 w-6" />}
-        title={CHARACTER_BIBLE.emptyTitle}
-        description={CHARACTER_BIBLE.emptyDescription}
+        title={config.title}
+        description={config.description}
         action={{ label: CHARACTER_BIBLE.addCharacter, onClick: onCreateClick }}
       />
     );
@@ -459,11 +462,12 @@ function LocationsTab({
   onCreateClick: () => void;
 }) {
   if (locations.length === 0) {
+    const config = getEmptyStateConfig('no_worldbuilding')!;
     return (
       <EmptyState
         icon={<MapPin className="h-6 w-6" />}
-        title="No locations yet"
-        description="Build your world. Add places, factions, cultures, and rules."
+        title={config.title}
+        description={config.description}
         action={{ label: 'Add location', onClick: onCreateClick }}
       />
     );
@@ -495,11 +499,12 @@ function TimelineTab({
   onRefresh: () => void;
 }) {
   if (events.length === 0) {
+    const config = getEmptyStateConfig('no_timeline_events')!;
     return (
       <EmptyState
         icon={<Clock className="h-6 w-6" />}
-        title={TIMELINE.emptyTitle}
-        description={TIMELINE.emptyDescription}
+        title={config.title}
+        description={config.description}
       />
     );
   }
@@ -525,11 +530,12 @@ function ResearchTab({
   onRefresh: () => void;
 }) {
   if (research.length === 0) {
+    const config = getEmptyStateConfig('no_research')!;
     return (
       <EmptyState
         icon={<Search className="h-6 w-6" />}
-        title={RESEARCH_VAULT.emptyTitle}
-        description={RESEARCH_VAULT.emptyDescription}
+        title={config.title}
+        description={config.description}
       />
     );
   }
@@ -554,11 +560,12 @@ function SourcesTab({
   onCreateClick: () => void;
 }) {
   if (sources.length === 0) {
+    const config = getEmptyStateConfig('no_sources')!;
     return (
       <EmptyState
         icon={<BookOpen className="h-6 w-6" />}
-        title={SOURCE_MANAGER.emptyTitle}
-        description={SOURCE_MANAGER.emptyDescription}
+        title={config.title}
+        description={config.description}
         action={{ label: SOURCE_MANAGER.addSource, onClick: onCreateClick }}
       />
     );

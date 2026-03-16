@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
-from authora.models import JourneyTask, UserJourney
+from authora.models import JourneyTask, UserJourney, UserPreference
 from authora.services.journey_engine import (
     complete_task,
     get_next_step,
@@ -19,18 +19,25 @@ router = APIRouter(prefix="/journey", tags=["journey"])
 
 
 class OnboardingRequest(BaseModel):
-    book_type: str  # fiction | nonfiction
-    writing_mode: str  # solo | cowrite | ghostwriter
+    book_type: str = "fiction"  # fiction | nonfiction
+    writing_mode: str = "solo"  # solo | cowrite | ghostwriter
+    writer_type: str | None = None  # first_time | experienced | fiction | nonfiction | memoir | workbook | ghostwriter | collaborative | not_sure
+    guidance_mode: str | None = None  # guided | flexible | freeform
     writing_goals: str | None = None
     target_timeline: str | None = None
     writing_schedule: str | None = None
-    accountability_style: str | None = None
+    accountability_style: str | None = None  # none | gentle | structured | buddy
     ai_comfort_level: str | None = None
     genre_topic: str | None = None
 
 
 class CompleteTaskRequest(BaseModel):
     task_id: str
+
+
+class OnboardingProgressRequest(BaseModel):
+    step_index: int
+    data: dict
 
 
 @router.post("/onboarding")
@@ -40,13 +47,53 @@ async def submit_onboarding(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit onboarding answers and create personalized journey."""
+    from authora.services.onboarding_analytics import (
+        record_onboarding_completed,
+        record_onboarding_started,
+    )
+
+    await record_onboarding_started(db, current_user.id)
     journey = await get_or_create_journey(db, str(current_user.id), data.model_dump())
+    await record_onboarding_completed(db, current_user.id)
     return {
         "journey_id": str(journey.id),
         "current_phase": journey.current_phase,
         "roadmap": journey.roadmap,
         "message": "Your personalized writing journey is ready.",
     }
+
+
+@router.post("/onboarding/progress")
+async def save_onboarding_progress(
+    data: OnboardingProgressRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Save onboarding progress for resume support."""
+    result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    pref = result.scalar_one_or_none()
+    if not pref:
+        pref = UserPreference(user_id=current_user.id, preferences={})
+        db.add(pref)
+    merged = {**(pref.preferences or {}), "onboarding_progress": {"step_index": data.step_index, "data": data.data}}
+    pref.preferences = merged
+    await db.commit()
+    await db.refresh(pref)
+    return {"saved": True}
+
+
+@router.get("/onboarding/progress")
+async def get_onboarding_progress(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get saved onboarding progress for resume."""
+    result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    pref = result.scalar_one_or_none()
+    if not pref or not pref.preferences:
+        return {"step_index": 0, "data": {}}
+    prog = pref.preferences.get("onboarding_progress") or {}
+    return {"step_index": prog.get("step_index", 0), "data": prog.get("data", {})}
 
 
 @router.get("")

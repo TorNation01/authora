@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { HelpIcon, HowThisWorks } from '@/components/help';
+import { getEmptyStateConfig } from '@/content/empty-states';
 
 interface Project {
   id: string;
@@ -403,8 +404,8 @@ export default function ExportCenterPage() {
         <Card variant="soft" className="p-8">
           <div className="text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="font-medium">No books yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Create a project and book first. We'll be ready when you are.</p>
+            <p className="font-medium">{getEmptyStateConfig('no_books_export')!.title}</p>
+            <p className="text-sm text-muted-foreground mt-1">{getEmptyStateConfig('no_books_export')!.description}</p>
             <Button asChild className="mt-4">
               <Link href="/dashboard">Go to Home</Link>
             </Button>

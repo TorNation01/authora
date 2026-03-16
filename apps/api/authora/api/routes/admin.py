@@ -1,7 +1,7 @@
 """Admin/operator control layer - user management, feature flags, monitoring, etc."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -1149,6 +1149,47 @@ async def admin_reorder_templates(
             templates[tid].sort_order = i
     await db.flush()
     return {"ok": True}
+
+
+# --- Activation analytics dashboard ---
+
+
+@router.get("/activation")
+async def admin_activation_dashboard(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = Query(30, ge=7, le=90),
+):
+    """Activation metrics for admin dashboard: rates, time-to-value, template usage, retention."""
+    from authora.services.activation_metrics import (
+        get_activation_summary,
+        get_first_week_retention,
+        get_mode_selection_rates,
+        get_starter_path_usage,
+        get_template_usage,
+        get_time_to_first_chapter,
+        get_time_to_first_project,
+    )
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    summary = await get_activation_summary(db, since=since)
+    time_to_project = await get_time_to_first_project(db, since_days=days)
+    time_to_chapter = await get_time_to_first_chapter(db, since_days=days)
+    template_usage = await get_template_usage(db, since_days=days)
+    mode_rates = await get_mode_selection_rates(db, since_days=days)
+    starter_usage = await get_starter_path_usage(db, since_days=days)
+    retention = await get_first_week_retention(db, since_days=days)
+
+    return {
+        "period_days": days,
+        "summary": summary,
+        "time_to_first_project": time_to_project,
+        "time_to_first_chapter": time_to_chapter,
+        "template_usage": template_usage,
+        "mode_selection_rates": mode_rates,
+        "starter_path_usage": starter_usage,
+        "first_week_retention": retention,
+    }
 
 
 @router.get("/templates/usage")

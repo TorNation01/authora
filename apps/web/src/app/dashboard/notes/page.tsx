@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StickyNote, BookOpen } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -39,8 +40,8 @@ export default function NotesPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           icon={<StickyNote className="h-6 w-6" />}
-          title="Create a project first"
-          description="Notes live with your projects. Create one to get started."
+          title={getEmptyStateConfig('no_projects_notes')!.title}
+          description={getEmptyStateConfig('no_projects_notes')!.description}
           action={{ label: 'Back to Home', href: '/dashboard' }}
         />
       ) : (

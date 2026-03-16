@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,22 @@ import {
   Sparkles,
   Check,
   Loader2,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
+import {
+  ONBOARDING_WELCOME,
+  WRITER_TYPES,
+  PROJECT_TYPE_STEP,
+  GUIDANCE_STEP,
+  WORK_STYLE_STEP,
+  PACE_STEP,
+  COMPLETE_STEP,
+  ONBOARDING_SKIP,
+} from '@/content/onboarding-copy';
 
 interface OnboardingData {
+  writer_type: string;
   book_type: string;
   writing_mode: string;
   writing_goals: string;
@@ -32,30 +45,29 @@ interface OnboardingData {
   accountability_style: string;
   ai_comfort_level: string;
   genre_topic: string;
+  guidance_mode: string;
 }
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome', icon: BookOpen },
+  { id: 'writer_type', title: 'What kind of writer?', icon: User },
   { id: 'book_type', title: 'What are you writing?', icon: BookOpen },
-  { id: 'writing_mode', title: 'How would you like to write?', icon: PenLine },
-  { id: 'writing_goals', title: 'What matters most?', icon: Target },
-  { id: 'target_timeline', title: 'When do you hope to finish?', icon: Calendar },
-  { id: 'writing_schedule', title: 'When do you usually write?', icon: Clock },
-  { id: 'accountability', title: 'How do you like to be encouraged?', icon: Heart },
-  { id: 'ai_comfort', title: 'How much AI help?', icon: Sparkles },
-  { id: 'genre', title: 'Genre or topic', icon: BookOpen },
+  { id: 'guidance', title: 'How much guidance?', icon: Target },
+  { id: 'work_style', title: 'How do you like to work?', icon: PenLine },
+  { id: 'pace', title: 'Set your pace', icon: Calendar },
   { id: 'complete', title: "You're all set", icon: Check },
 ];
 
-const BOOK_TYPES = [
-  { id: 'fiction', label: 'Fiction', desc: 'Novels, stories, creative writing' },
-  { id: 'nonfiction', label: 'Non-fiction', desc: 'Memoir, how-to, business, academic' },
-];
-
-const WRITING_MODES = [
-  { id: 'solo', label: 'Mostly on my own', desc: 'I write; AI helps when I ask', icon: User },
-  { id: 'cowrite', label: 'Co-write with AI', desc: 'AI suggests and drafts; I edit and steer', icon: PenLine },
-  { id: 'ghostwriter', label: 'Heavy AI assistance', desc: 'AI drafts; I guide and refine', icon: Bot },
+const WRITER_TYPE_OPTIONS = [
+  { ...WRITER_TYPES.firstTime, id: 'first_time' as const },
+  { ...WRITER_TYPES.experienced, id: 'experienced' as const },
+  { ...WRITER_TYPES.fiction, id: 'fiction' as const },
+  { ...WRITER_TYPES.nonfiction, id: 'nonfiction' as const },
+  { ...WRITER_TYPES.memoir, id: 'memoir' as const },
+  { ...WRITER_TYPES.workbook, id: 'workbook' as const },
+  { ...WRITER_TYPES.ghostwriter, id: 'ghostwriter' as const },
+  { ...WRITER_TYPES.collaborative, id: 'collaborative' as const },
+  { ...WRITER_TYPES.notSure, id: 'not_sure' as const },
 ];
 
 const TIMELINE_OPTIONS = [
@@ -75,28 +87,56 @@ const SCHEDULE_OPTIONS = [
 ];
 
 const ACCOUNTABILITY_OPTIONS = [
-  { id: 'gentle', label: 'Gentle', desc: 'Soft reminders, no pressure' },
-  { id: 'structured', label: 'Structured', desc: 'Clear goals and check-ins' },
-  { id: 'buddy', label: 'Buddy', desc: 'Community and encouragement' },
+  { id: 'none', label: PACE_STEP.none, desc: PACE_STEP.noneDesc },
+  { id: 'gentle', label: PACE_STEP.gentle, desc: PACE_STEP.gentleDesc },
+  { id: 'structured', label: PACE_STEP.structured, desc: PACE_STEP.structuredDesc },
+  { id: 'buddy', label: PACE_STEP.buddy, desc: PACE_STEP.buddyDesc },
 ];
 
-const AI_COMFORT_OPTIONS = [
-  { id: 'minimal', label: 'Minimal', desc: 'Only when I ask' },
-  { id: 'moderate', label: 'Moderate', desc: 'Suggestions and prompts' },
-  { id: 'full', label: 'Full', desc: 'Drafting, rewriting, expansion' },
-];
+const ONBOARDING_PREF_KEY = 'authora_onboarding_progress';
+
+function loadProgress(): { stepIndex: number; data: OnboardingData } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ONBOARDING_PREF_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as { stepIndex: number; data: OnboardingData };
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(stepIndex: number, data: OnboardingData) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ONBOARDING_PREF_KEY, JSON.stringify({ stepIndex, data }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearProgress() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(ONBOARDING_PREF_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export default function OnboardingPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [data, setData] = useState<OnboardingData>({
+    writer_type: '',
     book_type: '',
     writing_mode: '',
     writing_goals: '',
     target_timeline: '',
     writing_schedule: '',
     accountability_style: '',
-    ai_comfort_level: '',
+    ai_comfort_level: 'moderate',
     genre_topic: '',
+    guidance_mode: 'guided',
   });
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
@@ -108,6 +148,47 @@ export default function OnboardingPage() {
     }
   }, [router]);
 
+  useEffect(() => {
+    const saved = loadProgress();
+    if (saved && saved.stepIndex > 0) {
+      setStepIndex(saved.stepIndex);
+      setData(saved.data);
+      return;
+    }
+    api<{ step_index: number; data: Record<string, unknown> }>('/api/v1/journey/onboarding/progress')
+      .then((res) => {
+        if (res.step_index > 0 && res.data && Object.keys(res.data).length > 0) {
+          const merged = {
+            writer_type: '',
+            book_type: '',
+            writing_mode: '',
+            writing_goals: '',
+            target_timeline: '',
+            writing_schedule: '',
+            accountability_style: '',
+            ai_comfort_level: 'moderate',
+            genre_topic: '',
+            guidance_mode: 'guided',
+            ...res.data,
+          } as OnboardingData;
+          setStepIndex(res.step_index);
+          setData(merged);
+          saveProgress(res.step_index, merged);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const saveProgressCallback = useCallback(() => {
+    saveProgress(stepIndex, data);
+  }, [stepIndex, data]);
+
+  useEffect(() => {
+    if (stepIndex > 0 && stepIndex < STEPS.length - 1) {
+      saveProgressCallback();
+    }
+  }, [stepIndex, data, saveProgressCallback]);
+
   const currentStep = STEPS[stepIndex];
   const totalSteps = STEPS.length;
   const progress = ((stepIndex + 1) / totalSteps) * 100;
@@ -116,22 +197,16 @@ export default function OnboardingPage() {
     switch (currentStep.id) {
       case 'welcome':
         return true;
+      case 'writer_type':
+        return !!data.writer_type;
       case 'book_type':
         return !!data.book_type;
-      case 'writing_mode':
+      case 'guidance':
+        return !!data.guidance_mode;
+      case 'work_style':
         return !!data.writing_mode;
-      case 'writing_goals':
-        return !!data.writing_goals.trim();
-      case 'target_timeline':
-        return !!data.target_timeline;
-      case 'writing_schedule':
-        return !!data.writing_schedule;
-      case 'accountability':
-        return !!data.accountability_style;
-      case 'ai_comfort':
-        return !!data.ai_comfort_level;
-      case 'genre':
-        return !!data.genre_topic.trim();
+      case 'pace':
+        return true;
       case 'complete':
         return true;
       default:
@@ -147,6 +222,8 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           book_type: data.book_type || 'fiction',
           writing_mode: data.writing_mode || 'solo',
+          writer_type: data.writer_type || null,
+          guidance_mode: data.guidance_mode || 'guided',
           writing_goals: data.writing_goals || null,
           target_timeline: data.target_timeline || null,
           writing_schedule: data.writing_schedule || null,
@@ -155,7 +232,47 @@ export default function OnboardingPage() {
           genre_topic: data.genre_topic || null,
         }),
       });
-      router.push('/dashboard');
+      await api('/api/v1/auth/me/preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          preferences: {
+            onboarding_completed: true,
+            onboarding_writer_type: data.writer_type,
+            onboarding_guidance_mode: data.guidance_mode,
+            onboarding_progress: null,
+          },
+        }),
+      });
+      if (data.accountability_style && data.accountability_style !== 'none') {
+        const styleMap: Record<string, string> = {
+          gentle: 'gentle',
+          structured: 'structured',
+          buddy: 'coach',
+        };
+        const accStyle = styleMap[data.accountability_style] || 'gentle';
+        try {
+          await api('/api/v1/accountability/settings', {
+            method: 'PATCH',
+            body: JSON.stringify({
+              accountability_style: accStyle,
+              reminder_enabled: true,
+            }),
+          });
+        } catch {
+          /* non-blocking */
+        }
+      } else if (data.accountability_style === 'none') {
+        try {
+          await api('/api/v1/accountability/settings', {
+            method: 'PATCH',
+            body: JSON.stringify({ reminder_enabled: false }),
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
+      clearProgress();
+      router.push('/dashboard/projects/new');
     } catch (e) {
       console.error(e);
       setSubmitting(false);
@@ -167,7 +284,13 @@ export default function OnboardingPage() {
       handleSubmit();
       return;
     }
-    if (stepIndex < totalSteps - 1) setStepIndex(stepIndex + 1);
+    const nextIdx = stepIndex + 1;
+    saveProgress(nextIdx, data);
+    api('/api/v1/journey/onboarding/progress', {
+      method: 'POST',
+      body: JSON.stringify({ step_index: nextIdx, data }),
+    }).catch(() => {});
+    if (nextIdx < totalSteps) setStepIndex(nextIdx);
   };
 
   const handleBack = () => {
@@ -177,7 +300,7 @@ export default function OnboardingPage() {
   const Icon = currentStep.icon;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-muted/20 to-background p-4">
       <div className="w-full max-w-xl">
         <Link
           href="/dashboard"
@@ -185,7 +308,7 @@ export default function OnboardingPage() {
         >
           AUTHORA
         </Link>
-        <Card variant="sanctuary">
+        <Card variant="sanctuary" className="shadow-lg">
           <CardHeader>
             <Progress value={progress} showLabel size="sm" className="mb-4" />
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-2">
@@ -193,35 +316,33 @@ export default function OnboardingPage() {
             </div>
             <CardTitle className="text-xl font-serif">{currentStep.title}</CardTitle>
             <CardDescription className="text-base">
-              {currentStep.id === 'welcome' &&
-                "We'll ask a few quick questions to personalize your experience. You can change these anytime."}
-              {currentStep.id === 'book_type' && 'This helps us show you the right tools and structure.'}
-              {currentStep.id === 'writing_mode' && 'Choose the level of AI help that feels right.'}
-              {currentStep.id === 'writing_goals' && "What's your main goal for this book?"}
-              {currentStep.id === 'target_timeline' && 'No pressure—this helps us suggest a pace.'}
-              {currentStep.id === 'writing_schedule' && "We'll use this for gentle reminders—only if you want them."}
-              {currentStep.id === 'accountability' && 'We adapt to your style. No guilt, ever.'}
-              {currentStep.id === 'ai_comfort' && 'You can change this anytime in settings.'}
-              {currentStep.id === 'genre' && 'e.g. romance, thriller, memoir, business.'}
-              {currentStep.id === 'complete' && "Your journey begins now. Create a project and add your first book."}
+              {currentStep.id === 'welcome' && ONBOARDING_WELCOME.description}
+              {currentStep.id === 'writer_type' && WRITER_TYPES.subheading}
+              {currentStep.id === 'book_type' && PROJECT_TYPE_STEP.subheading}
+              {currentStep.id === 'guidance' && GUIDANCE_STEP.subheading}
+              {currentStep.id === 'work_style' && WORK_STYLE_STEP.subheading}
+              {currentStep.id === 'pace' && PACE_STEP.subheading}
+              {currentStep.id === 'complete' && COMPLETE_STEP.description}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {currentStep.id === 'welcome' && (
-              <p className="text-muted-foreground">
-                Your writing sanctuary awaits. Let&apos;s set you up for success.
-              </p>
+              <div className="space-y-4">
+                <p className="text-muted-foreground">
+                  Your writing sanctuary awaits. Let&apos;s set you up for success.
+                </p>
+              </div>
             )}
 
-            {currentStep.id === 'book_type' && (
+            {currentStep.id === 'writer_type' && (
               <div className="grid gap-3 sm:grid-cols-2">
-                {BOOK_TYPES.map((opt) => (
+                {WRITER_TYPE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setData((d) => ({ ...d, book_type: opt.id }))}
+                    onClick={() => setData((d) => ({ ...d, writer_type: opt.id }))}
                     className={`rounded-lg border p-4 text-left transition-colors ${
-                      data.book_type === opt.id
+                      data.writer_type === opt.id
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                     }`}
@@ -233,9 +354,65 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {currentStep.id === 'writing_mode' && (
+            {currentStep.id === 'book_type' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setData((d) => ({ ...d, book_type: 'fiction' }))}
+                  className={`rounded-lg border p-4 text-left transition-colors ${
+                    data.book_type === 'fiction'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <span className="font-medium">{PROJECT_TYPE_STEP.fiction}</span>
+                  <p className="text-sm text-muted-foreground mt-1">{PROJECT_TYPE_STEP.fictionDesc}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setData((d) => ({ ...d, book_type: 'nonfiction' }))}
+                  className={`rounded-lg border p-4 text-left transition-colors ${
+                    data.book_type === 'nonfiction'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <span className="font-medium">{PROJECT_TYPE_STEP.nonfiction}</span>
+                  <p className="text-sm text-muted-foreground mt-1">{PROJECT_TYPE_STEP.nonfictionDesc}</p>
+                </button>
+              </div>
+            )}
+
+            {currentStep.id === 'guidance' && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">{GUIDANCE_STEP.noneWrong}</p>
+                <div className="grid gap-3">
+                  {(['guided', 'flexible', 'freeform'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setData((d) => ({ ...d, guidance_mode: m }))}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        data.guidance_mode === m
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <span className="font-medium">{GUIDANCE_STEP[m].label}</span>
+                      <p className="text-sm text-muted-foreground mt-1">{GUIDANCE_STEP[m].desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {currentStep.id === 'work_style' && (
               <div className="grid gap-3">
-                {WRITING_MODES.map((opt) => {
+                {[
+                  { id: 'solo', label: WORK_STYLE_STEP.solo.label, desc: WORK_STYLE_STEP.solo.desc, icon: User },
+                  { id: 'cowrite', label: WORK_STYLE_STEP.cowrite.label, desc: WORK_STYLE_STEP.cowrite.desc, icon: PenLine },
+                  { id: 'ghostwriter', label: WORK_STYLE_STEP.ghostwriter.label, desc: WORK_STYLE_STEP.ghostwriter.desc, icon: Bot },
+                ].map((opt) => {
                   const ModeIcon = opt.icon;
                   return (
                     <button
@@ -248,7 +425,7 @@ export default function OnboardingPage() {
                           : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <ModeIcon className="h-5 w-5 mt-0.5 text-primary" />
+                      <ModeIcon className="h-5 w-5 mt-0.5 text-primary shrink-0" />
                       <div>
                         <span className="font-medium">{opt.label}</span>
                         <p className="text-sm text-muted-foreground mt-1">{opt.desc}</p>
@@ -259,106 +436,66 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {currentStep.id === 'writing_goals' && (
-              <div className="space-y-2">
-                <Label htmlFor="goals">What do you want to achieve?</Label>
-                <Input
-                  id="goals"
-                  placeholder="e.g. Finish my first draft, publish by summer, build a habit..."
-                  value={data.writing_goals}
-                  onChange={(e) => setData((d) => ({ ...d, writing_goals: e.target.value }))}
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-
-            {currentStep.id === 'target_timeline' && (
-              <div className="flex flex-wrap gap-2">
-                {TIMELINE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setData((d) => ({ ...d, target_timeline: opt.id }))}
-                    className={`rounded-full px-4 py-2 text-sm transition-colors ${
-                      data.target_timeline === opt.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {currentStep.id === 'writing_schedule' && (
-              <div className="flex flex-wrap gap-2">
-                {SCHEDULE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setData((d) => ({ ...d, writing_schedule: opt.id }))}
-                    className={`rounded-full px-4 py-2 text-sm transition-colors ${
-                      data.writing_schedule === opt.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {currentStep.id === 'accountability' && (
-              <div className="grid gap-3">
-                {ACCOUNTABILITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setData((d) => ({ ...d, accountability_style: opt.id }))}
-                    className={`rounded-lg border p-4 text-left transition-colors ${
-                      data.accountability_style === opt.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="font-medium">{opt.label}</span>
-                    <p className="text-sm text-muted-foreground mt-1">{opt.desc}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {currentStep.id === 'ai_comfort' && (
-              <div className="grid gap-3">
-                {AI_COMFORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setData((d) => ({ ...d, ai_comfort_level: opt.id }))}
-                    className={`rounded-lg border p-4 text-left transition-colors ${
-                      data.ai_comfort_level === opt.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="font-medium">{opt.label}</span>
-                    <p className="text-sm text-muted-foreground mt-1">{opt.desc}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {currentStep.id === 'genre' && (
-              <div className="space-y-2">
-                <Label htmlFor="genre">Genre or topic</Label>
-                <Input
-                  id="genre"
-                  placeholder="e.g. Thriller, memoir, business, self-help..."
-                  value={data.genre_topic}
-                  onChange={(e) => setData((d) => ({ ...d, genre_topic: e.target.value }))}
-                />
+            {currentStep.id === 'pace' && (
+              <div className="space-y-6">
+                <div>
+                  <Label className="text-sm font-medium">{PACE_STEP.timeline}</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {TIMELINE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setData((d) => ({ ...d, target_timeline: opt.id }))}
+                        className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                          data.target_timeline === opt.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted hover:bg-muted/80'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">{PACE_STEP.schedule}</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {SCHEDULE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setData((d) => ({ ...d, writing_schedule: opt.id }))}
+                        className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                          data.writing_schedule === opt.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted hover:bg-muted/80'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">{PACE_STEP.accountability}</Label>
+                  <div className="grid gap-2 sm:grid-cols-2 mt-2">
+                    {ACCOUNTABILITY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setData((d) => ({ ...d, accountability_style: opt.id }))}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          data.accountability_style === opt.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <span className="font-medium text-sm">{opt.label}</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -375,11 +512,9 @@ export default function OnboardingPage() {
                       ? 'Co-write with AI'
                       : 'Ghostwriter'}
                 </p>
-                {data.genre_topic && (
-                  <p>
-                    <strong>Genre:</strong> {data.genre_topic}
-                  </p>
-                )}
+                <p>
+                  <strong>Guidance:</strong> {data.guidance_mode.charAt(0).toUpperCase() + data.guidance_mode.slice(1)}
+                </p>
                 <p className="text-muted-foreground pt-2">
                   Your personalized roadmap will guide you from idea to finished book.
                 </p>
@@ -396,21 +531,24 @@ export default function OnboardingPage() {
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : currentStep.id === 'complete' ? (
                   <Check className="h-4 w-4 mr-2" />
-                ) : null}
+                ) : (
+                  <ChevronRight className="h-4 w-4 mr-2" />
+                )}
                 {currentStep.id === 'complete'
                   ? submitting
                     ? 'Creating your journey...'
-                    : 'Start my journey'
+                    : COMPLETE_STEP.cta
                   : 'Continue'}
               </Button>
               {stepIndex > 0 && (
                 <Button variant="ghost" onClick={handleBack} disabled={submitting}>
+                  <ChevronLeft className="h-4 w-4 mr-1" />
                   Back
                 </Button>
               )}
               {currentStep.id !== 'welcome' && currentStep.id !== 'complete' && (
                 <Button variant="link" asChild>
-                  <Link href="/dashboard">Skip</Link>
+                  <Link href="/dashboard">{ONBOARDING_SKIP.skip}</Link>
                 </Button>
               )}
             </div>

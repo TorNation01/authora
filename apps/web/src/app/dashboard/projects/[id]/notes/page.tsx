@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { cn } from '@/lib/utils';
+import { getEmptyStateConfig } from '@/content/empty-states';
 
 interface NoteAttachment {
   id: string;
@@ -373,10 +374,12 @@ function NoteList({
     );
   }
   if (notes.length === 0) {
+    const config = getEmptyStateConfig('no_notes')!;
     return (
       <Card variant="soft" className="p-12 text-center">
         <StickyNote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">No notes yet. Add one above.</p>
+        <h3 className="font-semibold mb-2">{config.title}</h3>
+        <p className="text-muted-foreground text-sm max-w-sm mx-auto">{config.description}</p>
       </Card>
     );
   }

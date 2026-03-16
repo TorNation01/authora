@@ -222,6 +222,9 @@ async def run_action_stream(
                 input_tokens=est_input,
                 output_tokens=est_output,
             )
+            from authora.services.onboarding_analytics import record_first_ai_assist_used
+
+            await record_first_ai_assist_used(db, current_user.id, data.action_id)
 
     return StreamingResponse(
         generate(),

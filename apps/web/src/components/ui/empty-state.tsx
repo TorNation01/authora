@@ -1,15 +1,42 @@
 import * as React from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
+
+export interface EmptyStateAction {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+}
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
   title: string;
   description: string;
-  action?: { label: string; href?: string; onClick?: () => void };
-  secondaryAction?: { label: string; href?: string; onClick?: () => void };
+  action?: EmptyStateAction;
+  secondaryAction?: EmptyStateAction;
+  /** Smart default actions—quick paths shown as subtle links */
+  defaultActions?: EmptyStateAction[];
   className?: string;
   children?: React.ReactNode;
+}
+
+function ActionButton({ a }: { a: EmptyStateAction }) {
+  if (a.href) {
+    return (
+      <Button asChild size="sm" variant="outline">
+        <Link href={a.href}>{a.label}</Link>
+      </Button>
+    );
+  }
+  if (a.onClick) {
+    return (
+      <Button size="sm" variant="outline" onClick={a.onClick}>
+        {a.label}
+      </Button>
+    );
+  }
+  return null;
 }
 
 export function EmptyState({
@@ -18,6 +45,7 @@ export function EmptyState({
   description,
   action,
   secondaryAction,
+  defaultActions,
   className,
   children,
 }: EmptyStateProps) {
@@ -36,27 +64,40 @@ export function EmptyState({
       <h3 className="section-header mb-2">{title}</h3>
       <p className="section-description mb-6 max-w-sm">{description}</p>
       {children}
-      {(action || secondaryAction) && (
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {action && (
-            action.href ? (
-              <Button asChild>
-                <a href={action.href}>{action.label}</a>
-              </Button>
-            ) : (
-              <Button onClick={action.onClick}>{action.label}</Button>
-            )
+      {(action || secondaryAction || defaultActions?.length) && (
+        <div className="flex flex-col items-center gap-4">
+          {(action || secondaryAction) && (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {action && (
+                action.href ? (
+                  <Button asChild>
+                    <Link href={action.href}>{action.label}</Link>
+                  </Button>
+                ) : (
+                  <Button onClick={action.onClick}>{action.label}</Button>
+                )
+              )}
+              {secondaryAction && (
+                secondaryAction.href ? (
+                  <Button variant="outline" asChild>
+                    <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={secondaryAction.onClick}>
+                    {secondaryAction.label}
+                  </Button>
+                )
+              )}
+            </div>
           )}
-          {secondaryAction && (
-            secondaryAction.href ? (
-              <Button variant="outline" asChild>
-                <a href={secondaryAction.href}>{secondaryAction.label}</a>
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={secondaryAction.onClick}>
-                {secondaryAction.label}
-              </Button>
-            )
+          {defaultActions && defaultActions.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+              {defaultActions
+                .filter((a) => a.href || a.onClick)
+                .map((a, i) => (
+                  <ActionButton key={i} a={a} />
+                ))}
+            </div>
           )}
         </div>
       )}

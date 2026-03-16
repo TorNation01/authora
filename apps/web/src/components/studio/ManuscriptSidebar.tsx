@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { getEmptyStateConfig } from '@/content/empty-states';
 
 export type SectionStatus = 'draft' | 'revising' | 'review' | 'done';
 
@@ -158,8 +159,13 @@ export function ManuscriptSidebar({
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="space-y-1"
+                className="space-y-1 min-h-[80px]"
               >
+                {chapters.length === 0 && (
+                  <p className="px-2 py-4 text-xs text-muted-foreground text-center">
+                    {getEmptyStateConfig('no_chapters')!.description}
+                  </p>
+                )}
                 {chapters.map((ch, index) => (
                   <Draggable key={ch.id} draggableId={ch.id} index={index}>
                     {(provided) => (

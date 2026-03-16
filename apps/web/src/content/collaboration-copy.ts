@@ -163,7 +163,7 @@ export const SAFETY_COPY = {
 
 export const SHARING_PAGE_COPY = {
   title: 'Sharing & access',
-  emptyState: 'No collaborators yet. Invite someone to share your manuscript.',
+  emptyState: 'Invite someone in when you want feedback. Share your manuscript with beta readers, editors, or clients—you control what others see.',
   inviteDialogTitle: 'Invite someone in',
   inviteDialogDescription:
     "They'll receive an email to accept. Choose a role to give the right level of access.",

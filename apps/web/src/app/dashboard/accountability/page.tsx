@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getEmptyStateConfig } from '@/content/empty-states';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   Target,
@@ -560,9 +561,9 @@ export default function AccountabilityPage() {
           {goals.length === 0 ? (
             <EmptyState
               icon={<Target className="h-6 w-6" />}
-              title="Set a gentle goal"
-              description="A daily or weekly word count can help you stay on track. We'll nudge you kindly—no pressure."
-              action={{ label: 'Set a goal', href: '/dashboard' }}
+              title={getEmptyStateConfig('no_goals')!.title}
+              description={getEmptyStateConfig('no_goals')!.description}
+              action={{ label: 'Set goal', href: '/dashboard' }}
             />
           ) : (
             <div className="space-y-4">

@@ -100,6 +100,11 @@ async def create_project_from_wizard(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create project and book from template via guided wizard."""
+    from authora.models import ProjectTemplate
+    from authora.services.onboarding_analytics import (
+        record_first_project_created,
+        record_project_wizard_completed,
+    )
     from authora.services.project_wizard import create_project_from_wizard
 
     try:
@@ -130,6 +135,20 @@ async def create_project_from_wizard(
         str(project.id),
         current_user.id,
         {"name": project.name, "from_wizard": True, "template_id": str(data.template_id) if data.template_id else None},
+    )
+    template_slug = None
+    if project.template_id:
+        tpl = await db.get(ProjectTemplate, project.template_id)
+        template_slug = tpl.slug if tpl else None
+    await record_project_wizard_completed(
+        db,
+        current_user.id,
+        template_id=project.template_id,
+        template_slug=template_slug,
+        guidance_mode=data.guidance_mode or project.guidance_mode,
+    )
+    await record_first_project_created(
+        db, current_user.id, project.id, template_slug=template_slug, from_wizard=True
     )
     await db.commit()
     await db.refresh(project)
@@ -176,6 +195,9 @@ async def create_project(
     await db.flush()
     audit = AuditLogger(db)
     await audit.log("create", "project", str(project.id), current_user.id, {"name": data.name})
+    from authora.services.onboarding_analytics import record_first_project_created
+
+    await record_first_project_created(db, current_user.id, project.id, from_wizard=False)
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
 

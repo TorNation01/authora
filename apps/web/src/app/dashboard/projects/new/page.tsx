@@ -38,6 +38,8 @@ import {
   FRAMEWORK_SUPPORTIVE_COPY,
   FRAMEWORK_DESCRIPTIONS,
 } from '@/content/framework-copy';
+import { TemplatePreviewCard } from '@/components/onboarding/TemplatePreviewCard';
+import { StarterTemplateSelector } from '@/components/onboarding/StarterTemplateSelector';
 
 type TemplateSummary = {
   id: string;
@@ -70,15 +72,29 @@ const STRUCTURE_OPTIONS: Record<string, string> = {
   custom: 'Custom / build your own',
 };
 
+type StarterWithTemplateId = {
+  id: string;
+  slug: string;
+  name: string;
+  templateSlug: string | null;
+  templateId: string | null;
+  guidanceLevel: 'guided' | 'flexible' | 'freeform';
+  knowledgeMode: 'fiction' | 'nonfiction' | 'memoir' | 'workbook' | 'hybrid';
+};
+
 export default function NewProjectPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [mode, setMode] = useState<'choose' | 'quick' | 'wizard'>('choose');
+  const [mode, setMode] = useState<'starters' | 'quick' | 'wizard'>('starters');
   const [step, setStep] = useState(1);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [featuredLaunch, setFeaturedLaunch] = useState<TemplateSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Starter flow: selected starter for quick create or customize
+  const [selectedStarter, setSelectedStarter] = useState<StarterWithTemplateId | null>(null);
+  const [preselectedTemplateId, setPreselectedTemplateId] = useState<string | null>(null);
 
   // Wizard state
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | null>(null);
@@ -89,16 +105,59 @@ export default function NewProjectPage() {
   const [structureFramework, setStructureFramework] = useState('');
   const [targetWords, setTargetWords] = useState('');
   const [targetDate, setTargetDate] = useState('');
+  const [guidanceMode, setGuidanceMode] = useState<'guided' | 'flexible' | 'freeform'>('guided');
 
   useEffect(() => {
     if (mode === 'wizard') {
       Promise.all([
         api<TemplateCategory[]>('/api/v1/templates/categories'),
         api<TemplateSummary[]>('/api/v1/templates/featured-launch'),
+        api<{ preferences: Record<string, unknown> }>('/api/v1/auth/me/preferences').catch(() => ({ preferences: {} })),
       ])
-        .then(([cats, featured]) => {
+        .then(([cats, featured, prefs]) => {
           setCategories(cats);
           setFeaturedLaunch(featured);
+          const gm = (prefs?.preferences as Record<string, unknown>)?.onboarding_guidance_mode;
+          if (gm === 'guided' || gm === 'flexible' || gm === 'freeform') {
+            setGuidanceMode(gm);
+          }
+          // Apply preselected template from Customize flow
+          if (preselectedTemplateId) {
+            const fromFeatured = featured.find((t) => t.id === preselectedTemplateId);
+            if (fromFeatured) {
+              const cat = cats.find(
+                (c) => c.template.id === fromFeatured.id || c.children.some((ch) => ch.id === fromFeatured.id)
+              );
+              if (cat) {
+                setSelectedCategory(cat);
+                setSelectedTemplateId(fromFeatured.id);
+              } else {
+                setSelectedCategory({
+                  category: fromFeatured.slug,
+                  name: fromFeatured.name,
+                  slug: fromFeatured.slug,
+                  template: fromFeatured,
+                  children: [],
+                });
+                setSelectedTemplateId(fromFeatured.id);
+              }
+            } else {
+              for (const cat of cats) {
+                if (cat.template.id === preselectedTemplateId) {
+                  setSelectedCategory(cat);
+                  setSelectedTemplateId(cat.template.id);
+                  break;
+                }
+                const child = cat.children.find((c) => c.id === preselectedTemplateId);
+                if (child) {
+                  setSelectedCategory(cat);
+                  setSelectedTemplateId(child.id);
+                  break;
+                }
+              }
+            }
+            setPreselectedTemplateId(null);
+          }
         })
         .catch(() => {
           setCategories([]);
@@ -106,21 +165,45 @@ export default function NewProjectPage() {
         })
         .finally(() => setLoadingCategories(false));
     }
-  }, [mode]);
+  }, [mode, preselectedTemplateId]);
 
   async function handleQuickCreate(e: React.FormEvent) {
     e.preventDefault();
+    const name = projectName?.trim() || 'Untitled Project';
     setLoading(true);
     try {
-      const project = await api<{ id: string }>('/api/v1/projects', {
+      // Blank starter or no template: create minimal project via from-wizard
+      if (!selectedStarter?.templateId || selectedStarter.slug === 'blank') {
+        const res = await api<{ project: { id: string }; book_id: string }>('/api/v1/projects/from-wizard', {
+          method: 'POST',
+          body: JSON.stringify({
+            template_id: null,
+            project_name: name,
+            book_title: name,
+            book_type: 'fiction',
+            guidance_mode: 'freeform',
+            knowledge_mode: 'fiction',
+          }),
+        });
+        toast({ title: 'Project created' });
+        router.push(`/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`);
+        return;
+      }
+      // Template-based: create from wizard with template
+      const res = await api<{ project: { id: string }; book_id: string }>('/api/v1/projects/from-wizard', {
         method: 'POST',
         body: JSON.stringify({
-          name: projectName || 'Untitled Project',
-          guidance_mode: 'freeform',
+          template_id: selectedStarter.templateId,
+          project_name: name,
+          book_title: bookTitle?.trim() || name,
+          book_type: selectedStarter.knowledgeMode === 'fiction' ? 'fiction' : 'nonfiction',
+          genre: null,
+          guidance_mode: selectedStarter.guidanceLevel,
+          knowledge_mode: selectedStarter.knowledgeMode,
         }),
       });
       toast({ title: 'Project created' });
-      router.push(`/dashboard/projects/${project.id}`);
+      router.push(`/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`);
     } catch (err) {
       toast({
         title: 'Failed to create project',
@@ -243,60 +326,76 @@ export default function NewProjectPage() {
     }
   };
 
-  // Mode selection
-  if (mode === 'choose') {
+  // Starter selection (main view)
+  if (mode === 'starters') {
     return (
-      <div className="p-6 lg:p-8 max-w-2xl">
+      <div className="p-6 lg:p-8 max-w-6xl">
         <PageHeader
-          title={TEMPLATE_LIBRARY.heading}
-          description={TEMPLATE_LIBRARY.subheading}
+          title="Choose your starter"
+          description="Start with confidence. Pick a path that matches your book type, or start blank."
           backHref="/dashboard"
           backLabel="Dashboard"
         />
         <p className="mt-2 text-sm text-muted-foreground">{MICROCOPY.adjustLater}</p>
-        <div className="grid gap-4 sm:grid-cols-2 mt-8">
-          <Card
-            variant="sanctuary"
-            className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
-            onClick={() => setMode('quick')}
-          >
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-primary/10 p-2">
-                  <Zap className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="font-serif">{START_OPTIONS.startFast.label}</CardTitle>
-              </div>
-              <CardDescription>{START_OPTIONS.startFast.description}</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card
-            variant="sanctuary"
-            className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
-            onClick={() => setMode('wizard')}
-          >
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-primary/10 p-2">
-                  <Compass className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="font-serif">{START_OPTIONS.guidedSetup.label}</CardTitle>
-              </div>
-              <CardDescription>{START_OPTIONS.guidedSetup.description}</CardDescription>
-            </CardHeader>
-          </Card>
+        <div className="mt-8">
+          <StarterTemplateSelector
+            onUseStarter={(starter) => {
+              setSelectedStarter({
+                id: starter.id,
+                slug: starter.slug,
+                name: starter.name,
+                templateSlug: starter.templateSlug,
+                templateId: starter.templateId,
+                guidanceLevel: starter.guidanceLevel,
+                knowledgeMode: starter.knowledgeMode,
+              });
+              setMode('quick');
+            }}
+            onCustomize={(starter) => {
+              if (starter.templateId) {
+                setPreselectedTemplateId(starter.templateId);
+                setSelectedStarter({
+                  id: starter.id,
+                  slug: starter.slug,
+                  name: starter.name,
+                  templateSlug: starter.templateSlug,
+                  templateId: starter.templateId,
+                  guidanceLevel: starter.guidanceLevel,
+                  knowledgeMode: starter.knowledgeMode,
+                });
+                setMode('wizard');
+              }
+            }}
+            onStartBlank={() => {
+              setSelectedStarter({
+                id: 'blank',
+                slug: 'blank',
+                name: 'Blank Project',
+                templateSlug: null,
+                templateId: null,
+                guidanceLevel: 'freeform',
+                knowledgeMode: 'fiction',
+              });
+              setMode('quick');
+            }}
+          />
         </div>
       </div>
     );
   }
 
-  // Quick start (Start fast)
+  // Quick create (from starter or blank)
   if (mode === 'quick') {
+    const isBlank = !selectedStarter?.templateId || selectedStarter.slug === 'blank';
     return (
       <div className="p-6 lg:p-8 max-w-xl">
         <PageHeader
-          title={START_OPTIONS.startFast.label}
-          description={START_OPTIONS.startFast.description}
+          title={isBlank ? 'Start blank' : `Use ${selectedStarter?.name ?? 'starter'}`}
+          description={
+            isBlank
+              ? 'Name your project and create a minimal workspace.'
+              : 'Name your project and create with the preconfigured structure.'
+          }
           backHref="/dashboard/projects/new"
           backLabel="Back"
         />
@@ -304,7 +403,9 @@ export default function NewProjectPage() {
         <Card variant="sanctuary" className="mt-6">
           <CardHeader>
             <CardTitle className="font-serif">Project name</CardTitle>
-            <CardDescription>e.g. &quot;My first novel&quot; or &quot;Business book 2025&quot;</CardDescription>
+            <CardDescription>
+              e.g. &quot;My first novel&quot; or &quot;Business book 2025&quot;
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleQuickCreate} className="space-y-6">
@@ -319,11 +420,23 @@ export default function NewProjectPage() {
                   className="h-11"
                 />
               </div>
+              {!isBlank && (
+                <div className="space-y-2">
+                  <Label htmlFor="bookTitle">Book title (optional)</Label>
+                  <Input
+                    id="bookTitle"
+                    placeholder="Same as project name"
+                    value={bookTitle}
+                    onChange={(e) => setBookTitle(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+              )}
               <div className="flex gap-3">
                 <Button type="submit" disabled={loading}>
                   {loading ? 'Creating...' : 'Create project'}
                 </Button>
-                <Button variant="outline" type="button" onClick={() => setMode('choose')}>
+                <Button variant="outline" type="button" onClick={() => setMode('starters')}>
                   Back
                 </Button>
               </div>
@@ -338,7 +451,7 @@ export default function NewProjectPage() {
   return (
     <div className="p-6 lg:p-8 max-w-2xl">
       <PageHeader
-        title={START_OPTIONS.guidedSetup.label}
+        title={selectedStarter ? `Customize: ${selectedStarter.name}` : START_OPTIONS.guidedSetup.label}
         description={`Step ${step} of ${totalSteps}`}
         backHref={step === 1 ? '/dashboard/projects/new' : undefined}
         backLabel={step === 1 ? 'Back' : undefined}
@@ -405,6 +518,10 @@ export default function NewProjectPage() {
                   ))}
                 </div>
               </div>
+              <TemplatePreviewCard
+                templateId={selectedTemplateId}
+                templateName={getSelectedTemplate()?.name}
+              />
               <p className="text-sm text-muted-foreground">{MICROCOPY.keepMoving}</p>
               {featuredLaunch.length > 0 && (
                 <div>

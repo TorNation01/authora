@@ -400,6 +400,10 @@ async def export_book(
         options={"backup_style": backup_style},
     )
     db.add(job)
+    await db.flush()
+    from authora.services.onboarding_analytics import record_first_export_completed
+
+    await record_first_export_completed(db, current_user.id, book_id, format)
     await db.commit()
 
     ext = "docx" if format == "docx" else format
@@ -568,6 +572,10 @@ async def export_priority(
         options={"priority": True},
     )
     db.add(job)
+    await db.flush()
+    from authora.services.onboarding_analytics import record_first_export_completed
+
+    await record_first_export_completed(db, current_user.id, book_id, export_type.replace("-", "_"))
     await db.commit()
 
     return Response(
