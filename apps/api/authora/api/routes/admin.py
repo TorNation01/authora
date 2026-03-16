@@ -180,6 +180,60 @@ async def admin_update_feature_flag(
     return {"key": key, "enabled": data.enabled}
 
 
+# --- Vault admin config ---
+
+VAULT_CONFIG_KEY = "vault_config"
+DEFAULT_VAULT_CONFIG = {
+    "ai_retrieval_enabled": True,
+    "export_enabled": True,
+    "attachments_enabled": True,
+    "entry_limits": {},  # plan_slug -> {ideas: N, characters: N, ...}
+    "feature_by_plan": {},  # plan_slug -> ["ideas", "research", "characters", ...]
+}
+
+
+@router.get("/vault-config")
+async def admin_get_vault_config(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get vault admin config (feature availability, limits, AI retrieval, export)."""
+    result = await db.execute(select(Setting).where(Setting.key == VAULT_CONFIG_KEY))
+    row = result.scalar_one_or_none()
+    config = {**DEFAULT_VAULT_CONFIG, **(row.value or {})} if row else DEFAULT_VAULT_CONFIG
+    return config
+
+
+class VaultConfigUpdate(BaseModel):
+    ai_retrieval_enabled: bool | None = None
+    export_enabled: bool | None = None
+    attachments_enabled: bool | None = None
+    entry_limits: dict[str, dict[str, int]] | None = None
+    feature_by_plan: dict[str, list[str]] | None = None
+
+
+@router.put("/vault-config")
+async def admin_update_vault_config(
+    data: VaultConfigUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update vault admin config."""
+    result = await db.execute(select(Setting).where(Setting.key == VAULT_CONFIG_KEY))
+    row = result.scalar_one_or_none()
+    current = {**DEFAULT_VAULT_CONFIG, **(row.value or {})} if row else DEFAULT_VAULT_CONFIG.copy()
+    updates = data.model_dump(exclude_unset=True)
+    for k, v in updates.items():
+        current[k] = v
+    if not row:
+        row = Setting(key=VAULT_CONFIG_KEY, value=current)
+        db.add(row)
+    else:
+        row.value = current
+    await db.flush()
+    return current
+
+
 # --- AI usage visibility ---
 
 

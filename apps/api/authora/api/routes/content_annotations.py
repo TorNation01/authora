@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404
+from authora.api.resolvers import get_book_with_access_or_404
 from authora.database import get_db
 from authora.models import Chapter, ContentComment, ContentHighlight
 from authora.schemas.content_annotation import (
@@ -37,7 +37,7 @@ async def list_highlights(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List highlights for a chapter."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -65,7 +65,7 @@ async def create_highlight(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create highlight on chapter content."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -96,7 +96,7 @@ async def delete_highlight(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete highlight."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentHighlight).where(
             ContentHighlight.id == highlight_id,
@@ -113,6 +113,77 @@ async def delete_highlight(
 # --- Comments ---
 
 
+@router.get("/comments", response_model=list[ContentCommentResponse])
+async def list_book_comments(
+    project_id: uuid.UUID,
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    chapter_id: uuid.UUID | None = Query(None, description="Filter by chapter"),
+    user_id: uuid.UUID | None = Query(None, description="Filter by user"),
+    tag: str | None = Query(None, alias="comment_type", description="Filter by tag"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status"),
+    role: str | None = Query(None, description="Filter by collaboration_role"),
+    unresolved_only: bool = Query(False, description="Filter to unresolved"),
+):
+    """List comments across all chapters in a book. Supports filtering by chapter, user, tag, role, status."""
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
+    q = (
+        select(ContentComment)
+        .join(Chapter, ContentComment.chapter_id == Chapter.id)
+        .where(Chapter.book_id == book_id, ContentComment.parent_id.is_(None))
+    )
+    if chapter_id is not None:
+        q = q.where(ContentComment.chapter_id == chapter_id)
+    if user_id is not None:
+        q = q.where(ContentComment.user_id == user_id)
+    if tag is not None:
+        q = q.where(ContentComment.comment_type == tag)
+    if status_filter is not None:
+        q = q.where(ContentComment.status == status_filter)
+    if role is not None:
+        q = q.where(ContentComment.collaboration_role == role)
+    result = await db.execute(q.order_by(ContentComment.created_at))
+    roots = result.scalars().all()
+    if unresolved_only:
+        roots = [r for r in roots if r.resolved_at is None]
+    from authora.models import User
+
+    def _comment_to_response(c: ContentComment) -> ContentCommentResponse:
+        d = ContentCommentResponse.model_validate(c)
+        d.user_id = c.user_id
+        return d
+
+    async def _with_user_info(comments: list) -> list[ContentCommentResponse]:
+        out_list = []
+        for r in comments:
+            data = _comment_to_response(r)
+            if r.user_id:
+                u = await db.get(User, r.user_id)
+                if u:
+                    data.user_email = u.email
+                    data.user_display_name = u.display_name
+            result = await db.execute(
+                select(ContentComment)
+                .where(ContentComment.parent_id == r.id)
+                .order_by(ContentComment.created_at)
+            )
+            replies = result.scalars().all()
+            data.replies = []
+            for reply in replies:
+                rd = _comment_to_response(reply)
+                if reply.user_id:
+                    u = await db.get(User, reply.user_id)
+                    if u:
+                        rd.user_email = u.email
+                        rd.user_display_name = u.display_name
+                data.replies.append(rd)
+            out_list.append(data)
+        return out_list
+
+    return await _with_user_info(roots)
+
+
 @router.get("/chapters/{chapter_id}/comments", response_model=list[ContentCommentResponse])
 async def list_comments(
     project_id: uuid.UUID,
@@ -122,9 +193,13 @@ async def list_comments(
     db: Annotated[AsyncSession, Depends(get_db)],
     unresolved_only: bool = Query(False, description="Filter to unresolved comments"),
     revision_pass_id: uuid.UUID | None = Query(None, description="Filter by revision pass"),
+    user_id: uuid.UUID | None = Query(None, description="Filter by reviewer/user who wrote the comment"),
+    tag: str | None = Query(None, alias="comment_type", description="Filter by comment tag"),
+    status_filter: str | None = Query(None, alias="status", description="Filter by status: open, in_review, resolved, deferred, needs_decision"),
+    role: str | None = Query(None, description="Filter by collaboration_role"),
 ):
-    """List comments for a chapter (top-level, with replies nested)."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    """List comments for a chapter (top-level, with replies nested). Returns all collaborators' comments."""
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -134,27 +209,58 @@ async def list_comments(
         select(ContentComment)
         .where(
             ContentComment.chapter_id == chapter_id,
-            ContentComment.user_id == current_user.id,
             ContentComment.parent_id.is_(None),
         )
     )
     if revision_pass_id is not None:
         q = q.where(ContentComment.revision_pass_id == revision_pass_id)
+    if user_id is not None:
+        q = q.where(ContentComment.user_id == user_id)
+    if tag is not None:
+        q = q.where(ContentComment.comment_type == tag)
+    if status_filter is not None:
+        q = q.where(ContentComment.status == status_filter)
+    if role is not None:
+        q = q.where(ContentComment.collaboration_role == role)
     result = await db.execute(q.order_by(ContentComment.created_at))
     roots = result.scalars().all()
     if unresolved_only:
         roots = [r for r in roots if r.resolved_at is None]
-    out = []
-    for r in roots:
-        data = ContentCommentResponse.model_validate(r)
-        result = await db.execute(
-            select(ContentComment)
-            .where(ContentComment.parent_id == r.id)
-            .order_by(ContentComment.created_at)
-        )
-        data.replies = [ContentCommentResponse.model_validate(c) for c in result.scalars().all()]
-        out.append(data)
-    return out
+    from authora.models import User
+
+    def _comment_to_response(c: ContentComment) -> ContentCommentResponse:
+        d = ContentCommentResponse.model_validate(c)
+        d.user_id = c.user_id
+        return d
+
+    async def _with_user_info(comments: list) -> list[ContentCommentResponse]:
+        out_list = []
+        for r in comments:
+            data = _comment_to_response(r)
+            if r.user_id:
+                u = await db.get(User, r.user_id)
+                if u:
+                    data.user_email = u.email
+                    data.user_display_name = u.display_name
+            result = await db.execute(
+                select(ContentComment)
+                .where(ContentComment.parent_id == r.id)
+                .order_by(ContentComment.created_at)
+            )
+            replies = result.scalars().all()
+            data.replies = []
+            for reply in replies:
+                rd = _comment_to_response(reply)
+                if reply.user_id:
+                    u = await db.get(User, reply.user_id)
+                    if u:
+                        rd.user_email = u.email
+                        rd.user_display_name = u.display_name
+                data.replies.append(rd)
+            out_list.append(data)
+        return out_list
+
+    return await _with_user_info(roots)
 
 
 @router.post(
@@ -171,7 +277,7 @@ async def create_comment(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create comment on chapter content."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -185,6 +291,8 @@ async def create_comment(
         end_offset=data.end_offset,
         body=data.body,
         revision_pass_id=data.revision_pass_id,
+        comment_type=getattr(data, "comment_type", None),
+        collaboration_role=getattr(data, "collaboration_role", None),
     )
     db.add(comment)
     await db.flush()
@@ -202,24 +310,37 @@ async def update_comment(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update comment (body or resolved status)."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    """Update comment (body, tag, status, or resolved)."""
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentComment).where(
             ContentComment.id == comment_id,
             ContentComment.chapter_id == chapter_id,
-            ContentComment.user_id == current_user.id,
         )
     )
     c = result.scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    # Body and comment_type: author only; status and resolved: any collaborator with access
     if data.body is not None:
+        if c.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the comment author can edit the body")
         c.body = data.body
+    if data.comment_type is not None:
+        if c.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the comment author can change the tag")
+        c.comment_type = data.comment_type
+    if data.status is not None:
+        c.status = data.status
+        if data.status == "resolved":
+            from datetime import datetime, timezone
+            c.resolved_at = datetime.now(timezone.utc)
+        elif c.resolved_at and data.status != "resolved":
+            c.resolved_at = None
     if data.resolved is not None:
         from datetime import datetime, timezone
-
         c.resolved_at = datetime.now(timezone.utc) if data.resolved else None
+        c.status = "resolved" if data.resolved else "open"
     await db.flush()
     await db.refresh(c)
     return ContentCommentResponse.model_validate(c)
@@ -235,7 +356,7 @@ async def delete_comment(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete comment and its replies."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentComment).where(
             ContentComment.id == comment_id,

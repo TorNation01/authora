@@ -10,10 +10,10 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_project_or_404
+from authora.api.resolvers import get_project_or_404, get_project_with_access_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
-from authora.models import Project
+from authora.models import Project, ProjectMember
 from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, ProjectWizardRequest
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -27,8 +27,14 @@ async def list_projects(
     q: str | None = Query(None, description="Search by project name"),
     sort: str = Query("updated_at", description="updated_at | name | created_at | last_accessed_at"),
 ):
-    """List user's projects with optional filters and search."""
-    base = select(Project).where(Project.user_id == current_user.id)
+    """List user's projects (owned or shared) with optional filters and search."""
+    # Include owned projects and projects where user is a member
+    member_project_ids = select(ProjectMember.project_id).where(
+        ProjectMember.user_id == current_user.id
+    )
+    base = select(Project).where(
+        or_(Project.user_id == current_user.id, Project.id.in_(member_project_ids))
+    )
 
     if status_filter == "archived":
         base = base.where(Project.deleted_at.isnot(None))
@@ -61,9 +67,15 @@ async def get_recent_project(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get most recently accessed project for continue-recent."""
+    member_project_ids = select(ProjectMember.project_id).where(
+        ProjectMember.user_id == current_user.id
+    )
     result = await db.execute(
         select(Project)
-        .where(Project.user_id == current_user.id, Project.deleted_at.is_(None))
+        .where(
+            or_(Project.user_id == current_user.id, Project.id.in_(member_project_ids)),
+            Project.deleted_at.is_(None),
+        )
         .order_by(Project.last_accessed_at.desc().nullslast(), Project.updated_at.desc())
         .limit(1)
     )
@@ -106,6 +118,7 @@ async def create_project_from_wizard(
             target_words=data.target_words,
             target_date=data.target_date,
             guidance_mode=data.guidance_mode,
+            knowledge_mode=getattr(data, "knowledge_mode", None),
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -147,8 +160,19 @@ async def create_project(
         user_id=current_user.id,
         name=data.name,
         guidance_mode=getattr(data, "guidance_mode", "guided") or "guided",
+        knowledge_mode=getattr(data, "knowledge_mode", "fiction") or "fiction",
+        knowledge_modules=getattr(data, "knowledge_modules", None),
     )
     db.add(project)
+    await db.flush()
+    # Add owner as project member for collaboration consistency
+    owner_member = ProjectMember(
+        user_id=current_user.id,
+        project_id=project.id,
+        role="owner",
+        invited_by=None,
+    )
+    db.add(owner_member)
     await db.flush()
     audit = AuditLogger(db)
     await audit.log("create", "project", str(project.id), current_user.id, {"name": data.name})
@@ -162,8 +186,8 @@ async def get_project(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get project by ID. Updates last_accessed_at."""
-    project = await get_project_or_404(db, project_id, current_user.id)
+    """Get project by ID. Updates last_accessed_at. Accessible to owner and members."""
+    project, _ = await get_project_with_access_or_404(db, project_id, current_user.id)
     project.last_accessed_at = datetime.now(timezone.utc)
     await db.flush()
     await db.refresh(project)

@@ -10,10 +10,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from authora.models import Book, Chapter, FictionWorkspace, NonfictionWorkspace, Project, ProjectTemplate, WritingFramework
+from authora.models import Book, Chapter, FictionWorkspace, NonfictionWorkspace, Project, ProjectMember, ProjectTemplate, WritingFramework
 from authora.services.framework_recommendation import get_framework_for_template
 
 GUIDANCE_MODES = ("guided", "flexible", "freeform")
+KNOWLEDGE_MODES = ("fiction", "nonfiction", "memoir", "workbook", "hybrid")
 
 
 async def create_project_from_wizard(
@@ -38,6 +39,8 @@ async def create_project_from_wizard(
 
     if guidance_mode not in GUIDANCE_MODES:
         guidance_mode = "guided"
+    if knowledge_mode not in KNOWLEDGE_MODES:
+        knowledge_mode = "fiction" if book_type == "fiction" else "nonfiction"
 
     allowed, current, limit = await check_project_limit(db, user_id)
     if not allowed:
@@ -80,8 +83,19 @@ async def create_project_from_wizard(
         name=project_name,
         template_id=template_id if use_template else None,
         guidance_mode=guidance_mode,
+        knowledge_mode=knowledge_mode,
     )
     db.add(project)
+    await db.flush()
+
+    # Add owner as project member for collaboration consistency
+    owner_member = ProjectMember(
+        user_id=user_id,
+        project_id=project.id,
+        role="owner",
+        invited_by=None,
+    )
+    db.add(owner_member)
     await db.flush()
 
     # Build planner_data from wizard answers and template

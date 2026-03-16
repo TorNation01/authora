@@ -13,3 +13,4 @@ export * from './template-copy';
 export * from './framework-copy';
 export * from './accountability-copy';
 export * from './editor-copy';
+export * from './vault-copy';

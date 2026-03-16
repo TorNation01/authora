@@ -3,17 +3,24 @@
 import uuid
 
 GUIDANCE_MODES = ("guided", "flexible", "freeform")
+KNOWLEDGE_MODES = ("fiction", "nonfiction", "memoir", "workbook", "hybrid")
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.book import Book
+    from authora.models.collaboration import (
+        CollaborationActivity,
+        ProjectInvite,
+        ProjectMember,
+        ProjectShare,
+    )
     from authora.models.note import Note
     from authora.models.project_template import ProjectTemplate
     from authora.models.revision_pass import RevisionPass
@@ -34,6 +41,8 @@ class Project(Base):
         UUID(as_uuid=True), ForeignKey("project_templates.id", ondelete="SET NULL"), nullable=True
     )
     guidance_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="guided")
+    knowledge_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="fiction")
+    knowledge_modules: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -43,4 +52,40 @@ class Project(Base):
     notes: Mapped[list["Note"]] = relationship("Note", back_populates="project", cascade="all, delete-orphan")
     revision_passes: Mapped[list["RevisionPass"]] = relationship(
         "RevisionPass", back_populates="project", cascade="all, delete-orphan"
+    )
+    members: Mapped[list["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
+    invites: Mapped[list["ProjectInvite"]] = relationship(
+        "ProjectInvite", back_populates="project", cascade="all, delete-orphan"
+    )
+    shares: Mapped[list["ProjectShare"]] = relationship(
+        "ProjectShare", back_populates="project", cascade="all, delete-orphan"
+    )
+    collaboration_activities: Mapped[list["CollaborationActivity"]] = relationship(
+        "CollaborationActivity", back_populates="project", cascade="all, delete-orphan"
+    )
+    ideas: Mapped[list["Idea"]] = relationship(
+        "Idea", back_populates="project", cascade="all, delete-orphan"
+    )
+    research_entries: Mapped[list["ResearchEntry"]] = relationship(
+        "ResearchEntry", back_populates="project", cascade="all, delete-orphan"
+    )
+    vault_characters: Mapped[list["VaultCharacter"]] = relationship(
+        "VaultCharacter", back_populates="project", cascade="all, delete-orphan"
+    )
+    vault_locations: Mapped[list["VaultLocation"]] = relationship(
+        "VaultLocation", back_populates="project", cascade="all, delete-orphan"
+    )
+    timeline_events: Mapped[list["TimelineEvent"]] = relationship(
+        "TimelineEvent", back_populates="project", cascade="all, delete-orphan"
+    )
+    vault_relationships: Mapped[list["VaultRelationship"]] = relationship(
+        "VaultRelationship", back_populates="project", cascade="all, delete-orphan"
+    )
+    vault_themes: Mapped[list["Theme"]] = relationship(
+        "Theme", back_populates="project", cascade="all, delete-orphan"
+    )
+    vault_sources: Mapped[list["Source"]] = relationship(
+        "Source", back_populates="project", cascade="all, delete-orphan"
     )

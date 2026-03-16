@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404, get_project_or_404
+from authora.api.resolvers import get_book_or_404, get_book_with_access_or_404, get_project_or_404, get_project_with_access_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
 from authora.models import Book, BookSettings, Chapter, ChapterVersion, Project
@@ -51,8 +51,8 @@ async def list_books(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """List books in project."""
-    await get_project_or_404(db, project_id, current_user.id)
+    """List books in project. Accessible to owner and members."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(select(Book).where(Book.project_id == project_id).order_by(Book.updated_at.desc()))
     books = result.scalars().all()
     return [BookResponse.model_validate(b) for b in books]
@@ -65,7 +65,7 @@ async def create_book(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create book in project."""
+    """Create book in project. Owner only."""
     from authora.services.billing_service import check_book_limit
 
     await get_project_or_404(db, project_id, current_user.id)
@@ -118,7 +118,7 @@ async def update_book(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update book."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     if data.title is not None:
         book.title = data.title
     if data.genre is not None:
@@ -147,7 +147,7 @@ async def delete_book(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete book."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     await db.delete(book)
 
 
@@ -161,7 +161,7 @@ async def create_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     chapter = Chapter(
         book_id=book_id,
         title=data.title,
@@ -185,7 +185,7 @@ async def update_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
     if not chapter:
@@ -234,7 +234,7 @@ async def reorder_chapters(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Reorder chapters by id list."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.sort_order)
     )
@@ -258,7 +258,7 @@ async def list_chapter_versions(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List version history for a chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
     )
@@ -279,7 +279,7 @@ async def delete_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete chapter."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
     if not chapter:
@@ -296,7 +296,7 @@ async def duplicate_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Duplicate chapter (content and title copy, new id)."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
     if not chapter:
@@ -354,7 +354,7 @@ async def get_ai_preferences(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get per-book AI preferences (ai_prefs in book_settings)."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(BookSettings).where(BookSettings.book_id == book_id))
     bs = result.scalar_one_or_none()
     prefs = (bs.settings or {}).get("ai_prefs") or {}
@@ -370,7 +370,7 @@ async def patch_ai_preferences(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update per-book AI preferences."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(BookSettings).where(BookSettings.book_id == book_id))
     bs = result.scalar_one_or_none()
     if not bs:

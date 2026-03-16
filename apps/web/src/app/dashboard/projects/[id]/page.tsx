@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { BookOpen, Plus, Search, Settings } from 'lucide-react';
+import { BookOpen, Plus, Search, Settings, Users, Library } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface Book {
@@ -61,9 +61,21 @@ export default function ProjectPage() {
               </span>
             )}
             <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/sharing`}>
+                <Users className="h-4 w-4 mr-2" />
+                Sharing
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href={`/dashboard/projects/${projectId}/settings`}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/vault`}>
+                <Library className="h-4 w-4 mr-2" />
+                Vault
               </Link>
             </Button>
             <Button variant="outline" asChild>

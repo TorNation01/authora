@@ -8,7 +8,10 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+import { Users } from 'lucide-react';
 import { GUIDANCE_MODES } from '@/content/template-copy';
+import { SHARING_SETTINGS_CARD } from '@/content/collaboration-copy';
 
 type GuidanceMode = 'guided' | 'flexible' | 'freeform';
 
@@ -74,6 +77,23 @@ export default function ProjectSettingsPage() {
         backHref={`/dashboard/projects/${projectId}`}
         backLabel="Back to project"
       />
+
+      <Link href={`/dashboard/projects/${projectId}/sharing`}>
+        <Card variant="sanctuary" className="mt-6 cursor-pointer hover:shadow-md transition-shadow">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-serif flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {SHARING_SETTINGS_CARD.title}
+              </CardTitle>
+              <span className="text-sm text-muted-foreground">→</span>
+            </div>
+            <CardDescription>
+              {SHARING_SETTINGS_CARD.description}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </Link>
 
       <Card variant="sanctuary" className="mt-6">
         <CardHeader>

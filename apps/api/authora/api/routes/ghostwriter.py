@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404
+from authora.api.resolvers import get_book_with_access_or_404
 from authora.config import get_settings
 from authora.database import get_db
 from authora.models import Book, Chapter, ChapterBrief, ChapterVersion, GhostwriterWorkspace, Project
@@ -59,7 +59,7 @@ async def get_workspace(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get or create ghostwriter workspace."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     return GhostwriterWorkspaceResponse.model_validate(ws)
 
@@ -73,7 +73,7 @@ async def submit_intake(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Submit intake questionnaire."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     ws.mode = data.mode
     ws.intake_answers = data.intake_answers
@@ -121,7 +121,7 @@ async def generate_outline_endpoint(
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     outline = await generate_outline(db, book_id, book.type or "general", ws)
     ws.outline = outline
@@ -139,7 +139,7 @@ async def approve_outline(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Approve outline (with optional edits). Creates chapters from outline."""
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     ws.outline = data.outline
     ws.outline_approved_at = datetime.now(timezone.utc)
@@ -184,7 +184,7 @@ async def generate_brief(
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
@@ -236,7 +236,7 @@ async def approve_brief(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Approve chapter brief."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     result = await db.execute(
         select(ChapterBrief).where(
@@ -268,7 +268,7 @@ async def generate_draft(
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
     result = await db.execute(select(Chapter).where(Chapter.id == data.chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
@@ -306,7 +306,7 @@ async def apply_draft(
     """Apply generated draft to chapter. Sets content_source=ai_generated."""
     from authora.schemas.book import ChapterResponse
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == data.chapter_id, Chapter.book_id == book_id)
     )
@@ -350,7 +350,7 @@ async def regenerate_section_endpoint(
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     new_text = await regenerate_section(
         db, book_id, book.type or "general", data.selection, data.feedback
     )
@@ -373,7 +373,7 @@ async def rewrite_with_feedback_endpoint(
     if not check_rate_limit(str(current_user.id)):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded")
 
-    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     new_text = await rewrite_with_feedback(
         db, book_id, book.type or "general", data.selection, data.feedback
     )

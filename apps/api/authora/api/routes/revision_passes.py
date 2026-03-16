@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404, get_project_or_404
+from authora.api.resolvers import get_book_with_access_or_404, get_project_with_access_or_404
 from authora.database import get_db
 from authora.models import (
     Chapter,
@@ -39,7 +39,7 @@ async def list_revision_passes(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List revision passes for project, optionally filtered by book."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     q = select(RevisionPass).where(RevisionPass.project_id == project_id)
     if book_id:
         q = q.where((RevisionPass.book_id.is_(None)) | (RevisionPass.book_id == book_id))
@@ -127,9 +127,9 @@ async def create_revision_pass(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a revision pass. If book_id is provided, scope to that book; otherwise project-wide."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     if data.book_id:
-        await get_book_or_404(db, data.book_id, current_user.id, project_id)
+        await get_book_with_access_or_404(db, data.book_id, project_id, current_user.id)
 
     result = await db.execute(
         select(func.max(RevisionPass.sort_order)).where(RevisionPass.project_id == project_id)
@@ -191,7 +191,7 @@ async def get_revision_pass(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a revision pass by ID."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPass).where(
             RevisionPass.id == pass_id,
@@ -276,7 +276,7 @@ async def update_revision_pass(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update a revision pass."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPass).where(
             RevisionPass.id == pass_id,
@@ -307,7 +307,7 @@ async def delete_revision_pass(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a revision pass."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPass).where(
             RevisionPass.id == pass_id,
@@ -332,7 +332,7 @@ async def mark_chapter_complete(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Mark a chapter as complete for a revision pass."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPass).where(
             RevisionPass.id == pass_id,
@@ -382,7 +382,7 @@ async def mark_chapter_incomplete(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Mark a chapter as incomplete for a revision pass."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPassChapter).where(
             RevisionPassChapter.revision_pass_id == pass_id,
@@ -409,7 +409,7 @@ async def create_checklist_item(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Add a checklist item to a revision pass."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionPass).where(
             RevisionPass.id == pass_id,
@@ -448,7 +448,7 @@ async def delete_checklist_item(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Remove a checklist item."""
-    await get_project_or_404(db, project_id, current_user.id)
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
         select(RevisionChecklistItem).where(
             RevisionChecklistItem.id == item_id,

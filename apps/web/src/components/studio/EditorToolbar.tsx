@@ -17,6 +17,7 @@ import {
   BookOpen,
   Shield,
   ClipboardList,
+  Library,
 } from 'lucide-react';
 import type { SectionStatus } from './ManuscriptSidebar';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ import { WritingStats } from './WritingStats';
 import { WritingSprintTimer } from './WritingSprintTimer';
 import { cn } from '@/lib/utils';
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision';
+type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault';
 
 interface EditorToolbarProps {
   chapterTitle: string;
@@ -256,6 +257,19 @@ export function EditorToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Work through the manuscript one issue at a time</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={panelMode === 'vault' ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => onTogglePanel(panelMode === 'vault' ? 'none' : 'vault')}
+            >
+              <Library className="h-4 w-4 mr-1" />
+              Vault
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{getTooltip('vault_panel') ?? 'Chapter-linked characters, locations, sources & research'}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

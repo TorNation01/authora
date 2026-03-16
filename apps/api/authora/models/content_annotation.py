@@ -34,6 +34,31 @@ class ContentHighlight(Base):
     note: Mapped["Note | None"] = relationship("Note", back_populates="highlights")
 
 
+# Comment tags for structured review (stored in comment_type)
+COMMENT_TAGS = (
+    "clarity",
+    "rewrite",
+    "pacing",
+    "continuity",
+    "tone",
+    "emotion",
+    "grammar",
+    "proofing",
+    "fact_check",
+    "question",
+    "approval",
+    "change_request",
+    "idea",
+    "client_request",
+    "beta_feedback",
+    "general",
+    "other",
+)
+
+# Comment statuses for review workflow
+COMMENT_STATUSES = ("open", "in_review", "resolved", "deferred", "needs_decision")
+
+
 class ContentComment(Base):
     """Comment on chapter or note content."""
 
@@ -50,6 +75,9 @@ class ContentComment(Base):
     start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    comment_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    collaboration_role: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="open")
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -13,6 +13,7 @@ from authora.database import Base
 if TYPE_CHECKING:
     from authora.models.ai_revision import AIRevision
     from authora.models.book_settings import BookSettings
+    from authora.models.collaboration import ChapterApproval
     from authora.models.content_annotation import ContentComment, ContentHighlight
     from authora.models.ghostwriter import ChapterBrief, GhostwriterWorkspace
     from authora.models.chapter_section import ChapterSection
@@ -104,6 +105,27 @@ class Chapter(Base):
     )
     revision_pass_progress: Mapped[list["RevisionPassChapter"]] = relationship(
         "RevisionPassChapter", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    approval: Mapped["ChapterApproval | None"] = relationship(
+        "ChapterApproval", back_populates="chapter", uselist=False, cascade="all, delete-orphan"
+    )
+    character_links: Mapped[list["ChapterCharacterLink"]] = relationship(
+        "ChapterCharacterLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    location_links: Mapped[list["ChapterLocationLink"]] = relationship(
+        "ChapterLocationLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    event_links: Mapped[list["ChapterEventLink"]] = relationship(
+        "ChapterEventLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    theme_links: Mapped[list["ChapterThemeLink"]] = relationship(
+        "ChapterThemeLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    source_links: Mapped[list["ChapterSourceLink"]] = relationship(
+        "ChapterSourceLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    research_links: Mapped[list["ChapterResearchLink"]] = relationship(
+        "ChapterResearchLink", back_populates="chapter", cascade="all, delete-orphan"
     )
 
 

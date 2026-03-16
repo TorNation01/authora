@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404, get_chapter_or_404
+from authora.api.resolvers import get_book_with_access_or_404, get_chapter_or_404
 from authora.database import get_db
 from authora.models import Book, Chapter, EditorialAnalysis, EditorialJob, EditorialSuggestion, Project
 from authora.services.editing.engine import (
@@ -43,7 +43,7 @@ async def analyze_chapter(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Run editorial analysis on a chapter."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     await get_chapter_or_404(db, book_id, chapter_id)
     job = await run_chapter_analysis(db, chapter_id, book_id, current_user.id)
     await db.commit()
@@ -64,7 +64,7 @@ async def analyze_book(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Run editorial analysis on all chapters."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     jobs = await run_book_analysis(db, book_id, current_user.id)
     await db.commit()
     return [
@@ -88,7 +88,7 @@ async def get_chapter_scorecard(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get chapter editorial scorecard."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     await get_chapter_or_404(db, book_id, chapter_id)
     result = await db.execute(
         select(EditorialAnalysis).where(EditorialAnalysis.chapter_id == chapter_id)
@@ -106,7 +106,7 @@ async def get_manuscript_health(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get manuscript health dashboard."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.sort_order)
     )
@@ -131,7 +131,7 @@ async def get_chapter_suggestions(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get inline suggestions for a chapter."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     await get_chapter_or_404(db, book_id, chapter_id)
     result = await db.execute(
         select(EditorialSuggestion)
@@ -161,7 +161,7 @@ async def create_snapshot(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create before/after snapshot (call before applying edits)."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     chapter = await get_chapter_or_404(db, book_id, chapter_id)
     from authora.models import EditorialSnapshot
     snapshot = EditorialSnapshot(
@@ -186,7 +186,7 @@ async def accept_suggestion(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Accept or reject an inline suggestion."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(EditorialSuggestion, Chapter).join(
             Chapter, EditorialSuggestion.chapter_id == Chapter.id

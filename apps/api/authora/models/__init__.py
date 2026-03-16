@@ -69,6 +69,13 @@ from authora.models.book_settings import BookSettings
 from authora.models.phase import Phase
 from authora.models.chapter_section import ChapterSection
 from authora.models.content_annotation import ContentHighlight, ContentComment
+from authora.models.collaboration import (
+    ChapterApproval,
+    CollaborationActivity,
+    ProjectInvite,
+    ProjectMember,
+    ProjectShare,
+)
 from authora.models.revision_pass import RevisionChecklistItem, RevisionPass, RevisionPassChapter
 from authora.models.reference_item import ReferenceItem
 from authora.models.ai_revision import AIRevision
@@ -89,6 +96,22 @@ from authora.models.entitlement_grant import EntitlementGrant
 from authora.models.promo_code import PromoCode, PromoCodeRedemption
 from authora.models.entitlement_audit_log import EntitlementAuditLog
 from authora.models.content_embedding import ContentEmbedding, IndexingJob
+from authora.models.vault import (
+    ChapterCharacterLink,
+    ChapterEventLink,
+    ChapterLocationLink,
+    ChapterResearchLink,
+    ChapterSourceLink,
+    ChapterThemeLink,
+    Idea,
+    ResearchEntry,
+    Source,
+    Theme,
+    TimelineEvent,
+    VaultCharacter,
+    VaultLocation,
+    VaultRelationship,
+)
 
 __all__ = [
     "AccountabilitySettings",
@@ -181,4 +204,23 @@ __all__ = [
     "EntitlementAuditLog",
     "ContentEmbedding",
     "IndexingJob",
+    "ProjectMember",
+    "ProjectInvite",
+    "ProjectShare",
+    "ChapterApproval",
+    "CollaborationActivity",
+    "Idea",
+    "ResearchEntry",
+    "VaultCharacter",
+    "VaultLocation",
+    "TimelineEvent",
+    "VaultRelationship",
+    "Theme",
+    "Source",
+    "ChapterCharacterLink",
+    "ChapterLocationLink",
+    "ChapterEventLink",
+    "ChapterThemeLink",
+    "ChapterSourceLink",
+    "ChapterResearchLink",
 ]

@@ -36,6 +36,14 @@ class ContentCommentCreate(BaseModel):
     body: str = Field(..., min_length=1)
     parent_id: UUID | None = None
     revision_pass_id: UUID | None = None
+    comment_type: str | None = Field(
+        None,
+        pattern="^(clarity|rewrite|pacing|continuity|tone|emotion|grammar|proofing|fact_check|question|approval|change_request|idea|client_request|beta_feedback|general|rewrite_suggestion|clarity_issue|pacing_note|grammar_spelling|consistency|character_voice|plot_continuity|other)$",
+    )
+    collaboration_role: str | None = Field(
+        None,
+        pattern="^(owner|admin|editor|beta_reader|reviewer|client|co_writer|viewer|guest)$",
+    )
 
 
 class ContentCommentUpdate(BaseModel):
@@ -43,12 +51,21 @@ class ContentCommentUpdate(BaseModel):
 
     body: str | None = Field(None, min_length=1)
     resolved: bool | None = None
+    status: str | None = Field(
+        None,
+        pattern="^(open|in_review|resolved|deferred|needs_decision)$",
+    )
+    comment_type: str | None = Field(
+        None,
+        pattern="^(clarity|rewrite|pacing|continuity|tone|emotion|grammar|proofing|fact_check|question|approval|change_request|idea|client_request|beta_feedback|general|rewrite_suggestion|clarity_issue|pacing_note|grammar_spelling|consistency|character_voice|plot_continuity|other)$",
+    )
 
 
 class ContentCommentResponse(BaseModel):
     """Comment in API response."""
 
     id: UUID
+    user_id: UUID | None = None
     chapter_id: UUID | None
     note_id: UUID | None
     parent_id: UUID | None
@@ -56,10 +73,15 @@ class ContentCommentResponse(BaseModel):
     start_offset: int | None
     end_offset: int | None
     body: str
+    comment_type: str | None = None
+    collaboration_role: str | None = None
+    status: str = "open"
     resolved_at: datetime | None
     created_at: datetime
     updated_at: datetime
     replies: list["ContentCommentResponse"] = []
+    user_email: str | None = None
+    user_display_name: str | None = None
 
     model_config = {"from_attributes": True}
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, Filter, Plus } from 'lucide-react';
+import { ChapterApprovalSection } from './ChapterApprovalSection';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,12 +31,15 @@ interface Chapter {
 
 interface ContentComment {
   id: string;
+  user_id?: string | null;
   chapter_id: string | null;
   revision_pass_id?: string | null;
   body: string;
   resolved_at: string | null;
   created_at: string;
   replies: ContentComment[];
+  user_email?: string | null;
+  user_display_name?: string | null;
 }
 
 interface RevisionPass {
@@ -76,7 +80,22 @@ export function RevisionPanel({
   const [activePassId, setActivePassId] = useState<string | null>(null);
   const [showAddPass, setShowAddPass] = useState(false);
   const [newPassType, setNewPassType] = useState<string>('structural');
+  const [filterByUserId, setFilterByUserId] = useState<string | null>(null);
+  const [reviewers, setReviewers] = useState<Reviewer[]>([]);
   const { toast } = useToast();
+
+  const fetchReviewers = useCallback(async () => {
+    try {
+      const members = await api<Reviewer[]>(`/api/v1/projects/${projectId}/members`);
+      setReviewers(members);
+    } catch {
+      setReviewers([]);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchReviewers();
+  }, [fetchReviewers]);
 
   const chapterIds = chapters.map((c) => c.id).join(',');
   const chaptersRef = useRef(chapters);
@@ -109,6 +128,7 @@ export function RevisionPanel({
         try {
           let url = `/api/v1/projects/${projectId}/books/${bookId}/chapters/${ch.id}/comments?unresolved_only=${unresolvedOnly}`;
           if (activePassId) url += `&revision_pass_id=${activePassId}`;
+          if (filterByUserId) url += `&user_id=${filterByUserId}`;
           const list = await api<ContentComment[]>(url);
           results[ch.id] = list;
         } catch {
@@ -120,7 +140,7 @@ export function RevisionPanel({
     };
     run();
     return () => { cancelled = true; };
-  }, [chapterIds, unresolvedOnly, projectId, bookId, activePassId]);
+  }, [chapterIds, unresolvedOnly, projectId, bookId, activePassId, filterByUserId]);
 
   const handleAddPass = useCallback(async () => {
     try {
@@ -146,6 +166,12 @@ export function RevisionPanel({
 
   return (
     <div className="flex h-full flex-col">
+      <ChapterApprovalSection
+        projectId={projectId}
+        bookId={bookId}
+        chapters={chapters}
+        onSelectChapter={onSelectChapter}
+      />
       <div className="border-b p-3 space-y-2">
         <h3 className="font-semibold text-sm">Revision Mode</h3>
         <p className="text-xs text-muted-foreground">
@@ -175,7 +201,23 @@ export function RevisionPanel({
             Add pass
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={filterByUserId ?? 'all'}
+            onValueChange={(v) => setFilterByUserId(v === 'all' ? null : v)}
+          >
+            <SelectTrigger className="h-8 text-xs w-[140px]">
+              <SelectValue placeholder="Filter by reviewer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All reviewers</SelectItem>
+              {reviewers.map((r) => (
+                <SelectItem key={r.user_id} value={r.user_id}>
+                  {r.display_name || r.email || r.user_id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant={unresolvedOnly ? 'secondary' : 'ghost'}
             size="sm"

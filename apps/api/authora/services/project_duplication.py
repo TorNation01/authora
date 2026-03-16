@@ -15,6 +15,7 @@ from authora.models import (
     Note,
     NoteAttachment,
     Project,
+    ProjectMember,
 )
 from authora.models.fiction import FictionWorkspace
 from authora.models.nonfiction import NonfictionWorkspace
@@ -47,6 +48,16 @@ async def duplicate_project(db: AsyncSession, project_id: uuid.UUID, user_id: uu
         updated_at=now,
     )
     db.add(new_project)
+    await db.flush()
+
+    # Add owner as project member for collaboration consistency
+    owner_member = ProjectMember(
+        user_id=user_id,
+        project_id=new_project.id,
+        role="owner",
+        invited_by=None,
+    )
+    db.add(owner_member)
     await db.flush()
 
     book_id_map: dict[uuid.UUID, uuid.UUID] = {}

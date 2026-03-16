@@ -13,6 +13,7 @@ import { FinishModeCompletionCeremony } from '@/components/studio/FinishModeComp
 import { RecoveryBanner } from '@/components/studio/RecoveryBanner';
 import { AIWritingPanel } from '@/components/studio/AIWritingPanel';
 import { NotesPanel } from '@/components/studio/NotesPanel';
+import { VaultKnowledgePanel } from '@/components/vault/VaultKnowledgePanel';
 import { ReferencePanel } from '@/components/studio/ReferencePanel';
 import { FindReplaceDialog } from '@/components/studio/FindReplaceDialog';
 import { RevisionPanel } from '@/components/studio/RevisionPanel';
@@ -52,7 +53,7 @@ interface Version {
   created_at: string;
 }
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision';
+type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault';
 
 export default function BookStudioPage() {
   const params = useParams();
@@ -866,6 +867,14 @@ export default function BookStudioPage() {
               chapters={sortedChapters}
               activeChapterId={activeChapter?.id ?? null}
               onSelectChapter={(id) => handleSelectChapter({ id } as Chapter)}
+            />
+          )}
+
+          {panelMode === 'vault' && activeChapter && (
+            <VaultKnowledgePanel
+              projectId={projectId}
+              bookId={bookId}
+              chapterId={activeChapter.id}
             />
           )}
         </div>

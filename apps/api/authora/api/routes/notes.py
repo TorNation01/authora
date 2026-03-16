@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404, get_project_or_404
+from authora.api.resolvers import get_book_with_access_or_404, get_project_with_access_or_404
 from authora.database import get_db
 from authora.infrastructure.storage.factory import get_storage_provider
 from authora.models import Book, Chapter, Note, NoteAttachment, Project
@@ -27,6 +27,7 @@ project_router = APIRouter(prefix="/projects/{project_id}/notes", tags=["notes"]
 async def get_note_or_404(
     db: AsyncSession, note_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID
 ) -> Note:
+    await get_project_with_access_or_404(db, project_id, user_id)
     result = await db.execute(
         select(Note)
         .options(selectinload(Note.attachments))
@@ -59,8 +60,8 @@ async def list_project_notes(
     category: str | None = Query(None),
     tags: list[str] | None = Query(None),
 ):
-    """List notes for project (with optional search and filters)."""
-    await get_project_or_404(db, project_id, current_user.id)
+    """List notes for project (with optional search and filters). Accessible to owner and members."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     notes = await search_notes(
         db,
         project_id,
@@ -83,8 +84,8 @@ async def create_project_note(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create note (project-level or book-linked)."""
-    await get_project_or_404(db, project_id, current_user.id)
+    """Create note (project-level or book-linked). Accessible to owner and members."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     book_id = data.book_id
     chapter_id = data.chapter_id
     if chapter_id and not book_id:
@@ -122,8 +123,8 @@ async def search_project_notes(
     q: str = Query(..., min_length=1),
     limit: int = Query(50, ge=1, le=100),
 ):
-    """Full-text search notes."""
-    await get_project_or_404(db, project_id, current_user.id)
+    """Full-text search notes. Accessible to owner and members."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     notes = await search_notes(db, project_id, q=q, limit=limit)
     return [_note_to_response(n) for n in notes]
 
@@ -367,7 +368,7 @@ async def list_book_notes(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List notes for book."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     notes = await search_notes(db, project_id, book_id=book_id)
     return [_note_to_response(n) for n in notes]
 
@@ -381,7 +382,7 @@ async def create_book_note(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create note for book."""
-    await get_book_or_404(db, book_id, current_user.id, project_id)
+    await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     create_data = NoteCreate(
         **data.model_dump(),
         book_id=book_id,

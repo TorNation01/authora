@@ -32,6 +32,8 @@ export const HELP_TOOLTIPS: Record<string, string> = {
   find_replace: 'Find in chapter or search manuscript. Replace carefully.',
   revision_panel: 'Work through the manuscript one issue at a time.',
   add_comment: 'Leave yourself a marker. Return to this later.',
+  vault_panel:
+    'Chapter-linked characters, locations, sources & research. Everything relevant to this chapter, in one place.',
 };
 
 export function getTooltip(key: string): string | undefined {

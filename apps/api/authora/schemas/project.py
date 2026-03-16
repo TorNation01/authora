@@ -15,6 +15,15 @@ class ProjectCreate(BaseModel):
         pattern="^(guided|flexible|freeform)$",
         description="Genre guidance: guided (full), flexible (lighter), freeform (none)",
     )
+    knowledge_mode: str = Field(
+        default="fiction",
+        pattern="^(fiction|nonfiction|memoir|workbook|hybrid)$",
+        description="Knowledge vault mode: fiction, nonfiction, memoir, workbook, hybrid",
+    )
+    knowledge_modules: list[str] | None = Field(
+        default=None,
+        description="Override enabled modules (null = use mode defaults)",
+    )
 
 
 class ProjectUpdate(BaseModel):
@@ -25,6 +34,15 @@ class ProjectUpdate(BaseModel):
         None,
         pattern="^(guided|flexible|freeform)$",
         description="Genre guidance: guided (full), flexible (lighter), freeform (none)",
+    )
+    knowledge_mode: str | None = Field(
+        None,
+        pattern="^(fiction|nonfiction|memoir|workbook|hybrid)$",
+        description="Knowledge vault mode: fiction, nonfiction, memoir, workbook, hybrid",
+    )
+    knowledge_modules: list[str] | None = Field(
+        default=None,
+        description="Override enabled modules (null = use mode defaults, [] = clear override)",
     )
 
 
@@ -56,6 +74,11 @@ class ProjectWizardRequest(BaseModel):
     project_name: str = Field(..., min_length=1, max_length=255)
     book_title: str | None = Field(None, min_length=1, max_length=500)
     book_type: str = Field(default="fiction", pattern="^(fiction|nonfiction)$")
+    knowledge_mode: str = Field(
+        default="fiction",
+        pattern="^(fiction|nonfiction|memoir|workbook|hybrid)$",
+        description="Knowledge vault mode (defaults from book_type if not set)",
+    )
     genre: str | None = None
     core_idea: str | None = Field(None, max_length=2000)
     wizard_answers: dict[str, str | int | list] | None = None
