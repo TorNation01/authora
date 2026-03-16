@@ -12,6 +12,7 @@
     "build": "npm run build --workspace=apps/web",
     "build:api": "npm run build --workspace=apps/api",
     "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspace=apps/web --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:api": "npm run test --workspace=apps/api",
     "test:e2e": "npm run test:e2e --workspace=apps/web",
@@ -39,7 +40,9 @@
     "health": "./scripts/healthcheck.sh",
     "healthcheck": "./scripts/healthcheck.sh",
     "first-admin": "./scripts/first-admin.sh",
-    "verify-go-live": "./scripts/verify-go-live.sh"
+    "verify-go-live": "./scripts/verify-go-live.sh",
+    "validate": "./scripts/validate-all.sh",
+    "validate:all": "./scripts/validate-all.sh"
   },
   "engines": {
     "node": ">=18"

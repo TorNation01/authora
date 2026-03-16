@@ -29,6 +29,9 @@
 - [Cloudflare Deployment](DEPLOYMENT-CLOUDFLARE.md) – Deploy behind Cloudflare
 - [SSL & Domain Setup](DEPLOYMENT-SSL-DOMAIN.md) – TLS/HTTPS and DNS
 - [Billing Deployment](BILLING_DEPLOYMENT.md) – Stripe, tiers, promo codes, subscriptions
+- [QA Strategy](QA_STRATEGY.md) – Test strategy, coverage
+- [Release Gates](RELEASE_GATES.md) – Pre-launch gates
+- [Production Readiness Report](PRODUCTION_READINESS_REPORT.md) – Readiness assessment
 
 ## Quick Start (Development)
 

@@ -22,6 +22,17 @@ jobs:
       - run: npm ci
       - run: npm run lint --workspaces --if-present
 
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run type-check --workspace=apps/web --if-present
+
   api-test:
     runs-on: ubuntu-latest
     services:
@@ -38,6 +49,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -45,13 +65,20 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -e apps/api
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          PGPASSWORD=authora psql -h 127.0.0.1 -U authora -d authora -c "CREATE DATABASE authora_test;" 2>/dev/null || true
+        env:
+          PGPASSWORD: authora
       - run: cd apps/api && alembic upgrade head
         env:
           DATABASE_URL: postgresql://authora:authora@localhost:5432/authora
       - run: cd apps/api && pytest tests/ -v --tb=short
         env:
           DATABASE_URL: postgresql://authora:authora@localhost:5432/authora
+          REDIS_URL: redis://localhost:6379/1
           SECRET_KEY: test-secret
+          DEPLOYMENT_MODE: standalone
 
   web-build:
     runs-on: ubuntu-latest

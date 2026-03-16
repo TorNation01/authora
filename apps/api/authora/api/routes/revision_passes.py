@@ -34,9 +34,9 @@ router = APIRouter(prefix="/projects/{project_id}", tags=["revision-passes"])
 @router.get("/revision-passes", response_model=RevisionPassSummaryResponse)
 async def list_revision_passes(
     project_id: uuid.UUID,
-    book_id: uuid.UUID | None = Query(None, description="Filter by book"),
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    book_id: uuid.UUID | None = Query(None, description="Filter by book"),
 ):
     """List revision passes for project, optionally filtered by book."""
     await get_project_with_access_or_404(db, project_id, current_user.id)

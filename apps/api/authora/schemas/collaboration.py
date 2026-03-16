@@ -6,6 +6,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class InviteAccept(BaseModel):
+    """Accept invite by token (authenticated user)."""
+
+    token: str = Field(..., min_length=1, max_length=512)
+
+
 class ProjectInviteCreate(BaseModel):
     """Create project invite."""
 

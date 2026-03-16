@@ -659,9 +659,9 @@ class CustomerPortalRequest(BaseModel):
 
 @router.post("/customer-portal")
 async def create_customer_portal(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
     data: CustomerPortalRequest | None = None,
-    current_user: CurrentUser = Depends(CurrentUser),
-    db: Annotated[AsyncSession, Depends(get_db)] = ...,
 ):
     """Create Stripe Customer Portal session for managing subscription."""
     from authora.services.stripe_service import create_customer_portal_session

@@ -38,6 +38,7 @@ from authora.schemas.collaboration import (
     ChapterApprovalResponse,
     ChapterApprovalUpdate,
     CollaborationActivityResponse,
+    InviteAccept,
     ProjectInviteCreate,
     ProjectInviteResponse,
     ProjectMemberResponse,
@@ -49,6 +50,87 @@ router = APIRouter(prefix="/projects/{project_id}", tags=["collaboration"])
 
 # Standalone invite routes (no project_id in path)
 invite_router = APIRouter(prefix="/invites", tags=["collaboration"])
+
+
+@invite_router.post("/accept", response_model=ProjectMemberResponse, status_code=status.HTTP_201_CREATED)
+async def accept_invite(
+    data: InviteAccept,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Accept invite by token. Requires authenticated user; email must match invite."""
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(ProjectInvite).where(ProjectInvite.token == data.token.strip())
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invite not found or invalid token",
+        )
+    if invite.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invite is no longer valid (status: {invite.status})",
+        )
+    if invite.expires_at < now:
+        invite.status = "expired"
+        await db.flush()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invite has expired",
+        )
+    if current_user.email.lower() != invite.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your email does not match the invite",
+        )
+    member_check = await db.execute(
+        select(ProjectMember).where(
+            ProjectMember.project_id == invite.project_id,
+            ProjectMember.user_id == current_user.id,
+        )
+    )
+    if member_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are already a member of this project",
+        )
+
+    member = ProjectMember(
+        user_id=current_user.id,
+        project_id=invite.project_id,
+        role=invite.role,
+        invited_by=invite.invited_by,
+    )
+    db.add(member)
+    invite.status = "accepted"
+    activity = CollaborationActivity(
+        project_id=invite.project_id,
+        user_id=current_user.id,
+        action="invite_accepted",
+        entity_type="invite",
+        entity_id=str(invite.id),
+        extra_data={"email": invite.email, "role": invite.role},
+    )
+    db.add(activity)
+    await db.flush()
+
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(ProjectMember)
+        .options(selectinload(ProjectMember.user))
+        .where(ProjectMember.id == member.id)
+    )
+    member = result.scalar_one()
+    return ProjectMemberResponse.model_validate(member).model_copy(
+        update={
+            "email": member.user.email if member.user else None,
+            "display_name": member.user.display_name if member.user else None,
+        }
+    )
 
 
 def _require_permission(role: str, permission: str) -> None:

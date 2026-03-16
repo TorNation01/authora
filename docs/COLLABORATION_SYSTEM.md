@@ -55,6 +55,18 @@ The collaboration system allows AUTHORA users to safely share manuscripts, chapt
 - Invite acceptance requires authenticated user email to match invite email
 - Private author-only material remains protected; role permissions control visibility
 
+## Invite Accept – Expected Behaviour
+
+| Scenario | Response | Behaviour |
+|----------|----------|-----------|
+| Valid token, matching email | 201 | Creates `ProjectMember`, sets invite `status=accepted`, records activity |
+| Expired invite | 400 | Returns "Invite has expired"; invite `status` set to `expired` |
+| Revoked invite | 400 | Returns "Invite is no longer valid (status: revoked)" |
+| Wrong email | 403 | Returns "Your email does not match the invite" |
+| Already a member | 400 | Returns "You are already a member of this project" |
+| Invalid token | 404 | Returns "Invite not found or invalid token" |
+| Unauthenticated | 401 | Auth required before invite lookup |
+
 ## See Also
 
 - [ROLES_AND_PERMISSIONS.md](ROLES_AND_PERMISSIONS.md)
