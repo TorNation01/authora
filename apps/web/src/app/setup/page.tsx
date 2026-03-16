@@ -42,10 +42,12 @@ export default function SetupPage() {
     redis_url: 'redis://localhost:6379/0',
     storage_provider: 'local' as 'local' | 's3' | 'r2',
     storage_local_path: './storage',
-    ai_provider: 'openai' as 'openai' | 'anthropic',
+    ai_provider: 'openai' as 'openai' | 'anthropic' | 'ollama',
     ai_model: 'gpt-4o-mini',
     openai_api_key: '',
     anthropic_api_key: '',
+    ollama_enabled: false,
+    ollama_base_url: 'http://localhost:11434',
     email_enabled: false,
     admin_email: '',
     admin_password: '',
@@ -118,6 +120,8 @@ export default function SetupPage() {
             ai_model: form.ai_model,
             openai_api_key: form.openai_api_key || undefined,
             anthropic_api_key: form.anthropic_api_key || undefined,
+            ollama_enabled: form.ollama_enabled,
+            ollama_base_url: form.ollama_base_url || undefined,
           },
           preferences: {
             backup_enabled: form.backup_enabled,
@@ -167,6 +171,8 @@ export default function SetupPage() {
             ai_model: form.ai_model,
             openai_api_key: form.openai_api_key || undefined,
             anthropic_api_key: form.anthropic_api_key || undefined,
+            ollama_enabled: form.ollama_enabled,
+            ollama_base_url: form.ollama_base_url || undefined,
           },
           preferences: {
             backup_enabled: form.backup_enabled,
@@ -195,6 +201,8 @@ export default function SetupPage() {
             ai_model: form.ai_model,
             openai_api_key: form.openai_api_key || undefined,
             anthropic_api_key: form.anthropic_api_key || undefined,
+            ollama_enabled: form.ollama_enabled,
+            ollama_base_url: form.ollama_base_url || undefined,
           },
           run_migrations: true,
           seed_templates: true,
@@ -384,42 +392,105 @@ export default function SetupPage() {
                   <Label>AI provider</Label>
                   <select
                     value={form.ai_provider}
-                    onChange={(e) => setForm((f) => ({ ...f, ai_provider: e.target.value as 'openai' | 'anthropic' }))}
+                    onChange={(e) => {
+                      const v = e.target.value as 'openai' | 'anthropic' | 'ollama';
+                      setForm((f) => ({
+                        ...f,
+                        ai_provider: v,
+                        ollama_enabled: v === 'ollama',
+                      }));
+                    }}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
                   >
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
+                    <option value="openai">OpenAI (cloud)</option>
+                    <option value="anthropic">Anthropic (cloud)</option>
+                    <option value="ollama">Ollama (local)</option>
                   </select>
                 </div>
-                <div>
-                  <Label htmlFor="ai_model">Model</Label>
-                  <Input
-                    id="ai_model"
-                    value={form.ai_model}
-                    onChange={(e) => setForm((f) => ({ ...f, ai_model: e.target.value }))}
-                    placeholder="gpt-4o-mini"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="openai_api_key">OpenAI API key (optional)</Label>
-                  <Input
-                    id="openai_api_key"
-                    type="password"
-                    value={form.openai_api_key}
-                    onChange={(e) => setForm((f) => ({ ...f, openai_api_key: e.target.value }))}
-                    placeholder="sk-..."
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="anthropic_api_key">Anthropic API key (optional)</Label>
-                  <Input
-                    id="anthropic_api_key"
-                    type="password"
-                    value={form.anthropic_api_key}
-                    onChange={(e) => setForm((f) => ({ ...f, anthropic_api_key: e.target.value }))}
-                    placeholder="sk-ant-..."
-                  />
-                </div>
+                {form.ai_provider !== 'ollama' && (
+                  <>
+                    <div>
+                      <Label htmlFor="ai_model">Model</Label>
+                      <Input
+                        id="ai_model"
+                        value={form.ai_model}
+                        onChange={(e) => setForm((f) => ({ ...f, ai_model: e.target.value }))}
+                        placeholder="gpt-4o-mini"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="openai_api_key">OpenAI API key (optional)</Label>
+                      <Input
+                        id="openai_api_key"
+                        type="password"
+                        value={form.openai_api_key}
+                        onChange={(e) => setForm((f) => ({ ...f, openai_api_key: e.target.value }))}
+                        placeholder="sk-..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="anthropic_api_key">Anthropic API key (optional)</Label>
+                      <Input
+                        id="anthropic_api_key"
+                        type="password"
+                        value={form.anthropic_api_key}
+                        onChange={(e) => setForm((f) => ({ ...f, anthropic_api_key: e.target.value }))}
+                        placeholder="sk-ant-..."
+                      />
+                    </div>
+                  </>
+                )}
+                {form.ai_provider === 'ollama' && (
+                  <>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.ollama_enabled}
+                        onChange={(e) => setForm((f) => ({ ...f, ollama_enabled: e.target.checked }))}
+                      />
+                      <span className="text-sm">Enable Ollama</span>
+                    </label>
+                    <div>
+                      <Label htmlFor="ollama_base_url">Ollama base URL</Label>
+                      <Input
+                        id="ollama_base_url"
+                        value={form.ollama_base_url}
+                        onChange={(e) => setForm((f) => ({ ...f, ollama_base_url: e.target.value }))}
+                        placeholder="http://localhost:11434"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        For server deployment, use the server URL (e.g. http://server:11434).
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        setTesting('ollama');
+                        try {
+                          const base = process.env.NEXT_PUBLIC_API_URL || '';
+                          const res = await fetch(`${base}/api/v1/setup/test`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ollama_base_url: form.ollama_base_url }),
+                          });
+                          const data = await res.json();
+                          if (data.ollama?.valid)
+                            toast({ title: 'Ollama OK', description: data.ollama.message });
+                          else toast({ title: 'Ollama failed', description: data.ollama?.message, variant: 'destructive' });
+                        } catch {
+                          toast({ title: 'Test failed', variant: 'destructive' });
+                        } finally {
+                          setTesting(null);
+                        }
+                      }}
+                      disabled={!!testing}
+                    >
+                      {testing === 'ollama' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Test Ollama connection
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 

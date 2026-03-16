@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from authora.database import Base
 
 if TYPE_CHECKING:
+    from authora.models.ai_action_log import AIActionLog
     from authora.models.ai_revision import AIRevision
     from authora.models.plan import Plan
     from authora.models.profile import Profile
@@ -44,6 +45,7 @@ class User(Base):
     writing_styles: Mapped[list["WritingStyle"]] = relationship("WritingStyle", back_populates="user", cascade="all, delete-orphan")
     reminders: Mapped[list["Reminder"]] = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
     ai_revisions: Mapped[list["AIRevision"]] = relationship("AIRevision", back_populates="user", cascade="all, delete-orphan")
+    ai_action_logs: Mapped[list["AIActionLog"]] = relationship("AIActionLog", back_populates="user", cascade="all, delete-orphan")
     plan_override: Mapped["Plan | None"] = relationship("Plan", foreign_keys=[plan_override_id], lazy="joined")
     subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     usage_records: Mapped[list["UsageRecord"]] = relationship("UsageRecord", back_populates="user", cascade="all, delete-orphan")

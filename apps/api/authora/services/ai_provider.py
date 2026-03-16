@@ -181,13 +181,31 @@ class AnthropicProvider(AIProvider):
         )
 
 
-def get_provider() -> AIProvider | None:
-    """Get configured AI provider."""
+def get_provider(provider_name: str | None = None) -> AIProvider | None:
+    """Get configured AI provider. If provider_name given, return that if available."""
     settings = get_settings()
+    if provider_name == "openai" and settings.openai_api_key:
+        return OpenAIProvider()
+    if provider_name == "anthropic" and settings.anthropic_api_key:
+        return AnthropicProvider()
+    if provider_name == "ollama" and settings.ollama_enabled:
+        from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+        return OllamaProvider(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model_default,
+        )
+    if provider_name:
+        return None
     if settings.ai_provider == "openai" and settings.openai_api_key:
         return OpenAIProvider()
     if settings.ai_provider == "anthropic" and settings.anthropic_api_key:
         return AnthropicProvider()
+    if settings.ai_provider == "ollama" and settings.ollama_enabled:
+        from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+        return OllamaProvider(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model_default,
+        )
     return None
 
 
@@ -196,27 +214,42 @@ async def complete_with_retry(
     system_prompt: str | None = None,
     max_tokens: int = 2048,
     max_retries: int = 3,
+    task: str = "general",
+    project_prefs: dict | None = None,
+    preferred_provider: str | None = None,
+    preferred_model: str | None = None,
 ) -> AsyncGenerator[str, None]:
-    """Stream completion with retry. Falls back to legacy complete if no provider."""
-    provider = get_provider()
-    if provider:
-        last_err: Exception | None = None
+    """Stream completion with retry and fallback chain."""
+    from authora.services.ai_registry import get_fallback_chain, get_provider_for_task
+
+    provider, model, provider_name = get_provider_for_task(
+        task=task,
+        project_prefs=project_prefs,
+        preferred_provider=preferred_provider,
+        preferred_model=preferred_model,
+    )
+    fallbacks = get_fallback_chain(task, provider_name) if provider else []
+    chain = [(provider, model, provider_name)] + fallbacks
+
+    last_err: Exception | None = None
+    for p, m, pname in chain:
+        if not p:
+            continue
         for attempt in range(max_retries):
             try:
-                async for chunk in provider.complete_stream(
-                    prompt, system_prompt, max_tokens
+                async for chunk in p.complete_stream(
+                    prompt, system_prompt, max_tokens, model=m
                 ):
                     yield chunk
                 return
             except Exception as e:
                 last_err = e
                 if attempt == max_retries - 1:
-                    yield f"[AI error after {max_retries} retries: {e}]"
-                    return
-        if last_err:
-            yield f"[AI error: {last_err}]"
+                    break
+
+    if last_err:
+        yield f"[AI error: {last_err}]"
     else:
         from authora.services.ai import complete
-
         async for chunk in complete(prompt, system_prompt, max_tokens):
             yield chunk

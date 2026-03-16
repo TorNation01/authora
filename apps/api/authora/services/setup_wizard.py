@@ -121,12 +121,26 @@ async def test_redis_connection(url: str) -> SetupValidationResult:
         return SetupValidationResult(valid=False, message=str(e))
 
 
+async def test_ollama_connection(base_url: str) -> SetupValidationResult:
+    """Test Ollama connectivity."""
+    try:
+        from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+        p = OllamaProvider(base_url=base_url, model="")
+        ok, msg = await p.health_check()
+        return SetupValidationResult(valid=ok, message=msg if not ok else None)
+    except Exception as e:
+        return SetupValidationResult(valid=False, message=str(e))
+
+
 async def test_connections(req: SetupTestRequest) -> SetupTestResult:
     result = SetupTestResult()
     if req.database_url:
         result.database = await test_database_connection(req.database_url)
     if req.redis_url:
         result.redis = await test_redis_connection(req.redis_url)
+    if req.ollama_base_url:
+        result.ollama = await test_ollama_connection(req.ollama_base_url)
     return result
 
 
@@ -168,6 +182,9 @@ def apply_config(req: SetupApplyRequest) -> tuple[bool, str]:
             updates["OPENAI_API_KEY"] = req.ai.openai_api_key
         if req.ai.anthropic_api_key:
             updates["ANTHROPIC_API_KEY"] = req.ai.anthropic_api_key
+        updates["OLLAMA_ENABLED"] = str(req.ai.ollama_enabled).lower()
+        if req.ai.ollama_base_url:
+            updates["OLLAMA_BASE_URL"] = req.ai.ollama_base_url
 
     if req.email and req.email.enabled:
         if req.email.smtp_host:

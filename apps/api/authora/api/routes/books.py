@@ -13,7 +13,7 @@ from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_book_or_404, get_project_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
-from authora.models import Book, Chapter, ChapterVersion, Project
+from authora.models import Book, BookSettings, Chapter, ChapterVersion, Project
 from authora.services.finish_mode import get_finish_mode_stats, update_finish_mode_settings
 from authora.schemas.book import (
     BookCreate,
@@ -300,6 +300,58 @@ class FinishModeUpdate(BaseModel):
     enabled: bool | None = None
     target_date: str | None = None
     words_per_day: int | None = None
+
+
+class AIPrefsUpdate(BaseModel):
+    """Per-book AI preferences."""
+
+    ai_mode: str | None = None  # auto | cloud | local
+    preferred_provider: str | None = None  # openai | anthropic | ollama
+    preferred_model: str | None = None
+
+
+@router.get("/{book_id}/ai-preferences")
+async def get_ai_preferences(
+    project_id: uuid.UUID,
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get per-book AI preferences (ai_prefs in book_settings)."""
+    await get_book_or_404(db, book_id, current_user.id, project_id)
+    result = await db.execute(select(BookSettings).where(BookSettings.book_id == book_id))
+    bs = result.scalar_one_or_none()
+    prefs = (bs.settings or {}).get("ai_prefs") or {}
+    return {"ai_prefs": prefs}
+
+
+@router.patch("/{book_id}/ai-preferences")
+async def patch_ai_preferences(
+    project_id: uuid.UUID,
+    book_id: uuid.UUID,
+    data: AIPrefsUpdate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update per-book AI preferences."""
+    book = await get_book_or_404(db, book_id, current_user.id, project_id)
+    result = await db.execute(select(BookSettings).where(BookSettings.book_id == book_id))
+    bs = result.scalar_one_or_none()
+    if not bs:
+        bs = BookSettings(book_id=book_id, settings={})
+        db.add(bs)
+        await db.flush()
+    prefs = dict(bs.settings.get("ai_prefs") or {})
+    if data.ai_mode is not None:
+        prefs["ai_mode"] = data.ai_mode
+    if data.preferred_provider is not None:
+        prefs["preferred_provider"] = data.preferred_provider
+    if data.preferred_model is not None:
+        prefs["preferred_model"] = data.preferred_model
+    bs.settings = {**(bs.settings or {}), "ai_prefs": prefs}
+    await db.flush()
+    await db.refresh(bs)
+    return {"ai_prefs": prefs}
 
 
 @router.patch("/{book_id}/finish-mode")

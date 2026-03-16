@@ -314,7 +314,11 @@ async def admin_health_detailed(
         checks["redis_error"] = str(e)
 
     s = get_settings()
-    ai_configured = bool(getattr(s, "openai_api_key", None) or getattr(s, "anthropic_api_key", None))
+    ai_configured = bool(
+        getattr(s, "openai_api_key", None)
+        or getattr(s, "anthropic_api_key", None)
+        or getattr(s, "ollama_enabled", False)
+    )
     return {
         "status": "ok" if checks["database"] else "degraded",
         "checks": checks,
@@ -628,3 +632,53 @@ async def admin_gamification(
             for b in badges
         ],
     }
+
+
+# --- AI provider admin ---
+
+
+@router.get("/ai/providers")
+async def admin_ai_providers(current_user: AdminUser):
+    """List AI providers with status."""
+    from authora.services.ai_registry import list_available_providers
+
+    s = get_settings()
+    providers = list_available_providers()
+    return {
+        "providers": providers,
+        "provider_mode": s.ai_provider_mode,
+        "ollama_enabled": s.ollama_enabled,
+        "ollama_base_url": s.ollama_base_url if s.ollama_enabled else None,
+    }
+
+
+@router.get("/ai/providers/ollama/health")
+async def admin_ollama_health(current_user: AdminUser):
+    """Check Ollama connectivity."""
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    s = get_settings()
+    if not s.ollama_enabled:
+        return {"ok": False, "message": "Ollama is not enabled"}
+    p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+    ok, msg = await p.health_check()
+    return {"ok": ok, "message": msg}
+
+
+@router.get("/ai/providers/ollama/models")
+async def admin_ollama_models(current_user: AdminUser):
+    """List available Ollama models (refresh/sync)."""
+    from authora.infrastructure.ai_provider.ollama_provider import OllamaProvider
+
+    s = get_settings()
+    if not s.ollama_enabled:
+        return {"models": [], "message": "Ollama is not enabled"}
+    p = OllamaProvider(base_url=s.ollama_base_url, model=s.ollama_model_default)
+    try:
+        models = await p.list_models()
+        return {
+            "models": [{"name": m.get("name"), "size": m.get("size")} for m in models],
+            "base_url": s.ollama_base_url,
+        }
+    except Exception as e:
+        return {"models": [], "error": str(e)}

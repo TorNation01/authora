@@ -4,15 +4,15 @@ import json
 import logging
 from typing import Any
 
-from authora.infrastructure.ai_provider.factory import get_ai_provider
+from authora.services.ai_registry import TASK_EDITING_POLISH
+from authora.services.ai_service import complete_sync, is_ai_configured
 
 logger = logging.getLogger(__name__)
 
 
 async def analyze_grammar_clarity(text: str, book_type: str = "fiction") -> dict:
     """AI analysis for grammar and clarity issues."""
-    provider = get_ai_provider()
-    if not provider or not hasattr(provider, "complete_sync"):
+    if not is_ai_configured():
         return {"issues": [], "suggestions": [], "clarity_score": 0, "ai_available": False}
 
     system = """You are an expert editor. Analyze the text for:
@@ -31,7 +31,8 @@ Keep issues to the 5 most important. Use exact text excerpts."""
     prompt = f"Analyze this {book_type} text:\n\n{text[:4000]}"
 
     try:
-        text_out = await provider.complete_sync(prompt, system, max_tokens=1024)
+        resp = await complete_sync(prompt, system, max_tokens=1024, task=TASK_EDITING_POLISH)
+        text_out = resp.text
         if "[AI not configured" in str(text_out):
             return {"issues": [], "suggestions": [], "clarity_score": 0, "ai_available": False}
         # Extract JSON from response
@@ -48,8 +49,7 @@ Keep issues to the 5 most important. Use exact text excerpts."""
 
 async def analyze_structure(text: str, chapter_title: str = "") -> dict:
     """AI analysis for structure: opening, ending, flow."""
-    provider = get_ai_provider()
-    if not provider or not hasattr(provider, "complete_sync"):
+    if not is_ai_configured():
         return {"opening_strength": 0, "ending_strength": 0, "suggestions": [], "ai_available": False}
 
     system = """You are an expert editor. Analyze the chapter structure:
@@ -69,7 +69,8 @@ Respond with JSON:
     prompt = f"Chapter: {chapter_title or 'Untitled'}\n\n{text[:3000]}"
 
     try:
-        text_out = await provider.complete_sync(prompt, system, max_tokens=512)
+        resp = await complete_sync(prompt, system, max_tokens=512, task=TASK_EDITING_POLISH)
+        text_out = resp.text
         start = text_out.find("{")
         end = text_out.rfind("}") + 1
         if start >= 0 and end > start:
@@ -83,8 +84,7 @@ Respond with JSON:
 
 async def analyze_fiction_hints(text: str) -> dict:
     """Fiction-specific: pacing, dialogue balance, tension."""
-    provider = get_ai_provider()
-    if not provider or not hasattr(provider, "complete_sync"):
+    if not is_ai_configured():
         return {"pacing": "", "dialogue_balance": "", "tension": "", "suggestions": [], "ai_available": False}
 
     system = """You are an expert fiction editor. Analyze:
@@ -103,7 +103,8 @@ Respond with JSON:
     prompt = f"Analyze this fiction excerpt:\n\n{text[:3500]}"
 
     try:
-        text_out = await provider.complete_sync(prompt, system, max_tokens=512)
+        resp = await complete_sync(prompt, system, max_tokens=512, task=TASK_EDITING_POLISH)
+        text_out = resp.text
         start = text_out.find("{")
         end = text_out.rfind("}") + 1
         if start >= 0 and end > start:
@@ -117,8 +118,7 @@ Respond with JSON:
 
 async def analyze_nonfiction_hints(text: str) -> dict:
     """Nonfiction-specific: clarity, teaching flow, argument strength, actionability."""
-    provider = get_ai_provider()
-    if not provider or not hasattr(provider, "complete_sync"):
+    if not is_ai_configured():
         return {"teaching_flow": "", "argument_strength": "", "actionability": "", "suggestions": [], "ai_available": False}
 
     system = """You are an expert nonfiction editor. Analyze:
@@ -137,7 +137,8 @@ Respond with JSON:
     prompt = f"Analyze this nonfiction excerpt:\n\n{text[:3500]}"
 
     try:
-        text_out = await provider.complete_sync(prompt, system, max_tokens=512)
+        resp = await complete_sync(prompt, system, max_tokens=512, task=TASK_EDITING_POLISH)
+        text_out = resp.text
         start = text_out.find("{")
         end = text_out.rfind("}") + 1
         if start >= 0 and end > start:

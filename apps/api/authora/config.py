@@ -72,9 +72,23 @@ class Settings(BaseSettings):
     # AI (optional - configured via setup wizard)
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
-    ai_provider: str = "openai"  # openai | anthropic
+    ai_provider: str = "openai"  # openai | anthropic | ollama (legacy single-provider)
     ai_model: str = "gpt-4o-mini"
     ai_rate_limit_per_minute: Optional[int] = 60
+
+    # AI provider mode: auto (prefer local, fallback cloud) | cloud | local
+    ai_provider_mode: str = "auto"
+
+    # Ollama (local/self-hosted)
+    ollama_enabled: bool = False
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model_default: str = "llama3.2"
+    # Task-specific Ollama models (JSON or env: OLLAMA_MODEL_WRITING_ASSIST=llama3.2)
+    ollama_model_writing_assist: Optional[str] = None
+    ollama_model_fiction_ideation: Optional[str] = None
+    ollama_model_nonfiction_structure: Optional[str] = None
+    ollama_model_ghostwriting: Optional[str] = None
+    ollama_model_editing_polish: Optional[str] = None
 
     # Export
     max_export_size_mb: int = 50
@@ -182,6 +196,17 @@ class Settings(BaseSettings):
             "enable_shared_billing": self.enable_shared_billing,
             "enable_brand_overrides": self.enable_brand_overrides,
         }
+
+    def get_ollama_model_for_task(self, task: str) -> str:
+        """Get Ollama model for a task. Falls back to default."""
+        mapping = {
+            "writing_assist": self.ollama_model_writing_assist,
+            "fiction_ideation": self.ollama_model_fiction_ideation,
+            "nonfiction_structure": self.ollama_model_nonfiction_structure,
+            "ghostwriting": self.ollama_model_ghostwriting,
+            "editing_polish": self.ollama_model_editing_polish,
+        }
+        return mapping.get(task) or self.ollama_model_default
 
     def get_branding(self) -> dict:
         """Return branding config for white-label."""

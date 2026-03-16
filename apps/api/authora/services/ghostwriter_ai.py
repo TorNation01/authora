@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.models import Book, Chapter, GhostwriterWorkspace
-from authora.services.ai import complete_sync
+from authora.services.ai_registry import TASK_GHOSTWRITING
+from authora.services.ai_service import complete_sync
 from authora.services.export import tiptap_to_plain_text
 from authora.services.fiction_ai import build_fiction_context
 from authora.services.nonfiction_ai import build_nonfiction_context
@@ -58,7 +59,8 @@ WORKSPACE CONTEXT:
 
 Return JSON: {{"chapters": [{{"title": "Chapter 1 Title", "summary": "What this chapter covers"}}, ...]}}"""
 
-    result = await complete_sync(user, system, max_tokens=2048)
+    resp = await complete_sync(user, system, max_tokens=2048, task=TASK_GHOSTWRITING)
+    result = resp.text
     # Parse JSON from result (may have leading/trailing text)
     import json
     import re
@@ -106,7 +108,8 @@ WORKSPACE:
 
 Write the brief:"""
 
-    return await complete_sync(user, system, max_tokens=1024)
+    resp = await complete_sync(user, system, max_tokens=1024, task=TASK_GHOSTWRITING)
+    return resp.text
 
 
 async def generate_chapter_draft(
@@ -152,7 +155,8 @@ WORKSPACE:
 
 Write the full chapter:"""
 
-    return await complete_sync(user, system, max_tokens=4096)
+    resp = await complete_sync(user, system, max_tokens=4096, task=TASK_GHOSTWRITING)
+    return resp.text
 
 
 async def regenerate_section(
@@ -185,7 +189,8 @@ WORKSPACE: {ws_ctx or "(none)"}
 
 New section:"""
 
-    return await complete_sync(user, system, max_tokens=2048)
+    resp = await complete_sync(user, system, max_tokens=2048, task=TASK_GHOSTWRITING)
+    return resp.text
 
 
 async def rewrite_with_feedback(
@@ -217,4 +222,5 @@ WORKSPACE: {ws_ctx or "(none)"}
 
 Rewritten text:"""
 
-    return await complete_sync(user, system, max_tokens=2048)
+    resp = await complete_sync(user, system, max_tokens=2048, task=TASK_GHOSTWRITING)
+    return resp.text

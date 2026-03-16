@@ -19,10 +19,19 @@
 | `R2_ACCOUNT_ID` | api, worker | If R2 | - | Cloudflare account |
 | `R2_BUCKET` | api, worker | If R2 | - | R2 bucket |
 | **AI** |
-| `AI_PROVIDER` | api | No | openai | openai \| anthropic \| none |
+| `AI_PROVIDER` | api | No | openai | openai \| anthropic \| ollama |
+| `AI_PROVIDER_MODE` | api | No | auto | auto \| cloud \| local |
 | `OPENAI_API_KEY` | api | If OpenAI | - | OpenAI key |
 | `ANTHROPIC_API_KEY` | api | If Anthropic | - | Anthropic key |
 | `AI_MODEL` | api | No | gpt-4o-mini | Model name |
+| `OLLAMA_ENABLED` | api | No | false | Enable Ollama |
+| `OLLAMA_BASE_URL` | api | No | http://localhost:11434 | Ollama API URL |
+| `OLLAMA_MODEL_DEFAULT` | api | No | llama3.2 | Default Ollama model |
+| `OLLAMA_MODEL_WRITING_ASSIST` | api | No | - | Task-specific model |
+| `OLLAMA_MODEL_FICTION_IDEATION` | api | No | - | Task-specific model |
+| `OLLAMA_MODEL_NONFICTION_STRUCTURE` | api | No | - | Task-specific model |
+| `OLLAMA_MODEL_GHOSTWRITING` | api | No | - | Task-specific model |
+| `OLLAMA_MODEL_EDITING_POLISH` | api | No | - | Task-specific model |
 | **Notifications** |
 | `NOTIFICATION_EMAIL_PROVIDER` | api | No | none | smtp \| sendgrid \| none |
 | `SMTP_HOST` | api | If SMTP | - | SMTP host |

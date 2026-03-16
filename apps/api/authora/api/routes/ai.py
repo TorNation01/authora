@@ -14,7 +14,7 @@ from authora.api.dependencies import CurrentUser
 from authora.config import get_settings
 from authora.database import get_db
 from authora.models import Book, Chapter, Project
-from authora.services.ai import complete
+from authora.services.ai_service import complete_stream
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -76,7 +76,7 @@ async def ai_complete_stream(
                     system += f"\n\nCurrent chapter content (end):\n{recent}"
 
     async def generate():
-        async for chunk in complete(data.prompt, system, data.max_tokens):
+        async for chunk in complete_stream(data.prompt, system, data.max_tokens):
             yield chunk
 
     return StreamingResponse(

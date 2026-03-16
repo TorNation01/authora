@@ -47,6 +47,7 @@ export default function AdminOverviewPage() {
   const links = [
     { href: '/dashboard/admin/users', label: 'User management', icon: Users },
     { href: '/dashboard/admin/feature-flags', label: 'Feature flags', icon: Flag },
+    { href: '/dashboard/admin/ai', label: 'AI providers', icon: Zap },
     { href: '/dashboard/admin/ai-usage', label: 'AI usage', icon: Zap },
     { href: '/dashboard/admin/export-jobs', label: 'Export jobs', icon: FileDown },
     { href: '/dashboard/admin/notification-logs', label: 'Notification logs', icon: MessageSquare },

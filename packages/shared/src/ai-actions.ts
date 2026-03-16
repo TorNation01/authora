@@ -2,10 +2,10 @@
 
 export const AI_MODES = [
   { id: 'assist', label: 'Assist', description: 'Light suggestions, preserve your voice' },
-  { id: 'co_write', label: 'Co-write', description: 'Collaborative, moderate changes' },
+  { id: 'co_write', label: 'Co-Write', description: 'Collaborative, moderate changes' },
   { id: 'ghostwriter', label: 'Ghostwriter', description: 'Full generation from your brief' },
-  { id: 'editing', label: 'Editing', description: 'Improve existing text, minimal creativity' },
-  { id: 'idea_generation', label: 'Idea generation', description: 'Creative brainstorming' },
+  { id: 'editing', label: 'Edit', description: 'Improve existing text, minimal creativity' },
+  { id: 'spark', label: 'Spark', description: 'Creative brainstorming' },
 ] as const;
 
 export const ASSISTANCE_LEVELS = [

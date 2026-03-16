@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.models import Book, Chapter
-from authora.services.ai import complete_sync
+from authora.services.ai_registry import TASK_EDITING_POLISH
+from authora.services.ai_service import complete_sync
 from authora.services.export import tiptap_to_plain_text
 
 
@@ -43,7 +44,8 @@ MANUSCRIPT EXCERPT:
 {extra or ''}
 
 Write the synopsis:"""
-    return await complete_sync(user, system, max_tokens=1024)
+    resp = await complete_sync(user, system, max_tokens=1024, task=TASK_EDITING_POLISH)
+    return resp.text
 
 
 async def generate_back_cover_blurb(db: AsyncSession, book_id: UUID, extra: str | None = None) -> str:
@@ -61,7 +63,8 @@ MANUSCRIPT:
 {extra or ''}
 
 Write the blurb. No spoilers. End with a hook:"""
-    return await complete_sync(user, system, max_tokens=512)
+    resp = await complete_sync(user, system, max_tokens=512, task=TASK_EDITING_POLISH)
+    return resp.text
 
 
 async def generate_chapter_summaries(db: AsyncSession, book_id: UUID) -> list[dict[str, str]]:
@@ -85,10 +88,11 @@ async def generate_beta_reader_pack(db: AsyncSession, book_id: UUID) -> dict[str
     blurb = await generate_back_cover_blurb(db, book_id)
     summaries = await generate_chapter_summaries(db, book_id)
     system = "Generate 5-7 feedback questions for beta readers. Mix plot, character, pacing, clarity."
-    questions = await complete_sync(
+    resp = await complete_sync(
         f"Book: {synopsis[:500]}...\n\nGenerate beta reader feedback questions:",
         system,
         max_tokens=300,
+        task=TASK_EDITING_POLISH,
     )
     return {
         "synopsis": synopsis,
@@ -110,7 +114,8 @@ Genre: {book.genre or 'General'}
 {extra or 'Write a generic professional bio.'}
 
 Write the bio in third person:"""
-    return await complete_sync(user, system, max_tokens=256)
+    resp = await complete_sync(user, system, max_tokens=256, task=TASK_EDITING_POLISH)
+    return resp.text
 
 
 async def generate_handoff_pack(db: AsyncSession, book_id: UUID) -> dict[str, Any]:

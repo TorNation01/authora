@@ -16,7 +16,8 @@ from authora.models import (
     Scene,
     WorldElement,
 )
-from authora.services.ai import complete
+from authora.services.ai_registry import TASK_FICTION_IDEATION
+from authora.services.ai_service import complete_stream
 from authora.services.export import tiptap_to_plain_text
 
 
@@ -147,6 +148,8 @@ async def run_fiction_ai_prompt(
         user_prompt = f"{user_prompt}\n\n{context}"
 
     result = []
-    async for chunk in complete(user_prompt, system, max_tokens=2048):
+    async for chunk in complete_stream(
+        user_prompt, system, max_tokens=2048, task=TASK_FICTION_IDEATION
+    ):
         result.append(chunk)
     return "".join(result)

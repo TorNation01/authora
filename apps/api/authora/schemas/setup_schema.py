@@ -55,10 +55,12 @@ class SetupStorage(BaseModel):
 class SetupAI(BaseModel):
     """AI provider keys."""
 
-    ai_provider: Literal["openai", "anthropic"] = "openai"
+    ai_provider: Literal["openai", "anthropic", "ollama"] = "openai"
     ai_model: str = Field(default="gpt-4o-mini", max_length=100)
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    ollama_enabled: bool = False
+    ollama_base_url: str = Field(default="http://localhost:11434", max_length=255)
 
 
 class SetupEmail(BaseModel):
@@ -109,6 +111,7 @@ class SetupTestRequest(BaseModel):
 
     database_url: str | None = None
     redis_url: str | None = None
+    ollama_base_url: str | None = None
 
 
 class SetupApplyRequest(BaseModel):
@@ -149,3 +152,4 @@ class SetupTestResult(BaseModel):
 
     database: SetupValidationResult | None = None
     redis: SetupValidationResult | None = None
+    ollama: SetupValidationResult | None = None

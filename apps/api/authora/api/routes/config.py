@@ -66,3 +66,19 @@ async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
         "integration_flags": settings.get_integration_flags(),
         "branding": settings.get_branding(),
     }
+
+
+@router.get("/ai")
+async def get_ai_config():
+    """AI provider config for frontend. Public endpoint."""
+    from authora.services.ai_registry import list_available_providers
+
+    settings = get_settings()
+    providers = list_available_providers()
+    return {
+        "provider_mode": settings.ai_provider_mode,
+        "providers": providers,
+        "ollama_enabled": settings.ollama_enabled,
+        "ollama_base_url": settings.ollama_base_url if settings.ollama_enabled else None,
+        "has_ai": bool(settings.openai_api_key or settings.anthropic_api_key or settings.ollama_enabled),
+    }

@@ -14,8 +14,9 @@ class AIMode(str, Enum):
     ASSIST = "assist"  # Light suggestions, preserve voice
     CO_WRITE = "co_write"  # Collaborative, moderate changes
     GHOSTWRITER = "ghostwriter"  # Full generation from brief
-    EDITING = "editing"  # Improve existing text, minimal creativity
-    IDEA_GENERATION = "idea_generation"  # Creative brainstorming
+    EDIT = "editing"  # Improve existing text, minimal creativity (alias: editing)
+    SPARK = "spark"  # Creative brainstorming, idea generation
+    IDEA_GENERATION = "idea_generation"  # Alias for SPARK (legacy)
 
 
 class AssistanceLevel(str, Enum):
@@ -137,6 +138,17 @@ ACTION_DEFINITIONS: dict[str, ActionDefinition] = {
         uses_selection=False,
         max_tokens=1024,
     ),
+    "generate_chapter_ideas": ActionDefinition(
+        id="generate_chapter_ideas",
+        label="Generate chapter ideas",
+        description="Generate chapter-level ideas and directions.",
+        fiction_prompt="Generate 5 chapter ideas or directions for this book. Each 2-3 sentences with a clear premise:\n\n{context}",
+        nonfiction_prompt="Generate 5 chapter ideas for this topic. Each 2-3 sentences with main focus:\n\n{context}",
+        general_prompt="Generate 5 chapter ideas based on this context:\n\n{context}",
+        uses_selection=False,
+        uses_context=True,
+        max_tokens=1024,
+    ),
     "generate_examples": ActionDefinition(
         id="generate_examples",
         label="Generate examples",
@@ -225,7 +237,8 @@ MODE_SYSTEM_PREFIXES = {
     AIMode.ASSIST: "You are a supportive writing assistant. Make light suggestions. Preserve the author's voice and choices. Clearly indicate this is a suggestion.",
     AIMode.CO_WRITE: "You are a collaborative writing partner. You may suggest moderate changes. Preserve the author's core voice while offering improvements. Mark AI-generated content clearly.",
     AIMode.GHOSTWRITER: "You are a ghostwriter. Generate full prose from the author's brief. Match their stated style and voice. Clearly mark all AI-generated content.",
-    AIMode.EDITING: "You are an editor. Improve the text with minimal creative changes. Fix grammar, flow, and clarity. Preserve the author's exact meaning and voice.",
+    AIMode.EDIT: "You are an editor. Improve the text with minimal creative changes. Fix grammar, flow, and clarity. Preserve the author's exact meaning and voice.",
+    AIMode.SPARK: "You are a creative brainstorming partner. Generate varied, imaginative ideas. Quantity and variety over polish. Clearly separate each idea.",
     AIMode.IDEA_GENERATION: "You are a creative brainstorming partner. Generate varied, imaginative ideas. Quantity and variety over polish. Clearly separate each idea.",
 }
 

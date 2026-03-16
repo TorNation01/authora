@@ -70,6 +70,7 @@ from authora.models.chapter_section import ChapterSection
 from authora.models.content_annotation import ContentHighlight, ContentComment
 from authora.models.reference_item import ReferenceItem
 from authora.models.ai_revision import AIRevision
+from authora.models.ai_action_log import AIActionLog
 from authora.models.ai_action_registry import AIActionRegistry
 from authora.models.ghostwriter_session import GhostwriterSession
 from authora.models.reminder import Reminder
@@ -149,6 +150,7 @@ __all__ = [
     "ContentComment",
     "ReferenceItem",
     "AIRevision",
+    "AIActionLog",
     "AIActionRegistry",
     "GhostwriterSession",
     "Reminder",
