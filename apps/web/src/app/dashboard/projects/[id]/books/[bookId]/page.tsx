@@ -20,6 +20,8 @@ import { RevisionPanel } from '@/components/studio/RevisionPanel';
 import { VersionHistoryDialog } from '@/components/studio/VersionHistoryDialog';
 import { RecoveryCenterDialog } from '@/components/studio/RecoveryCenterDialog';
 import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
+import { StoryIntegrityPanel } from '@/components/studio/StoryIntegrityPanel';
+import { useConfig } from '@/contexts/ConfigProvider';
 import { Button } from '@/components/ui/button';
 import { api, apiStream, ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +55,7 @@ interface Version {
   created_at: string;
 }
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault';
+type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault' | 'integrity';
 
 export default function BookStudioPage() {
   const params = useParams();
@@ -78,6 +80,8 @@ export default function BookStudioPage() {
   const [showFinishModeSettings, setShowFinishModeSettings] = useState(false);
   const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
   const { toast } = useToast();
+  const config = useConfig();
+  const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
 
   const fetchFinishMode = useCallback(() => {
     api<FinishModeStats>(`/api/v1/projects/${projectId}/books/${bookId}/finish-mode`)
@@ -875,6 +879,15 @@ export default function BookStudioPage() {
               projectId={projectId}
               bookId={bookId}
               chapterId={activeChapter.id}
+            />
+          )}
+
+          {panelMode === 'integrity' && storyIntegrityEnabled && (
+            <StoryIntegrityPanel
+              projectId={projectId}
+              bookId={bookId}
+              activeChapterId={activeChapter?.id ?? null}
+              onSelectChapter={(id) => handleSelectChapter({ id } as Chapter)}
             />
           )}
         </div>

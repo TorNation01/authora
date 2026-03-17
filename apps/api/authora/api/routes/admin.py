@@ -17,6 +17,8 @@ from authora.models import (
     Chapter,
     ExportJob,
     FeatureFlag,
+    IntegrityIssue,
+    IntegrityScan,
     NotificationDeliveryLog,
     Plan,
     Project,
@@ -178,6 +180,40 @@ async def admin_update_feature_flag(
         row.value = {**(row.value or {}), "enabled": data.enabled, "rules": data.rules or {}}
     await db.flush()
     return {"key": key, "enabled": data.enabled}
+
+
+# --- Story Integrity Engine admin ---
+
+
+@router.get("/integrity/analytics")
+async def admin_integrity_analytics(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = Query(30, ge=1, le=365),
+):
+    """Story Integrity Engine analytics: scans run, issue counts, performance."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    scans_q = select(
+        func.count(IntegrityScan.id).label("total"),
+        func.avg(IntegrityScan.duration_ms).label("avg_duration_ms"),
+        func.sum(IntegrityScan.issue_count).label("total_issues"),
+    ).where(IntegrityScan.started_at >= since, IntegrityScan.status == "completed")
+    scans_row = (await db.execute(scans_q)).one()
+    issues_q = (
+        select(IntegrityIssue.category, func.count(IntegrityIssue.id).label("cnt"))
+        .join(IntegrityScan, IntegrityIssue.scan_id == IntegrityScan.id)
+        .where(IntegrityScan.started_at >= since)
+        .group_by(IntegrityIssue.category)
+    )
+    issues_rows = (await db.execute(issues_q)).all()
+    by_category = {r.category: r.cnt for r in issues_rows}
+    return {
+        "period_days": days,
+        "scans_total": scans_row.total or 0,
+        "avg_duration_ms": round(float(scans_row.avg_duration_ms or 0), 1),
+        "total_issues_detected": scans_row.total_issues or 0,
+        "issues_by_category": by_category,
+    }
 
 
 # --- Vault admin config ---

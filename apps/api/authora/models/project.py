@@ -15,6 +15,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.book import Book
+    from authora.models.integrity import IntegrityIssue, IntegrityScan
     from authora.models.collaboration import (
         CollaborationActivity,
         ProjectInvite,
@@ -88,4 +89,10 @@ class Project(Base):
     )
     vault_sources: Mapped[list["Source"]] = relationship(
         "Source", back_populates="project", cascade="all, delete-orphan"
+    )
+    integrity_scans: Mapped[list["IntegrityScan"]] = relationship(
+        "IntegrityScan", back_populates="project", cascade="all, delete-orphan"
+    )
+    integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
+        "IntegrityIssue", back_populates="project", cascade="all, delete-orphan"
     )

@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     feature_shared_workspace_identity: bool = False
     feature_tenant_aware: bool = False
     feature_billing: bool = False
+    feature_story_integrity: bool = True
 
     # White-label branding (overridable via env)
     branding_product_name: str = "AUTHORA"
@@ -150,7 +151,13 @@ class Settings(BaseSettings):
         return self.smtp_from_email or self.from_email or self.smtp_user or "noreply@authora.app"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3031",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3031",
+        "http://web:3000",
+    ]
 
     # Storage
     storage_provider: str = "local"
@@ -237,6 +244,7 @@ class Settings(BaseSettings):
             "shared_workspace_identity": self.feature_shared_workspace_identity,
             "tenant_aware": self.feature_tenant_aware,
             "billing": self.feature_billing,
+            "story_integrity": self.feature_story_integrity,
         }
 
     def get_integration_flags(self) -> dict[str, bool]:

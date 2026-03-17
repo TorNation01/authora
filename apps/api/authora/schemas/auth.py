@@ -3,22 +3,40 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _email_like(v: str) -> str:
+    """Accept email-like strings including @authora.local for testing."""
+    v = (v or "").strip().lower()
+    if "@" in v and v.index("@") > 0 and len(v) > v.index("@") + 1:
+        return v
+    raise ValueError("Invalid email format")
 
 
 class UserCreate(BaseModel):
     """User registration."""
 
-    email: EmailStr
+    email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
     display_name: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _email_like(v)
 
 
 class UserLogin(BaseModel):
     """User login."""
 
-    email: EmailStr
+    email: str = Field(..., min_length=3, max_length=255)
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return _email_like(v)
 
 
 class UserResponse(BaseModel):

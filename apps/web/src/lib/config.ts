@@ -26,6 +26,7 @@ export interface FeatureFlags {
   shared_workspace_identity: boolean;
   tenant_aware: boolean;
   billing: boolean;
+  story_integrity: boolean;
 }
 
 export interface BrandingConfig {
@@ -74,6 +75,7 @@ const DEFAULT: AppConfig = {
     shared_workspace_identity: false,
     tenant_aware: false,
     billing: false,
+    story_integrity: true,
   },
   integration_flags: DEFAULT_INTEGRATION_FLAGS,
   branding: {

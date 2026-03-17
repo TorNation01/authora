@@ -14,6 +14,12 @@ from authora.models import User
 from authora.services.auth import hash_password
 
 
+TEST_USERS = [
+    ("admin@authora.local", "admin123", "Admin", True),
+    ("test@authora.local", "test123", "Test User", False),
+]
+
+
 async def seed():
     settings = get_settings()
     url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
@@ -21,20 +27,26 @@ async def seed():
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
     async with async_session() as session:
-        result = await session.execute(select(User))
-        if result.scalars().first():
-            print("Users exist, skipping seed.")
-            return
-
-        admin = User(
-            email="admin@authora.local",
-            hashed_password=hash_password("admin123"),
-            display_name="Admin",
-            is_admin=True,
-        )
-        session.add(admin)
-        await session.commit()
-        print("Created admin user: admin@authora.local / admin123")
+        created = []
+        for email, password, display_name, is_admin in TEST_USERS:
+            result = await session.execute(select(User).where(User.email == email))
+            if result.scalar_one_or_none():
+                continue
+            user = User(
+                email=email,
+                hashed_password=hash_password(password),
+                display_name=display_name,
+                is_admin=is_admin,
+                is_active=True,
+            )
+            session.add(user)
+            created.append(f"{email} / {password}")
+        if created:
+            await session.commit()
+            for c in created:
+                print(f"Created: {c}")
+        else:
+            print("All test users already exist.")
 
 
 if __name__ == "__main__":

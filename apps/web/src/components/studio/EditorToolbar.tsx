@@ -18,8 +18,10 @@ import {
   Shield,
   ClipboardList,
   Library,
+  Activity,
 } from 'lucide-react';
 import type { SectionStatus } from './ManuscriptSidebar';
+import { useConfig } from '@/contexts/ConfigProvider';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -31,7 +33,7 @@ import { WritingStats } from './WritingStats';
 import { WritingSprintTimer } from './WritingSprintTimer';
 import { cn } from '@/lib/utils';
 
-type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault';
+export type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault' | 'integrity';
 
 interface EditorToolbarProps {
   chapterTitle: string;
@@ -91,6 +93,8 @@ export function EditorToolbar({
   sectionStatus,
   showAi = true,
 }: EditorToolbarProps) {
+  const config = useConfig();
+  const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
   const showRetry = saveStatus === 'error' && onRetry;
   const [exportOpen, setExportOpen] = useState(false);
   const sprintStartWordsRef = useRef(0);
@@ -271,6 +275,21 @@ export function EditorToolbar({
           </TooltipTrigger>
           <TooltipContent>{getTooltip('vault_panel') ?? 'Chapter-linked characters, locations, sources & research'}</TooltipContent>
         </Tooltip>
+        {storyIntegrityEnabled && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={panelMode === 'integrity' ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => onTogglePanel(panelMode === 'integrity' ? 'none' : 'integrity')}
+            >
+              <Activity className="h-4 w-4 mr-1" />
+              Story Health
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Manuscript integrity and issues</TooltipContent>
+        </Tooltip>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
         <div className="relative">

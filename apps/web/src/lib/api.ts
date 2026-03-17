@@ -2,6 +2,19 @@ import { getToken } from '@/lib/auth';
 
 const API_BASE = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || '') : '';
 
+/** Extract readable message from FastAPI error (detail can be string or array of validation objects). */
+function getErrorMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (first && typeof first === 'object' && 'msg' in first && typeof first.msg === 'string') {
+      return first.msg;
+    }
+    return detail.map((d) => (d && typeof d === 'object' && 'msg' in d ? String(d.msg) : String(d))).join('; ');
+  }
+  return fallback;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -28,7 +41,7 @@ export async function api<T>(
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(err.detail || res.statusText, res.status);
+    throw new ApiError(getErrorMessage(err.detail, res.statusText), res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -58,7 +71,7 @@ export async function apiUpload<T>(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new ApiError(err.detail || res.statusText, res.status);
+    throw new ApiError(getErrorMessage(err.detail, res.statusText), res.status);
   }
   if (res.status === 204) return undefined as T;
   return res.json();

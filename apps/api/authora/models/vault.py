@@ -442,6 +442,9 @@ class ChapterSourceLink(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    chapter: Mapped["Chapter"] = relationship("Chapter", back_populates="source_links")
+    source: Mapped["Source"] = relationship("Source", back_populates="chapter_links")
+
 
 class ChapterResearchLink(Base):
     """Link chapter to research entry."""

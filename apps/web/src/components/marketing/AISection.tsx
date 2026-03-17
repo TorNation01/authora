@@ -1,12 +1,12 @@
 'use client';
 
-import { RefreshCw, Expand, Lightbulb, Flow, FileEdit, Bot } from 'lucide-react';
+import { RefreshCw, Expand, Lightbulb, Sparkles, FileEdit, Bot } from 'lucide-react';
 
 const AI_SUPPORT_EXAMPLES = [
   { icon: RefreshCw, label: 'Rewrite awkward passages' },
   { icon: Expand, label: 'Expand thin sections' },
   { icon: Lightbulb, label: 'Generate ideas when stuck' },
-  { icon: Flow, label: 'Improve flow and clarity' },
+  { icon: Sparkles, label: 'Improve flow and clarity' },
   { icon: FileEdit, label: 'Turn outlines into rough drafts' },
   { icon: Bot, label: 'Use ghostwriter-style assistance when needed' },
 ];

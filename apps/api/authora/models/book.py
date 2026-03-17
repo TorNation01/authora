@@ -12,10 +12,12 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.ai_revision import AIRevision
+    from authora.models.integrity import IntegrityIssue, IntegrityScan
     from authora.models.book_settings import BookSettings
     from authora.models.collaboration import ChapterApproval
     from authora.models.content_annotation import ContentComment, ContentHighlight
     from authora.models.ghostwriter import ChapterBrief, GhostwriterWorkspace
+    from authora.models.integrity import IntegrityIssue
     from authora.models.chapter_section import ChapterSection
     from authora.models.note import Note
     from authora.models.project import Project
@@ -62,6 +64,12 @@ class Book(Base):
     )
     revision_passes: Mapped[list["RevisionPass"]] = relationship(
         "RevisionPass", back_populates="book", cascade="all, delete-orphan"
+    )
+    integrity_scans: Mapped[list["IntegrityScan"]] = relationship(
+        "IntegrityScan", back_populates="book", cascade="all, delete-orphan"
+    )
+    integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
+        "IntegrityIssue", back_populates="book", cascade="all, delete-orphan"
     )
 
 
@@ -126,6 +134,9 @@ class Chapter(Base):
     )
     research_links: Mapped[list["ChapterResearchLink"]] = relationship(
         "ChapterResearchLink", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
+        "IntegrityIssue", back_populates="chapter", cascade="all, delete-orphan"
     )
 
 

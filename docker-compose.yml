@@ -43,7 +43,7 @@ services:
       DATABASE_URL: postgresql://authora:authora@postgres:5432/authora
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
-      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://web:3000"]'
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:3031","http://127.0.0.1:3000","http://127.0.0.1:3031","http://web:3000"]'
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_ENABLED: ${OLLAMA_ENABLED:-false}
