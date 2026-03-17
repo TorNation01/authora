@@ -15,6 +15,7 @@ import {
   StickyNote,
   HelpCircle,
   Shield,
+  CreditCard,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
@@ -49,12 +50,13 @@ export function BrandedSidebar({
   className?: string;
 }) {
   const pathname = usePathname();
-  const { branding } = useConfig();
+  const { branding, feature_flags } = useConfig();
   const { openHelpCenter } = useHelp();
   const user = useUser();
 
   const navItems = [
     ...mainNav,
+    ...(feature_flags.billing ? [{ href: '/dashboard/billing', label: 'Billing', icon: CreditCard }] : []),
     ...(user?.is_admin ? [{ href: '/dashboard/admin', label: 'Admin', icon: Shield }] : []),
   ];
 

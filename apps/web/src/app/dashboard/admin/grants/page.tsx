@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,9 +37,34 @@ interface Grant {
 }
 
 const PLAN_SLUGS = ['free', 'starter', 'pro', 'studio', 'founder_lifetime'];
-const REASONS = ['family', 'founder', 'beta_tester', 'partner', 'internal_use', 'scholarship', 'support_resolution', 'custom'];
-const ON_EXPIRY = ['revert_previous', 'revert_free', 'prompt_billing'];
-const ACCESS_TYPES = ['paid', 'discounted', 'free'];
+const REASON_LABELS: Record<string, string> = {
+  family: 'Family',
+  founder: 'Founder',
+  beta_tester: 'Beta tester',
+  partner: 'Partner',
+  internal_use: 'Internal use',
+  scholarship: 'Scholarship',
+  support_resolution: 'Support resolution',
+  custom: 'Custom',
+};
+const ON_EXPIRY_LABELS: Record<string, string> = {
+  revert_previous: 'Revert to previous plan',
+  revert_free: 'Revert to Free',
+  prompt_billing: 'Prompt for billing',
+};
+const ACCESS_TYPE_LABELS: Record<string, string> = {
+  paid: 'Paid',
+  discounted: 'Discounted',
+  free: 'Complimentary Access',
+};
+const DURATION_OPTIONS: { value: string; label: string; months?: number; years?: number }[] = [
+  { value: 'lifetime', label: 'Lifetime Access' },
+  { value: '12', label: '12 months', months: 12 },
+  { value: '6', label: '6 months', months: 6 },
+  { value: '3', label: '3 months', months: 3 },
+  { value: '1', label: '1 month', months: 1 },
+  { value: 'custom', label: 'Custom' },
+];
 
 export default function AdminGrantsPage() {
   const { toast } = useToast();
@@ -45,9 +78,13 @@ export default function AdminGrantsPage() {
   const [createAccessType, setCreateAccessType] = useState('free');
   const [createOverrideStripe, setCreateOverrideStripe] = useState(true);
   const [createOnExpiry, setCreateOnExpiry] = useState('revert_free');
+  const [createDuration, setCreateDuration] = useState('6');
   const [createDurationMonths, setCreateDurationMonths] = useState<number | ''>(6);
   const [createNotes, setCreateNotes] = useState('');
   const [creating, setCreating] = useState(false);
+  const [extendGrantId, setExtendGrantId] = useState<string | null>(null);
+  const [extendNewDate, setExtendNewDate] = useState('');
+  const [extending, setExtending] = useState(false);
 
   const fetchGrants = useCallback(async (userId: string) => {
     if (!userId) return;
@@ -83,6 +120,9 @@ export default function AdminGrantsPage() {
       toast({ title: 'Select a user first', variant: 'destructive' });
       return;
     }
+    const opt = DURATION_OPTIONS.find((d) => d.value === createDuration);
+    const durationMonths = createDuration === 'custom' ? createDurationMonths : opt?.months;
+    const durationYears = opt?.years;
     setCreating(true);
     try {
       await api('/api/v1/billing/admin/grants', {
@@ -90,7 +130,8 @@ export default function AdminGrantsPage() {
         body: JSON.stringify({
           user_id: selectedUserId,
           plan_slug: createPlan,
-          duration_months: createDurationMonths || undefined,
+          duration_months: createDuration === 'lifetime' ? undefined : durationMonths || undefined,
+          duration_years: durationYears,
           reason: createReason,
           access_type: createAccessType,
           override_stripe: createOverrideStripe,
@@ -127,16 +168,45 @@ export default function AdminGrantsPage() {
     }
   };
 
+  const openExtendDialog = (grant: Grant) => {
+    setExtendGrantId(grant.id);
+    setExtendNewDate(
+      grant.expires_at
+        ? new Date(grant.expires_at).toISOString().slice(0, 10)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    );
+  };
+
+  const handleExtendGrant = async () => {
+    if (!extendGrantId || !extendNewDate) return;
+    setExtending(true);
+    try {
+      const iso = new Date(extendNewDate + 'T23:59:59.999Z').toISOString();
+      await api(`/api/v1/billing/admin/grants/${extendGrantId}/extend`, {
+        method: 'POST',
+        body: JSON.stringify({ new_expires_at: iso }),
+      });
+      toast({ title: 'Grant extended' });
+      setExtendGrantId(null);
+      if (selectedUserId) fetchGrants(selectedUserId);
+    } catch {
+      toast({ title: 'Failed to extend', variant: 'destructive' });
+    } finally {
+      setExtending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Entitlement grants</h1>
-        <p className="mt-1 text-muted-foreground">Grant users access to plans manually. Grants override Stripe when configured.</p>
+        <h1 className="text-2xl font-bold">Billing, Plans, and Access</h1>
+        <p className="mt-1 text-muted-foreground">Manual access grants and special access codes.</p>
       </div>
 
       <Card variant="soft">
         <CardHeader>
-          <h2 className="font-semibold">Grant access</h2>
+          <h2 className="font-semibold">Manual Access Grants</h2>
+          <p className="text-sm text-muted-foreground">Assign tier manually. Choose paid, discounted, or fully free access.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -167,7 +237,7 @@ export default function AdminGrantsPage() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Plan</Label>
+                  <Label>Plan Override</Label>
                   <Select value={createPlan} onValueChange={setCreatePlan}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -178,33 +248,44 @@ export default function AdminGrantsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Duration (months)</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    placeholder="e.g. 6 or leave empty for lifetime"
-                    value={createDurationMonths}
-                    onChange={(e) => setCreateDurationMonths(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                  />
+                  <Label>Duration</Label>
+                  <Select value={createDuration} onValueChange={setCreateDuration}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DURATION_OPTIONS.map((d) => (
+                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {createDuration === 'custom' && (
+                    <Input
+                      type="number"
+                      min={1}
+                      className="mt-2"
+                      placeholder="Months"
+                      value={createDurationMonths}
+                      onChange={(e) => setCreateDurationMonths(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                    />
+                  )}
                 </div>
                 <div>
-                  <Label>Reason</Label>
+                  <Label>Grant Reason</Label>
                   <Select value={createReason} onValueChange={setCreateReason}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {REASONS.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
+                      {Object.entries(REASON_LABELS).map(([v, l]) => (
+                        <SelectItem key={v} value={v}>{l}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Access type</Label>
+                  <Label>Access Type</Label>
                   <Select value={createAccessType} onValueChange={setCreateAccessType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ACCESS_TYPES.map((a) => (
-                        <SelectItem key={a} value={a}>{a}</SelectItem>
+                      {Object.entries(ACCESS_TYPE_LABELS).map(([v, l]) => (
+                        <SelectItem key={v} value={v}>{l}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -220,19 +301,19 @@ export default function AdminGrantsPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>On expiry</Label>
+                  <Label>On Expiry</Label>
                   <Select value={createOnExpiry} onValueChange={setCreateOnExpiry}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {ON_EXPIRY.map((o) => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      {Object.entries(ON_EXPIRY_LABELS).map(([v, l]) => (
+                        <SelectItem key={v} value={v}>{l}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div>
-                <Label>Internal notes</Label>
+                <Label>Internal Notes</Label>
                 <Input value={createNotes} onChange={(e) => setCreateNotes(e.target.value)} placeholder="Optional" />
               </div>
               <Button onClick={handleCreateGrant} disabled={creating}>
@@ -247,6 +328,7 @@ export default function AdminGrantsPage() {
         <Card variant="soft">
           <CardHeader>
             <h2 className="font-semibold">Grant history</h2>
+            <p className="text-sm text-muted-foreground">Revoke or extend grants. Convert temporary to Lifetime Access.</p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -262,17 +344,22 @@ export default function AdminGrantsPage() {
                       <span className="mx-2 text-muted-foreground">•</span>
                       <span className="text-sm text-muted-foreground">{g.reason}</span>
                       {g.expires_at && (
-                        <span className="ml-2 text-sm">expires {new Date(g.expires_at).toLocaleDateString()}</span>
+                        <span className="ml-2 text-sm">Access Ends {new Date(g.expires_at).toLocaleDateString()}</span>
                       )}
                       {g.revoked_at && (
                         <span className="ml-2 text-sm text-destructive">revoked</span>
                       )}
                     </div>
                     <div className="flex gap-2">
-                      {!g.revoked_at && !g.expires_at && (
-                        <Button variant="outline" size="sm" onClick={() => convertToLifetime(g.id)}>
-                          Convert to lifetime
-                        </Button>
+                      {!g.revoked_at && g.expires_at && (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => openExtendDialog(g)}>
+                            Extend
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => convertToLifetime(g.id)}>
+                            Convert to Lifetime Access
+                          </Button>
+                        </>
                       )}
                       {!g.revoked_at && (
                         <Button variant="outline" size="sm" onClick={() => revokeGrant(g.id)}>
@@ -287,6 +374,32 @@ export default function AdminGrantsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!extendGrantId} onOpenChange={(open) => !open && setExtendGrantId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Extend grant</DialogTitle>
+            <DialogDescription>Set a new expiry date for this access grant.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Label htmlFor="extend-date">New expiry date</Label>
+            <Input
+              id="extend-date"
+              type="date"
+              value={extendNewDate}
+              onChange={(e) => setExtendNewDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtendGrantId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleExtendGrant} disabled={extending}>
+              {extending ? 'Extending…' : 'Extend'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

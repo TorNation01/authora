@@ -7,25 +7,25 @@ import { getAppBaseUrl } from '@/lib/config';
 
 export function CTASection() {
   const config = useConfig();
-  const { branding, feature_flags } = config;
+  const { feature_flags } = config;
 
   return (
     <section className="py-20" data-analytics="cta">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
         <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-          Your book deserves more than unfinished notes
+          Your book is not finished yet — but it can be.
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Write with structure, support, and momentum inside Authora.
+          Authora gives you the tools, structure, and support to get there.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           {feature_flags.standalone_auth && (
             <>
               <Button asChild size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/register`}>Start Free</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Start Writing Free</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                <Link href="/pricing">Explore Pricing</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Create Your First Book</Link>
               </Button>
             </>
           )}

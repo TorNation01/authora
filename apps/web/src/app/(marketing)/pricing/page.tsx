@@ -1,23 +1,36 @@
 import type { Metadata } from 'next';
-import { PricingContent } from './PricingContent';
+import { PricingHero } from './PricingHero';
+import { PricingPlanCards } from './PricingPlanCards';
+import { PricingComparisonTable } from './PricingComparisonTable';
+import { PricingValueSection } from './PricingValueSection';
+import { PricingAISection } from './PricingAISection';
+import { PricingAccountabilitySection } from './PricingAccountabilitySection';
+import { PricingFAQ } from './PricingFAQ';
 
 export const metadata: Metadata = {
-  title: 'Pricing | AUTHORA',
-  description: 'Simple, transparent pricing. Start free. Upgrade when you need more.',
+  title: 'Pricing | Authora — Plans for Every Kind of Writer',
+  description:
+    'Free, Starter, Pro, Studio, and Founder Lifetime. Whether you are outlining your first idea or finishing your next manuscript, Authora gives you the tools to keep moving.',
+  alternates: { canonical: '/pricing' },
+  openGraph: {
+    title: 'Pricing | Authora',
+    description: 'Plans for every kind of writer. Start free. Upgrade when you are ready.',
+    url: '/pricing',
+  },
 };
 
 export default function PricingPage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-2xl text-center">
-        <h1 className="font-serif text-4xl font-bold text-foreground sm:text-5xl">
-          Simple pricing
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Start free. Upgrade when you need more. No surprises.
-        </p>
+    <div data-page="pricing">
+      <PricingHero />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <PricingPlanCards />
+        <PricingComparisonTable />
+        <PricingValueSection />
+        <PricingAISection />
+        <PricingAccountabilitySection />
+        <PricingFAQ />
       </div>
-      <PricingContent />
     </div>
   );
 }

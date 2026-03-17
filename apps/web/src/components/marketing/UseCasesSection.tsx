@@ -1,105 +1,70 @@
 'use client';
 
-import Link from 'next/link';
-import { BookOpen, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { BookOpen, FileText, User, BookMarked, PenLine, Sparkles, Award } from 'lucide-react';
 
-const FICTION_BULLETS = [
-  'Genre templates: romance, thriller, fantasy, mystery',
-  'Scene and chapter planning',
-  'Character and worldbuilding tools',
-  'Ghostwriter mode for AI-assisted drafting',
-  'Export for querying or self-publishing',
-];
-
-const NONFICTION_BULLETS = [
-  'Templates: memoir, business, self-help, educational',
-  'Problem–solution–implementation structure',
-  'Target audience and transformation framing',
-  'Research notes and citations',
-  'Export for traditional or indie publishing',
+const USE_CASES = [
+  {
+    icon: BookOpen,
+    title: 'Fiction writers',
+    copy: 'Novels, series, short stories. Structure, character arcs, and story intelligence.',
+  },
+  {
+    icon: FileText,
+    title: 'Non-fiction writers',
+    copy: 'Business, self-help, how-to. Clear structure and research support.',
+  },
+  {
+    icon: User,
+    title: 'Memoir writers',
+    copy: 'Turn your story into a book with guided structure and reflection tools.',
+  },
+  {
+    icon: BookMarked,
+    title: 'Workbook creators',
+    copy: 'Templates, exercises, and export for interactive or print formats.',
+  },
+  {
+    icon: PenLine,
+    title: 'Ghostwriters',
+    copy: 'Client projects, multiple books, professional workflow and export.',
+  },
+  {
+    icon: Sparkles,
+    title: 'First-time authors',
+    copy: 'Step-by-step guidance from idea to finished manuscript.',
+  },
+  {
+    icon: Award,
+    title: 'Experienced authors',
+    copy: 'Power tools, flexibility, and manuscript intelligence without hand-holding.',
+  },
 ];
 
 export function UseCasesSection() {
   return (
-    <section className="py-20" data-analytics="use-cases">
+    <section className="border-t border-border/60 bg-muted/30 py-20" data-analytics="use-cases">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-            Fiction or non-fiction—we've got you
+            Built for every kind of writer.
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Purpose-built templates and workflows for your genre.
-          </p>
         </div>
-        <div className="mt-16 grid gap-8 lg:grid-cols-2">
-          {/* Fiction */}
-          <div
-            className="card-sanctuary overflow-hidden p-8"
-            data-analytics="use-case-fiction"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                <BookOpen className="h-7 w-7 text-primary" />
+        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {USE_CASES.map((item) => (
+            <div
+              key={item.title}
+              className="card-sanctuary flex items-start gap-4 p-6"
+              data-analytics="use-case"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <item.icon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-serif text-xl font-semibold text-foreground">
-                  Fiction writers
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Novels, stories, series
-                </p>
+                <h3 className="font-semibold text-foreground">{item.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{item.copy}</p>
               </div>
             </div>
-            <ul className="mt-6 space-y-3">
-              {FICTION_BULLETS.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
-                  <span className="mt-1 text-primary">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            {/* Placeholder for fiction screenshot */}
-            <div className="mt-8 aspect-video rounded-lg bg-muted/50 flex items-center justify-center">
-              <p className="text-xs text-muted-foreground">Fiction workspace preview</p>
-            </div>
-          </div>
-          {/* Nonfiction */}
-          <div
-            className="card-sanctuary overflow-hidden p-8"
-            data-analytics="use-case-nonfiction"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-                <FileText className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-serif text-xl font-semibold text-foreground">
-                  Non-fiction authors
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Memoir, business, how-to, thought leadership
-                </p>
-              </div>
-            </div>
-            <ul className="mt-6 space-y-3">
-              {NONFICTION_BULLETS.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
-                  <span className="mt-1 text-primary">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-            {/* Placeholder for nonfiction screenshot */}
-            <div className="mt-8 aspect-video rounded-lg bg-muted/50 flex items-center justify-center">
-              <p className="text-xs text-muted-foreground">Non-fiction workspace preview</p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-12 text-center">
-          <Button asChild variant="outline">
-            <Link href="/features">See all features</Link>
-          </Button>
+          ))}
         </div>
       </div>
     </section>

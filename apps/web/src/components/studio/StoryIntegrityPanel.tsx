@@ -36,6 +36,7 @@ interface StoryIntegrityPanelProps {
   bookId: string;
   activeChapterId: string | null;
   onSelectChapter?: (chapterId: string) => void;
+  densityEnabled?: boolean;
 }
 
 export function StoryIntegrityPanel({

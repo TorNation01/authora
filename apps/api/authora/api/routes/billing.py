@@ -76,12 +76,22 @@ class UsageResponse(BaseModel):
     ghostwriter_sessions_limit: int = -1
 
 
+class SubscriptionInfoResponse(BaseModel):
+    period_end: str | None = None
+    cancel_at_period_end: bool = False
+    billing_interval: str | None = None
+    is_lifetime: bool = False
+    has_stripe_customer: bool = False
+
+
 class BillingStatusResponse(BaseModel):
     plan: PlanResponse
     usage: UsageResponse
     billing_exempt: bool
     can_upgrade: bool
     feature_billing_enabled: bool = False
+    subscription: SubscriptionInfoResponse | None = None
+    access_source: str = "free"  # stripe | grant | override | free
 
 
 async def _get_usage_summary(db: AsyncSession, user_id: uuid.UUID, plan: Plan) -> dict:
@@ -117,13 +127,63 @@ async def get_billing_status(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get current user's plan, usage, and limits."""
+    """Get current user's plan, usage, subscription, and limits."""
+    from authora.services.billing_service import _get_active_grant, _get_active_subscription
+
     plan = await get_user_plan(db, current_user.id)
     usage = await _get_usage_summary(db, current_user.id, plan)
     r = await db.execute(select(User).where(User.id == current_user.id))
     user = r.scalar_one_or_none()
     billing_exempt = getattr(user, "billing_exempt", False) or bool(getattr(user, "plan_override_id", None))
     settings = get_settings()
+
+    # Resolve access source and subscription info (match get_user_plan precedence)
+    access_source = "free"
+    subscription_info = None
+    grant_override = await _get_active_grant(db, current_user.id, override_stripe=True)
+    sub = await _get_active_subscription(db, current_user.id)
+    grant_fill = await _get_active_grant(db, current_user.id, override_stripe=False)
+    grant = grant_override or grant_fill
+
+    if getattr(user, "plan_override_id", None):
+        access_source = "override"
+    elif grant_override:
+        access_source = "grant"
+        subscription_info = SubscriptionInfoResponse(
+            period_end=grant_override.expires_at.isoformat() if grant_override.expires_at else None,
+            cancel_at_period_end=False,
+            billing_interval=None,
+            is_lifetime=grant_override.expires_at is None,
+            has_stripe_customer=False,
+        )
+    elif sub and sub.stripe_subscription_id:
+        access_source = "stripe"
+        subscription_info = SubscriptionInfoResponse(
+            period_end=sub.period_end.isoformat() if sub.period_end else None,
+            cancel_at_period_end=sub.cancel_at_period_end or False,
+            billing_interval=sub.billing_interval,
+            is_lifetime=sub.is_lifetime or False,
+            has_stripe_customer=bool(sub.stripe_customer_id),
+        )
+    elif sub and sub.is_lifetime:
+        access_source = "stripe"
+        subscription_info = SubscriptionInfoResponse(
+            period_end=None,
+            cancel_at_period_end=False,
+            billing_interval=None,
+            is_lifetime=True,
+            has_stripe_customer=bool(sub.stripe_customer_id),
+        )
+    elif grant_fill:
+        access_source = "grant"
+        subscription_info = SubscriptionInfoResponse(
+            period_end=grant_fill.expires_at.isoformat() if grant_fill.expires_at else None,
+            cancel_at_period_end=False,
+            billing_interval=None,
+            is_lifetime=grant_fill.expires_at is None,
+            has_stripe_customer=False,
+        )
+
     return BillingStatusResponse(
         plan=PlanResponse(
             id=str(plan.id),
@@ -141,6 +201,8 @@ async def get_billing_status(
         billing_exempt=billing_exempt,
         can_upgrade=plan.slug in ("free", "starter", "pro"),
         feature_billing_enabled=getattr(settings, "feature_billing", False),
+        subscription=subscription_info,
+        access_source=access_source,
     )
 
 
@@ -682,13 +744,14 @@ async def create_customer_portal(
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Stripe webhook. Requires raw body for signature verification. Handle subscription and invoice events."""
     from authora.services.stripe_service import handle_webhook
 
     body = await request.body()
     sig = request.headers.get("stripe-signature", "")
-    result = await handle_webhook(body, sig)
+    result = await handle_webhook(db, body, sig)
     if result and result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
     return result or {"handled": True}

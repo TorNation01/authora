@@ -1,31 +1,32 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 const FAQ_ITEMS = [
   {
     q: 'Is Authora only for fiction writers?',
-    a: 'No. Authora supports both fiction and non-fiction writers, including novels, memoirs, self-help books, business books, workbooks, journals, and more.',
+    a: 'No. Authora supports fiction, non-fiction, memoir, workbooks, and more. Built for every kind of writer.',
   },
   {
-    q: 'Does Authora include an editor?',
-    a: 'Yes. Authora includes a real manuscript editor designed for actual book writing, not just idea generation.',
+    q: 'Does Authora include a real editor?',
+    a: 'Yes. Authora includes a full manuscript editor designed for book-length writing, with chapters, notes, and revision tools.',
   },
   {
-    q: 'Can Authora help me if I get stuck?',
-    a: 'Yes. Authora includes AI-supported guidance, idea generation, rewriting help, and structure support to help you keep moving.',
+    q: 'Can Authora help when I get stuck?',
+    a: 'Yes. AI assistance for brainstorming, rewriting, clarity, and idea generation. Plus structure guidance and manuscript intelligence.',
   },
   {
     q: 'Can I use Authora for more than one book?',
-    a: 'Yes. Depending on your plan, you can manage multiple active book projects.',
+    a: 'Yes. Work on multiple books at once. Different modes and templates per project.',
   },
   {
     q: 'Will Authora write the book for me?',
-    a: 'It can help as much or as little as you want. You stay in control, and you can use the platform for planning, drafting, support, or stronger ghostwriter-style assistance.',
+    a: 'You stay in control. Use AI as much or as little as you want—from light support to ghostwriter-style assistance.',
   },
   {
     q: 'Do I need to be a professional writer?',
-    a: 'Not at all. Authora is built for first-time writers as well as experienced authors.',
+    a: 'No. Authora is built for first-time authors and experienced writers alike.',
   },
 ];
 
@@ -52,6 +53,7 @@ export function FAQSection() {
                 type="button"
                 className="w-full px-6 py-4 text-left font-medium text-foreground hover:bg-muted/50 transition-colors flex justify-between items-center"
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                aria-expanded={openIndex === i}
               >
                 {item.q}
                 <span className="text-muted-foreground">
@@ -67,9 +69,9 @@ export function FAQSection() {
           ))}
         </div>
         <div className="mt-8 text-center">
-          <a href="/faq" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/faq" className="text-sm font-medium text-primary hover:underline">
             View all FAQs →
-          </a>
+          </Link>
         </div>
       </div>
     </section>

@@ -53,9 +53,9 @@ export const MILESTONES_COPY = {
   oneStepChangesBook: 'One completed step changes the whole book.',
 } as const;
 
-// --- Finish Mode ---
+// --- Finish Mode (accountability page / settings) ---
 
-export const FINISH_MODE_COPY = {
+export const FINISH_MODE_ACCOUNTABILITY_COPY = {
   heading: 'Finish Mode',
   subheading: 'Done is built one section at a time.',
   doneOneSection: 'Done is built one section at a time.',

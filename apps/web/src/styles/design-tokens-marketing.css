@@ -1,0 +1,35 @@
+/**
+ * AUTHORA Marketing Design Tokens
+ * Premium dark theme: black base, gold accent, money green support, white text
+ * Applied when [data-theme="marketing"] is set on a parent element
+ */
+
+[data-theme="marketing"] {
+  /* === Color Palette - Premium Dark === */
+  --background: 0 0% 4%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 98%;
+  --primary: 43 74% 49%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 62%;
+  --accent: 43 74% 49%;
+  --accent-foreground: 0 0% 4%;
+  --success: 142 52% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 4%;
+  --destructive: 0 65% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 16%;
+  --input: 0 0% 14%;
+  --ring: 43 74% 49%;
+
+  /* Marketing-specific: money green for support/trust elements */
+  --marketing-green: 142 52% 42%;
+  --marketing-gold: 43 74% 49%;
+  --marketing-black: 0 0% 4%;
+}

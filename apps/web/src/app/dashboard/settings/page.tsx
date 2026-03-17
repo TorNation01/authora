@@ -202,6 +202,9 @@ export default function SettingsPage() {
             <UsageDisplay />
             <div className="flex gap-2">
               <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/billing">Manage billing</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
                 <Link href="/pricing">View plans</Link>
               </Button>
               <Button
@@ -213,7 +216,7 @@ export default function SettingsPage() {
                   else toast({ title: 'Billing portal not available', variant: 'destructive' });
                 }}
               >
-                Manage subscription
+                Stripe portal
               </Button>
             </div>
           </CardContent>

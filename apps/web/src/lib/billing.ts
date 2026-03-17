@@ -36,12 +36,22 @@ export interface BillingUsage {
   ghostwriter_sessions_limit?: number;
 }
 
+export interface SubscriptionInfo {
+  period_end: string | null;
+  cancel_at_period_end: boolean;
+  billing_interval: string | null;
+  is_lifetime: boolean;
+  has_stripe_customer: boolean;
+}
+
 export interface BillingStatus {
   plan: BillingPlan;
   usage: BillingUsage;
   billing_exempt: boolean;
   can_upgrade: boolean;
   feature_billing_enabled?: boolean;
+  subscription?: SubscriptionInfo | null;
+  access_source?: string;
 }
 
 let cachedStatus: BillingStatus | null = null;
@@ -91,11 +101,21 @@ function getDefaultBillingStatus(): BillingStatus {
   };
 }
 
-export async function createCheckoutSession(planSlug: string, billingInterval: string, promoCode?: string): Promise<{ url: string; session_id: string } | null> {
+export async function createCheckoutSession(
+  planSlug: string,
+  billingInterval: string,
+  options?: { promoCode?: string; successUrl?: string; cancelUrl?: string }
+): Promise<{ url: string; session_id: string } | null> {
   try {
     const data = await api<{ url: string; session_id: string }>('/api/v1/billing/checkout/create', {
       method: 'POST',
-      body: JSON.stringify({ plan_slug: planSlug, billing_interval: billingInterval, promo_code: promoCode || null }),
+      body: JSON.stringify({
+        plan_slug: planSlug,
+        billing_interval: billingInterval,
+        promo_code: options?.promoCode ?? null,
+        success_url: options?.successUrl ?? null,
+        cancel_url: options?.cancelUrl ?? null,
+      }),
     });
     return data;
   } catch {

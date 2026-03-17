@@ -60,7 +60,9 @@ export function ResizablePanelLayout({
   const dragWidthRef = useRef(layout.rightPanelWidth);
 
   useEffect(() => {
-    setLayout((prev) => ({ ...prev, rightPanelMode }));
+    if (rightPanelMode != null) {
+      setLayout((prev) => ({ ...prev, rightPanelMode }));
+    }
   }, [rightPanelMode]);
 
   useEffect(() => {

@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
-import { FAQSection } from '@/components/marketing/FAQSection';
 
 export const metadata: Metadata = {
-  title: 'FAQ | AUTHORA',
-  description: 'Frequently asked questions about AUTHORA—the guided writing platform that helps you finish your book.',
+  title: 'FAQ | Authora',
+  description: 'Frequently asked questions about Authora—the writing platform that helps you finish your book.',
 };
 
 const EXTENDED_FAQ = [
-  { q: 'What is AUTHORA?', a: 'AUTHORA is a guided writing platform that helps you finish your book. It combines planning tools, a distraction-free editor, AI assistance when you need it, and accountability features—all in one place.' },
-  { q: 'How does the AI work?', a: 'AUTHORA\'s AI is built to assist, not replace. You can use it for suggestions, rewrites, expansion, or drafting. You control when and how much AI is involved.' },
-  { q: 'How does accountability work?', a: 'Set daily or weekly word goals. Choose your encouragement style—gentle, balanced, or structured. We send reminders and recovery nudges when you\'ve been away.' },
+  { q: 'Is Authora only for fiction writers?', a: 'No. Authora supports fiction, non-fiction, memoir, workbooks, and more. Built for every kind of writer.' },
+  { q: 'Does Authora include a real editor?', a: 'Yes. Authora includes a full manuscript editor designed for book-length writing, with chapters, notes, and revision tools.' },
+  { q: 'Can Authora help when I get stuck?', a: 'Yes. AI assistance for brainstorming, rewriting, clarity, and idea generation. Plus structure guidance and manuscript intelligence.' },
+  { q: 'Can I use Authora for more than one book?', a: 'Yes. Work on multiple books at once. Different modes and templates per project.' },
+  { q: 'Will Authora write the book for me?', a: 'You stay in control. Use AI as much or as little as you want—from light support to ghostwriter-style assistance.' },
+  { q: 'Do I need to be a professional writer?', a: 'No. Authora is built for first-time authors and experienced writers alike.' },
   { q: 'What formats can I export?', a: 'DOCX, PDF, EPUB, and plain text. Export your full manuscript, outline, or individual chapters.' },
   { q: 'Is there a free tier?', a: 'Yes. You can start writing for free. No credit card required.' },
   { q: 'How do I get support?', a: 'Contact us at the link below. We typically respond within 24–48 hours.' },
@@ -22,7 +24,7 @@ export default function FAQPage() {
         Frequently asked questions
       </h1>
       <p className="mt-4 text-muted-foreground">
-        Everything you need to know about AUTHORA.
+        Everything you need to know about Authora.
       </p>
       <div className="mt-12 space-y-6">
         {EXTENDED_FAQ.map((item, i) => (

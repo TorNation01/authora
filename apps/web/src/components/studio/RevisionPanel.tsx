@@ -59,6 +59,14 @@ interface RevisionPassSummary {
   total_unresolved: number;
 }
 
+interface ProjectMember {
+  id: string;
+  user_id: string;
+  role: string;
+  email?: string | null;
+  display_name?: string | null;
+}
+
 interface RevisionPanelProps {
   projectId: string;
   bookId: string;
@@ -82,12 +90,12 @@ export function RevisionPanel({
   const [showAddPass, setShowAddPass] = useState(false);
   const [newPassType, setNewPassType] = useState<string>('structural');
   const [filterByUserId, setFilterByUserId] = useState<string | null>(null);
-  const [reviewers, setReviewers] = useState<Reviewer[]>([]);
+  const [reviewers, setReviewers] = useState<ProjectMember[]>([]);
   const { toast } = useToast();
 
   const fetchReviewers = useCallback(async () => {
     try {
-      const members = await api<Reviewer[]>(`/api/v1/projects/${projectId}/members`);
+      const members = await api<ProjectMember[]>(`/api/v1/projects/${projectId}/members`);
       setReviewers(members);
     } catch {
       setReviewers([]);

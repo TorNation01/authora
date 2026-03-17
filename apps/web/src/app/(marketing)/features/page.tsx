@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { getAppBaseUrl } from '@/lib/config';
 import { ProductPreview } from '@/components/marketing/ProductPreview';
+import { StoryIntegrityEngineSection } from '@/components/marketing/StoryIntegrityEngineSection';
+import { StoryDensityEngineSection } from '@/components/marketing/StoryDensityEngineSection';
+import { EnginesCombinedSection } from '@/components/marketing/EnginesCombinedSection';
 import {
   Target,
   FileDown,
@@ -14,7 +18,7 @@ import {
 export const metadata: Metadata = {
   title: 'Features | AUTHORA — All Your Writing Tools in One Place',
   description:
-    'Guided planning, AI support, accountability, export—everything you need to finish your book. Fiction and non-fiction templates.',
+    'Guided planning, AI support, Story Integrity Engine, Story Density Engine, accountability, export—everything you need to finish your book. Fiction and non-fiction templates.',
 };
 
 const FEATURES = [
@@ -72,12 +76,30 @@ export default function FeaturesPage() {
           </div>
         ))}
       </div>
+
+      {/* Manuscript Intelligence: Story Integrity & Story Density Engines */}
+      <div className="mt-24" id="manuscript-intelligence">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
+            Manuscript intelligence
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Not just writing tools — writing intelligence that helps you revise smarter.
+          </p>
+        </div>
+        <div className="mt-16 space-y-12">
+          <StoryIntegrityEngineSection />
+          <StoryDensityEngineSection />
+          <EnginesCombinedSection />
+        </div>
+      </div>
+
       <div className="mt-20">
         <ProductPreview />
       </div>
       <div className="mt-12 text-center">
         <Button asChild size="lg">
-          <Link href="/register">Start writing free</Link>
+          <Link href={`${getAppBaseUrl()}/register`}>Start writing free</Link>
         </Button>
       </div>
     </div>

@@ -91,6 +91,7 @@ from authora.models.plan import Plan
 from authora.models.project_template import ProjectTemplate
 from authora.models.writing_framework import WritingFramework
 from authora.models.subscription import Subscription
+from authora.models.stripe_webhook_event import StripeWebhookEvent
 from authora.models.usage_record import UsageRecord
 from authora.models.entitlement_grant import EntitlementGrant
 from authora.models.promo_code import PromoCode, PromoCodeRedemption
@@ -199,6 +200,7 @@ __all__ = [
     "ProjectTemplate",
     "WritingFramework",
     "Subscription",
+    "StripeWebhookEvent",
     "UsageRecord",
     "EntitlementGrant",
     "PromoCode",

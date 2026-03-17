@@ -349,7 +349,7 @@ export function ChapterHealthPanel({
                     <p className="text-xs font-medium text-muted-foreground">Scores</p>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(scoreLabels).map(([key, label]) => {
-                        const val = (ch as Record<string, number>)[key];
+                        const val = (ch as unknown as Record<string, number>)[key];
                         if (typeof val !== 'number') return null;
                         return (
                           <div key={key}>

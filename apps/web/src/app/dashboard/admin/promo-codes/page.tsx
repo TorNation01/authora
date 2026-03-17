@@ -96,13 +96,14 @@ export default function AdminPromoCodesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Promo codes</h1>
-        <p className="mt-1 text-muted-foreground">Create and manage access codes. Redeemed codes create entitlement grants.</p>
+        <h1 className="text-2xl font-bold">Special Access Codes</h1>
+        <p className="mt-1 text-muted-foreground">Create codes for tier, free or discounted access, duration, and redemption tracking.</p>
       </div>
 
       <Card variant="soft">
         <CardHeader>
-          <h2 className="font-semibold">Create code</h2>
+          <h2 className="font-semibold">Create access code</h2>
+          <p className="text-sm text-muted-foreground">Code string, tier granted, duration, max uses. Redemption tracking included.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -115,7 +116,7 @@ export default function AdminPromoCodesPage() {
               />
             </div>
             <div>
-              <Label>Plan</Label>
+              <Label>Tier granted</Label>
               <Select value={createPlan} onValueChange={setCreatePlan}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -126,7 +127,7 @@ export default function AdminPromoCodesPage() {
               </Select>
             </div>
             <div>
-              <Label>Discount type</Label>
+              <Label>Free or discounted access</Label>
               <Select value={createDiscountType} onValueChange={setCreateDiscountType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -157,7 +158,7 @@ export default function AdminPromoCodesPage() {
               />
             </div>
             <div>
-              <Label>Internal note</Label>
+              <Label>Internal Notes</Label>
               <Input value={createNote} onChange={(e) => setCreateNote(e.target.value)} placeholder="Optional" />
             </div>
           </div>
@@ -169,8 +170,8 @@ export default function AdminPromoCodesPage() {
 
       <Card variant="soft">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Codes</h2>
+            <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Codes (redemption tracking)</h2>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"

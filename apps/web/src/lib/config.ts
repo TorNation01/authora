@@ -27,6 +27,7 @@ export interface FeatureFlags {
   tenant_aware: boolean;
   billing: boolean;
   story_integrity: boolean;
+  story_density?: boolean;
 }
 
 export interface BrandingConfig {
@@ -76,6 +77,7 @@ const DEFAULT: AppConfig = {
     tenant_aware: false,
     billing: false,
     story_integrity: true,
+    story_density: true,
   },
   integration_flags: DEFAULT_INTEGRATION_FLAGS,
   branding: {

@@ -8,11 +8,10 @@ import { getAppBaseUrl } from '@/lib/config';
 import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
-  { href: '/features', label: 'Features' },
+  { href: '#how-it-works', label: 'How It Works' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/faq', label: 'FAQ' },
   { href: '/contact', label: 'Contact' },
-  { href: '/demo', label: 'Request demo' },
 ];
 
 export function MarketingNav() {
@@ -49,7 +48,7 @@ export function MarketingNav() {
                 Sign in
               </Link>
               <Button asChild size="sm">
-                <Link href={`${getAppBaseUrl()}/register`}>Start free</Link>
+                <Link href={`${getAppBaseUrl()}/register`}>Start Writing Free</Link>
               </Button>
             </>
           )}
@@ -89,7 +88,7 @@ export function MarketingNav() {
                 </Link>
                 <Button asChild size="sm">
                   <Link href={`${getAppBaseUrl()}/register`} onClick={() => setMobileOpen(false)}>
-                    Start free
+                    Start Writing Free
                   </Link>
                 </Button>
               </div>

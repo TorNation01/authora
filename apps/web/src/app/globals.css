@@ -1,5 +1,6 @@
 @tailwind base;
 @import '../styles/design-tokens.css';
+@import '../styles/design-tokens-marketing.css';
 @tailwind components;
 @tailwind utilities;
 

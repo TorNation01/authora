@@ -1,32 +1,27 @@
 'use client';
 
-import { Lightbulb, LayoutTemplate, PenLine, TrendingUp, FileCheck } from 'lucide-react';
+import { Lightbulb, LayoutTemplate, PenLine, FileCheck } from 'lucide-react';
 
 const STEPS = [
   {
     icon: Lightbulb,
-    title: 'Start with your idea',
-    body: 'Capture your concept, choose your book type, and build a clear starting point for your project.',
+    title: 'Start with clarity',
+    body: 'Choose what you are writing and how much guidance you want.',
   },
   {
     icon: LayoutTemplate,
-    title: 'Shape the structure',
-    body: 'Use guided planning tools for fiction or non-fiction to organize chapters, themes, sections, research, and ideas.',
+    title: 'Build your structure',
+    body: 'Use templates or go freeform. Authora adapts to you.',
   },
   {
     icon: PenLine,
     title: 'Write with support',
-    body: "Draft inside Authora's writing studio with editor tools, notes, smart prompts, and AI help available when you need it.",
-  },
-  {
-    icon: TrendingUp,
-    title: 'Keep your momentum',
-    body: 'Use goals, reminders, streaks, milestones, and Finish Mode to stay accountable and keep moving.',
+    body: 'Stay in flow with AI assistance, notes, and a clean editor.',
   },
   {
     icon: FileCheck,
-    title: 'Finish and prepare',
-    body: 'Polish your manuscript, organize your work, and export it when you are ready for the next stage.',
+    title: 'Finish with confidence',
+    body: 'Fix what is missing, tighten what is weak, and export cleanly.',
   },
 ];
 
@@ -43,20 +38,20 @@ export function HowItWorksSection() {
             How Authora works
           </h2>
         </div>
-        <div className="mt-16 space-y-12">
+        <div className="mt-16 grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, i) => (
             <div
               key={step.title}
-              className="flex flex-col gap-6 sm:flex-row sm:items-start"
+              className="flex flex-col gap-4"
               data-analytics="how-step"
             >
-              <div className="flex shrink-0 items-center gap-4 sm:w-64">
+              <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <step.icon className="h-6 w-6 text-primary" />
                 </div>
                 <span className="text-sm font-medium text-muted-foreground">Step {i + 1}</span>
               </div>
-              <div className="flex-1">
+              <div>
                 <h3 className="font-serif text-xl font-semibold text-foreground">{step.title}</h3>
                 <p className="mt-2 text-muted-foreground leading-relaxed">{step.body}</p>
               </div>

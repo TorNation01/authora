@@ -13,7 +13,7 @@ Entitlement precedence (highest first):
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.config import get_settings
@@ -67,17 +67,29 @@ async def _get_active_grant(
 
 
 async def _get_active_subscription(db: AsyncSession, user_id: UUID) -> Subscription | None:
-    """Get active Stripe or lifetime subscription for user."""
+    """Get active Stripe or lifetime subscription for user.
+    Includes grace period: past_due/unpaid are treated as active when now < grace_period_end.
+    """
     now = _now_utc()
     r = await db.execute(
         select(Subscription)
         .where(
             Subscription.user_id == user_id,
-            Subscription.status == "active",
+            Subscription.status != "canceled",
             or_(
-                Subscription.period_end.is_(None),
-                Subscription.period_end > now,
-                Subscription.is_lifetime == True,
+                and_(
+                    Subscription.status == "active",
+                    or_(
+                        Subscription.period_end.is_(None),
+                        Subscription.period_end > now,
+                        Subscription.is_lifetime == True,
+                    ),
+                ),
+                and_(
+                    Subscription.status.in_(["past_due", "unpaid"]),
+                    Subscription.grace_period_end.isnot(None),
+                    Subscription.grace_period_end > now,
+                ),
             ),
         )
         .order_by(Subscription.created_at.desc())
