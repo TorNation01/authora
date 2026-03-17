@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { getEmptyStateConfig } from '@/content/empty-states';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { BookOpen, Plus, Search, Settings, Users, Library } from 'lucide-react';
+import { ProjectProgressCard } from '@/components/retention';
 import { api } from '@/lib/api';
 
 interface Book {
@@ -97,34 +98,41 @@ export default function ProjectPage() {
 
       {loading ? (
         <p className="text-muted-foreground">Loading...</p>
-      ) : books.length === 0 ? (
-        <EmptyState
-          icon={<BookOpen className="h-6 w-6" />}
-          title={getEmptyStateConfig('no_books')!.title}
-          description={getEmptyStateConfig('no_books')!.description}
-          action={{
-            label: 'Create book',
-            href: `/dashboard/projects/${projectId}/books/new`,
-          }}
-        />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {books.map((b) => (
-            <Link key={b.id} href={`/dashboard/projects/${projectId}/books/${b.id}`}>
-              <Card
-                variant="sanctuary"
-                className="block p-6 hover:shadow-md transition-shadow cursor-pointer h-full"
-              >
-                <BookOpen className="h-8 w-8 text-primary mb-3" />
-                <h3 className="font-semibold text-foreground">{b.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {b.type} {b.genre ? `· ${b.genre}` : ''}
-                </p>
-                <p className="text-sm text-primary font-medium mt-3">Open book →</p>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <>
+          <div className="mb-6">
+            <ProjectProgressCard projectId={projectId} projectName={projectName} />
+          </div>
+          {books.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen className="h-6 w-6" />}
+              title={getEmptyStateConfig('no_books')!.title}
+              description={getEmptyStateConfig('no_books')!.description}
+              action={{
+                label: 'Create book',
+                href: `/dashboard/projects/${projectId}/books/new`,
+              }}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {books.map((b) => (
+                <Link key={b.id} href={`/dashboard/projects/${projectId}/books/${b.id}`}>
+                  <Card
+                    variant="sanctuary"
+                    className="block p-6 hover:shadow-md transition-shadow cursor-pointer h-full"
+                  >
+                    <BookOpen className="h-8 w-8 text-primary mb-3" />
+                    <h3 className="font-semibold text-foreground">{b.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {b.type} {b.genre ? `· ${b.genre}` : ''}
+                    </p>
+                    <p className="text-sm text-primary font-medium mt-3">Open book →</p>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

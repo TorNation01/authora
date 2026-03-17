@@ -13,7 +13,7 @@ from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_project_or_404, get_project_with_access_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
-from authora.models import Project, ProjectMember
+from authora.models import Book, Chapter, Project, ProjectMember
 from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, ProjectWizardRequest
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -200,6 +200,49 @@ async def create_project(
     await record_first_project_created(db, current_user.id, project.id, from_wizard=False)
     await db.refresh(project)
     return ProjectResponse.model_validate(project)
+
+
+@router.get("/{project_id}/progress")
+async def get_project_progress(
+    project_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get project progress: total words, chapters, per-book stats."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
+    result = await db.execute(
+        select(Book).where(Book.project_id == project_id).order_by(Book.updated_at.desc())
+    )
+    books = result.scalars().all()
+    book_stats = []
+    total_words = 0
+    total_chapters = 0
+    chapters_done = 0
+    for b in books:
+        ch_result = await db.execute(
+            select(Chapter).where(Chapter.book_id == b.id).order_by(Chapter.sort_order)
+        )
+        chapters = ch_result.scalars().all()
+        words = sum(c.word_count for c in chapters)
+        done = sum(1 for c in chapters if getattr(c, "section_status", None) == "done")
+        total_words += words
+        total_chapters += len(chapters)
+        chapters_done += done
+        book_stats.append({
+            "id": str(b.id),
+            "title": b.title,
+            "word_count": words,
+            "chapter_count": len(chapters),
+            "chapters_done": done,
+        })
+    progress_pct = (chapters_done / total_chapters * 100) if total_chapters else 0
+    return {
+        "total_words": total_words,
+        "total_chapters": total_chapters,
+        "chapters_done": chapters_done,
+        "progress_pct": round(progress_pct, 1),
+        "books": book_stats,
+    }
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

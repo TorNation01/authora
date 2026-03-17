@@ -29,6 +29,7 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { GamificationWidgets } from '@/components/gamification/GamificationWidgets';
+import { RetentionProgressWidget } from '@/components/retention';
 import { FirstUseBanner } from '@/components/help';
 import { DashboardQuickStart } from '@/components/onboarding/DashboardQuickStart';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
@@ -190,6 +191,7 @@ export default function DashboardPage() {
       <FirstUseBanner />
       <UsageDisplay />
       <UpgradeCallout />
+      <RetentionProgressWidget />
       <GamificationWidgets />
 
       {showResumeSetup && (

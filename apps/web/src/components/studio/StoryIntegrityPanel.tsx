@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ChapterHealthPanel } from './ChapterHealthPanel';
 import { StoryDensityPanel } from './StoryDensityPanel';
+import { GuidedOverlay } from '@/components/tutorial/GuidedOverlay';
+import { FeatureIntroCard } from '@/components/tutorial/FeatureIntroCard';
+import { HelpLink } from '@/components/help/HelpLink';
+import { useTutorial } from '@/contexts/TutorialContext';
 
 interface StoryHealthSummary {
   total_issues: number;
@@ -47,6 +51,8 @@ export function StoryIntegrityPanel({
   densityEnabled = true,
 }: StoryIntegrityPanelProps) {
   const { toast } = useToast();
+  const { shouldShowOverlay, shouldShowIntroCard, markCompleted, markDismissed } = useTutorial();
+  const [activeTab, setActiveTab] = useState('issues');
   const [health, setHealth] = useState<StoryHealthSummary | null>(null);
   const [issues, setIssues] = useState<IntegrityIssue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,10 +165,13 @@ export function StoryIntegrityPanel({
   return (
     <div className="flex h-full w-full max-w-md flex-col border-l bg-background">
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h3 className="font-semibold flex items-center gap-2">
-          <Activity className="h-4 w-4" />
-          Story Health
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Story Health
+          </h3>
+          <HelpLink slug={activeTab === 'density' ? 'story-density-engine' : 'story-integrity-engine'} />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -178,7 +187,16 @@ export function StoryIntegrityPanel({
         </Button>
       </div>
 
-      <Tabs.Root defaultValue="issues" className="flex flex-1 flex-col min-h-0">
+      <Tabs.Root
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v);
+          if (v === 'density' && shouldShowOverlay('density_first')) {
+            // Overlay will render; tab switch already done
+          }
+        }}
+        className="flex flex-1 flex-col min-h-0"
+      >
         <Tabs.List className="flex shrink-0 border-b px-4">
           <Tabs.Trigger
             value="issues"
@@ -206,6 +224,13 @@ export function StoryIntegrityPanel({
         </Tabs.List>
         <Tabs.Content value="issues" className="flex-1 overflow-auto min-h-0">
       <div className="p-4 space-y-4">
+        {shouldShowIntroCard('integrity_intro') && (
+          <FeatureIntroCard
+            featureId="integrity"
+            onDismiss={() => markDismissed('integrity_intro')}
+            onTry={handleScan}
+          />
+        )}
         {health && (
           <div className="rounded-lg border p-4 space-y-2">
             <div className="flex items-center gap-2">
@@ -314,6 +339,14 @@ export function StoryIntegrityPanel({
         </Tabs.Content>
         {densityEnabled && (
           <Tabs.Content value="density" className="flex-1 overflow-auto min-h-0">
+            {shouldShowIntroCard('density_intro') && (
+              <div className="p-4 pb-0">
+                <FeatureIntroCard
+                  featureId="density"
+                  onDismiss={() => markDismissed('density_intro')}
+                />
+              </div>
+            )}
             <StoryDensityPanel
               projectId={projectId}
               bookId={bookId}
@@ -323,6 +356,14 @@ export function StoryIntegrityPanel({
           </Tabs.Content>
         )}
       </Tabs.Root>
+
+      {activeTab === 'density' && shouldShowOverlay('density_first') && (
+        <GuidedOverlay
+          tutorialId="density_first"
+          onComplete={() => markCompleted('density_first')}
+          onSkip={() => markDismissed('density_first')}
+        />
+      )}
     </div>
   );
 }

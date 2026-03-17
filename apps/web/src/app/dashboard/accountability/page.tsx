@@ -370,6 +370,32 @@ export default function AccountabilityPage() {
               </Button>
               <p className="text-xs text-muted-foreground mt-1">{REMINDERS_COPY.sendTestHint}</p>
             </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Goal presets</p>
+              <div className="flex flex-wrap gap-2">
+                {(['gentle', 'balanced', 'structured'] as const).map((key) => {
+                  const p = GOALS_COPY.presets[key];
+                  const active =
+                    settings.daily_word_goal === p.daily &&
+                    settings.weekly_word_goal === p.weekly;
+                  return (
+                    <Button
+                      key={key}
+                      variant={active ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() =>
+                        updateSettings({
+                          daily_word_goal: p.daily,
+                          weekly_word_goal: p.weekly,
+                        })
+                      }
+                    >
+                      {p.label} ({p.daily}/day)
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="flex gap-2">
               <label className="text-sm">Daily goal (words)</label>
               <input
@@ -483,7 +509,7 @@ export default function AccountabilityPage() {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Streak</p>
               </div>
-              <p className="text-2xl font-bold">{STREAK_COPY.days(overview.current_streak)}</p>
+              <p className="text-2xl font-bold">{STREAK_COPY.daysOfWriting(overview.current_streak)}</p>
               <p className="text-xs text-muted-foreground">{STREAK_COPY.keepGoing}</p>
             </CardContent>
           </Card>

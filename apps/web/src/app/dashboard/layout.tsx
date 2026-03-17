@@ -11,6 +11,7 @@ import { useConfig } from '@/contexts/ConfigProvider';
 import { getMarketingBaseUrl } from '@/lib/config';
 import { UserProvider, type UserInfo } from '@/contexts/UserContext';
 import { HelpProvider } from '@/contexts/HelpContext';
+import { TutorialProvider } from '@/contexts/TutorialContext';
 import { HelpCenter, Walkthrough } from '@/components/help';
 
 export default function DashboardLayout({
@@ -87,9 +88,11 @@ export default function DashboardLayout({
     <ErrorBoundary>
       <UserProvider user={user}>
         <HelpProvider>
-          <AppShell onLogout={handleLogout}>{children}</AppShell>
-          <HelpCenter />
-          <Walkthrough />
+          <TutorialProvider>
+            <AppShell onLogout={handleLogout}>{children}</AppShell>
+            <HelpCenter />
+            <Walkthrough />
+          </TutorialProvider>
         </HelpProvider>
       </UserProvider>
     </ErrorBoundary>

@@ -21,7 +21,11 @@ import { VersionHistoryDialog } from '@/components/studio/VersionHistoryDialog';
 import { RecoveryCenterDialog } from '@/components/studio/RecoveryCenterDialog';
 import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
 import { StoryIntegrityPanel } from '@/components/studio/StoryIntegrityPanel';
+import { FirstWritePromptBlock, hasCompletedFirstWrite, markFirstWriteDone } from '@/components/studio/FirstWritePromptBlock';
+import { FirstWriteProgress } from '@/components/studio/FirstWriteProgress';
+import { GuidedOverlay } from '@/components/tutorial/GuidedOverlay';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { useTutorial } from '@/contexts/TutorialContext';
 import { Button } from '@/components/ui/button';
 import { api, apiStream, ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -78,9 +82,12 @@ export default function BookStudioPage() {
   const [activeReferenceTab, setActiveReferenceTab] = useState<'lookup' | 'analysis'>('lookup');
   const [finishModeStats, setFinishModeStats] = useState<FinishModeStats | null>(null);
   const [showFinishModeSettings, setShowFinishModeSettings] = useState(false);
+  const [liveWordCount, setLiveWordCount] = useState<number | null>(null);
+  const [generatingStarter, setGeneratingStarter] = useState(false);
   const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
   const { toast } = useToast();
   const config = useConfig();
+  const { shouldShowOverlay, markCompleted, markDismissed } = useTutorial();
   const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
   const storyDensityEnabled = config.feature_flags?.story_density ?? true;
 
@@ -214,6 +221,8 @@ export default function BookStudioPage() {
   const handleChapterChange = useCallback(
     (content: Record<string, unknown>, wordCount: number) => {
       if (!activeChapter) return;
+      setLiveWordCount(wordCount);
+      if (wordCount > 0) markFirstWriteDone();
       scheduleSave({ content, wordCount });
     },
     [activeChapter, scheduleSave]
@@ -489,6 +498,10 @@ export default function BookStudioPage() {
     if (showHistory && activeChapter) loadVersions();
   }, [showHistory, activeChapter?.id, loadVersions]);
 
+  useEffect(() => {
+    setLiveWordCount(null);
+  }, [activeChapter?.id]);
+
   const totalWords = book?.chapters.reduce((s, c) => s + c.word_count, 0) ?? 0;
   const sortedChapters = [...(book?.chapters ?? [])].sort((a, b) => a.sort_order - b.sort_order);
 
@@ -496,6 +509,61 @@ export default function BookStudioPage() {
     activeChapter?.content && typeof activeChapter.content === 'object'
       ? tiptapToPlainText(activeChapter.content as Record<string, unknown>)
       : '';
+
+  const currentWordCount = liveWordCount ?? activeChapter?.word_count ?? 0;
+  const showFirstWritePrompt =
+    activeChapter &&
+    currentWordCount === 0 &&
+    !hasCompletedFirstWrite() &&
+    !finishModeStats?.is_complete;
+  const showFirstWriteProgress =
+    activeChapter &&
+    hasCompletedFirstWrite() &&
+    currentWordCount > 0 &&
+    currentWordCount <= 150 &&
+    !finishModeStats?.is_complete;
+
+  const handleGenerateStarter = useCallback(async () => {
+    if (!activeChapter || !editorRef.current) return;
+    setGeneratingStarter(true);
+    let text = '';
+    try {
+      await apiStream(
+        '/api/v1/ai/complete',
+        (chunk) => { text += chunk; },
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt: 'Generate an opening paragraph for this chapter. Write a compelling, engaging start that draws the reader in. One paragraph only.',
+            chapter_id: activeChapter.id,
+            book_id: bookId,
+          }),
+        }
+      );
+      const trimmed = text.trim();
+      if (trimmed) {
+        editorRef.current.commands.setContent({
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: trimmed }] }],
+        });
+        const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+        markFirstWriteDone();
+        scheduleSave({ content: editorRef.current.getJSON(), wordCount });
+      }
+    } catch {
+      toast({ title: 'AI not available', variant: 'destructive' });
+    } finally {
+      setGeneratingStarter(false);
+    }
+  }, [activeChapter, bookId, scheduleSave, toast]);
+
+  const handleFocusEditor = useCallback(() => {
+    editorRef.current?.commands.focus();
+  }, []);
+
+  const handleOutlineChapter = useCallback(() => {
+    setPanelMode('ai');
+  }, []);
 
   const handleAddComment = useCallback(
     async (startOffset: number, endOffset: number, body: string) => {
@@ -711,6 +779,32 @@ export default function BookStudioPage() {
           ) : (
           <div className={cn('flex-1 overflow-auto', distractionFree ? 'p-8 max-w-3xl mx-auto' : 'p-6')}>
             {activeChapter ? (
+              <>
+              {showFirstWritePrompt && (
+                <div className="mb-6">
+                  <FirstWritePromptBlock
+                    onStartWriting={handleFocusEditor}
+                    onGenerateIdea={handleGenerateStarter}
+                    onOutlineChapter={handleOutlineChapter}
+                    onPromptClick={(p) => {
+                      if (p === 'firstSentence') handleFocusEditor();
+                      else setPanelMode('ai');
+                    }}
+                    onAiAssist={(a) => {
+                      if (a === 'generateStarter') handleGenerateStarter();
+                      else setPanelMode('ai');
+                    }}
+                  />
+                  {generatingStarter && (
+                    <p className="mt-2 text-sm text-muted-foreground">Generating…</p>
+                  )}
+                </div>
+              )}
+              {showFirstWriteProgress && (
+                <div className="mb-4">
+                  <FirstWriteProgress wordCount={currentWordCount} />
+                </div>
+              )}
               <EditorReferenceContextMenu
                 selection={editorSelection}
                 onLookup={handleLookup}
@@ -727,6 +821,7 @@ export default function BookStudioPage() {
                 onLookup={handleLookup}
               />
               </EditorReferenceContextMenu>
+              </>
             ) : (
               <div className="flex h-64 items-center justify-center text-muted-foreground">
                 Pick a chapter from the sidebar, or add one to begin
@@ -928,6 +1023,22 @@ export default function BookStudioPage() {
         currentWordsPerDay={finishModeStats?.words_per_day ?? 500}
         onSave={handleFinishModeSettingsSave}
       />
+
+      {/* Tutorial overlays — shown once, dismissible */}
+      {panelMode === 'ai' && shouldShowOverlay('ai_first') && (
+        <GuidedOverlay
+          tutorialId="ai_first"
+          onComplete={() => markCompleted('ai_first')}
+          onSkip={() => markDismissed('ai_first')}
+        />
+      )}
+      {panelMode === 'integrity' && shouldShowOverlay('integrity_first') && (
+        <GuidedOverlay
+          tutorialId="integrity_first"
+          onComplete={() => markCompleted('integrity_first')}
+          onSkip={() => markDismissed('integrity_first')}
+        />
+      )}
     </div>
   );
 }

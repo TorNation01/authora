@@ -179,6 +179,32 @@ export const HELP_ARTICLES: HelpArticle[] = [
     tags: ['publishing', 'synopsis', 'blurb'],
   },
 
+  // Story Integrity
+  {
+    id: 'story-integrity',
+    title: 'Story Integrity Engine',
+    summary: 'Find unresolved threads, weak arcs, and structural gaps.',
+    body: [
+      'The Story Integrity Engine finds what your story is missing—unresolved plot threads, weak character arcs, and structural gaps.',
+      'Open the Story Health panel from the toolbar. Click Scan to analyze your manuscript.',
+      'Review issues one at a time. Resolve or mark as intentional. The engine adapts to fiction, non-fiction, memoir, and workbook.',
+    ],
+    tags: ['integrity', 'story', 'plot', 'structure'],
+  },
+
+  // Story Density
+  {
+    id: 'story-density',
+    title: 'Story Density Engine',
+    summary: 'Cut filler, find repetition, strengthen weak sections.',
+    body: [
+      'The Story Density Engine finds filler, repetition, and weak sections. It helps you tighten prose without losing what matters.',
+      'Use it during revision—after you have a full draft. Trim redundant content, expand thin transitions.',
+      'Open Story Health → Density tab. Run a scan to see what to cut, compress, or strengthen.',
+    ],
+    tags: ['density', 'filler', 'repetition', 'revision'],
+  },
+
   // General
   {
     id: 'first-steps',
@@ -208,6 +234,27 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
 ];
 
+/** Maps in-app article IDs to public help page slugs for "Read full guide" links. */
+export const ARTICLE_TO_HELP_SLUG: Record<string, string> = {
+  'first-steps': 'getting-started',
+  'fiction-getting-started': 'getting-started',
+  'nonfiction-getting-started': 'getting-started',
+  'fiction-plot-structure': 'writing-with-authora',
+  'nonfiction-structure': 'writing-with-authora',
+  'all-in-one': 'writing-with-authora',
+  'story-integrity': 'story-integrity-engine',
+  'story-density': 'story-density-engine',
+  'ai-overview': 'ai-assistance',
+  'ai-actions': 'ai-assistance',
+  'fiction-ghostwriter': 'ai-assistance',
+  'ai-api-key': 'account-and-billing',
+  'accountability-overview': 'account-and-billing',
+  'accountability-goals': 'account-and-billing',
+  'export-overview': 'export-and-publishing',
+  'export-formats': 'export-and-publishing',
+  'publishing-prep': 'export-and-publishing',
+};
+
 export const HELP_CATEGORIES = [
   { id: 'getting-started', label: 'Getting started', icon: '🚀' },
   { id: 'fiction', label: 'Fiction writing', icon: '📖' },
@@ -216,6 +263,8 @@ export const HELP_CATEGORIES = [
   { id: 'accountability', label: 'Staying on track', icon: '🎯' },
   { id: 'export', label: 'Exporting', icon: '📤' },
   { id: 'publishing', label: 'Publishing prep', icon: '📝' },
+  { id: 'integrity', label: 'Story Integrity', icon: '🔍' },
+  { id: 'density', label: 'Story Density', icon: '📊' },
 ] as const;
 
 export function getArticlesByTag(tag: string): HelpArticle[] {
@@ -233,6 +282,7 @@ export function searchArticles(query: string): HelpArticle[] {
     (a) =>
       a.title.toLowerCase().includes(q) ||
       a.summary.toLowerCase().includes(q) ||
-      a.tags.some((t) => t.includes(q))
+      a.tags.some((t) => t.includes(q)) ||
+      a.body.some((p) => p.toLowerCase().includes(q))
   );
 }

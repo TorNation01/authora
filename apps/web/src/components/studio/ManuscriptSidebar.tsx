@@ -21,6 +21,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { getEmptyStateConfig } from '@/content/empty-states';
+import { FeatureIntroCard } from '@/components/tutorial/FeatureIntroCard';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getTooltip } from '@/content/tooltips';
+import { useTutorial } from '@/contexts/TutorialContext';
 
 export type SectionStatus = 'draft' | 'revising' | 'review' | 'done';
 
@@ -83,6 +87,7 @@ export function ManuscriptSidebar({
   onEnterFinishMode,
   onStatusChange,
 }: ManuscriptSidebarProps) {
+  const { shouldShowIntroCard, markDismissed } = useTutorial();
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
@@ -104,7 +109,14 @@ export function ManuscriptSidebar({
         >
           ← {bookTitle}
         </Link>
-        {suggestFinishMode && onEnterFinishMode && (
+        {suggestFinishMode && onEnterFinishMode && shouldShowIntroCard('finish_mode_intro') && (
+          <FeatureIntroCard
+            featureId="finish_mode"
+            onDismiss={() => markDismissed('finish_mode_intro')}
+            onTry={onEnterFinishMode}
+          />
+        )}
+        {suggestFinishMode && onEnterFinishMode && !shouldShowIntroCard('finish_mode_intro') && (
           <button
             type="button"
             onClick={onEnterFinishMode}
@@ -114,45 +126,70 @@ export function ManuscriptSidebar({
             Enter Finish Mode — you&apos;re almost there
           </button>
         )}
-        <Link
-          href={`/dashboard/projects/${projectId}/books/${bookId}/ghostwriter`}
-          className="flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <Bot className="h-3.5 w-3.5" />
-          Ghostwriter
-        </Link>
-        <Link
-          href={`/dashboard/projects/${projectId}/books/${bookId}/edit`}
-          className="flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Edit & Polish
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/dashboard/projects/${projectId}/books/${bookId}/ghostwriter`}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <Bot className="h-3.5 w-3.5" />
+              Ghostwriter
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{getTooltip('ghostwriter_link') ?? 'Ghostwriter'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/dashboard/projects/${projectId}/books/${bookId}/edit`}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Edit & Polish
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">{getTooltip('edit_polish_link') ?? 'Edit & Polish'}</TooltipContent>
+        </Tooltip>
         {canEnterFinishMode && onEnterFinishMode && (
-          <button
-            type="button"
-            onClick={onEnterFinishMode}
-            className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left"
-          >
-            <Flag className="h-3.5 w-3.5" />
-            Enter Finish Mode
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onEnterFinishMode}
+                className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                Enter Finish Mode
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{getTooltip('finish_mode') ?? 'Enter Finish Mode'}</TooltipContent>
+          </Tooltip>
         )}
         {(bookType === 'fiction' || bookType === 'nonfiction') && (
-          <Link
-            href={`/dashboard/projects/${projectId}/books/${bookId}/plan`}
-            className="flex items-center gap-1.5 text-sm text-primary hover:underline"
-          >
-            <Map className="h-3.5 w-3.5" />
-            {bookType === 'fiction' ? 'Fiction' : 'Non-fiction'} workspace
-          </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={`/dashboard/projects/${projectId}/books/${bookId}/plan`}
+                className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <Map className="h-3.5 w-3.5" />
+                {bookType === 'fiction' ? 'Fiction' : 'Non-fiction'} workspace
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right">{getTooltip('plan_link') ?? 'Plan'}</TooltipContent>
+          </Tooltip>
         )}
       </div>
 
       <div className="flex-1 overflow-auto p-2">
-        <p className="mb-2 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Chapters
-        </p>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="mb-2 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Chapters
+            </p>
+          </TooltipTrigger>
+          <TooltipContent side="right">{getTooltip('chapters_sidebar') ?? 'Chapters'}</TooltipContent>
+        </Tooltip>
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="chapters">
             {(provided) => (
@@ -258,10 +295,15 @@ export function ManuscriptSidebar({
       </div>
 
       <div className="border-t p-2">
-        <Button variant="outline" size="sm" className="w-full" onClick={onAddChapter}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add chapter
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full" onClick={onAddChapter}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add chapter
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{getTooltip('add_chapter') ?? 'Add chapter'}</TooltipContent>
+        </Tooltip>
       </div>
 
       <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>

@@ -176,18 +176,23 @@ export function EditorToolbar({
           </TooltipTrigger>
           <TooltipContent>{getTooltip('distraction_free') ?? (distractionFree ? 'Exit focus mode' : 'Hide distractions')}</TooltipContent>
         </Tooltip>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleDarkMode}
-          title={darkMode ? 'Light mode' : 'Dark mode'}
-        >
-          {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={onToggleDarkMode}>
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{getTooltip('dark_mode') ?? (darkMode ? 'Light mode' : 'Dark mode')}</TooltipContent>
+        </Tooltip>
         {onFindReplace && (
-          <Button variant="ghost" size="sm" onClick={onFindReplace} title="Find & replace">
-            <Search className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={onFindReplace}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{getTooltip('find_replace') ?? 'Find and replace'}</TooltipContent>
+          </Tooltip>
         )}
         {onHistory && (
           <Tooltip>
@@ -210,32 +215,47 @@ export function EditorToolbar({
           </Tooltip>
         )}
         {onQuickInsert && (
-          <Button variant="ghost" size="sm" onClick={onQuickInsert} title="Quick insert">
-            <Type className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" onClick={onQuickInsert}>
+                <Type className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{getTooltip('quick_insert') ?? 'Insert placeholder or scene break'}</TooltipContent>
+          </Tooltip>
         )}
         {showAi && (
-          <Button
-            variant={panelMode === 'ai' ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => onTogglePanel(panelMode === 'ai' ? 'none' : 'ai')}
-          >
-            <Sparkles className="h-4 w-4 mr-1" />
-            AI
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={panelMode === 'ai' ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => onTogglePanel(panelMode === 'ai' ? 'none' : 'ai')}
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                AI
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{getTooltip('ai_panel') ?? 'Brainstorm, rewrite, expand. Select text or describe.'}</TooltipContent>
+          </Tooltip>
         )}
-        <Button
-          variant={panelMode === 'notes' ? 'secondary' : 'outline'}
-          size="sm"
-          onClick={() => onTogglePanel(panelMode === 'notes' ? 'none' : 'notes')}
-        >
-          {panelMode === 'notes' ? (
-            <PanelRightClose className="h-4 w-4 mr-1" />
-          ) : (
-            <PanelRight className="h-4 w-4 mr-1" />
-          )}
-          Notes
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={panelMode === 'notes' ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => onTogglePanel(panelMode === 'notes' ? 'none' : 'notes')}
+            >
+              {panelMode === 'notes' ? (
+                <PanelRightClose className="h-4 w-4 mr-1" />
+              ) : (
+                <PanelRight className="h-4 w-4 mr-1" />
+              )}
+              Notes
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{getTooltip('notes') ?? 'Idea bank. Research, character notes.'}</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -287,7 +307,7 @@ export function EditorToolbar({
               Story Health
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Manuscript integrity and issues</TooltipContent>
+          <TooltipContent>{getTooltip('story_health') ?? 'Find plot gaps, weak arcs, missing payoff'}</TooltipContent>
         </Tooltip>
         )}
         <Tooltip>

@@ -193,3 +193,72 @@ export const ONBOARDING_SKIP = {
   setupComplete: 'Setup complete',
   setupIncomplete: 'Complete your setup',
 } as const;
+
+// --- New onboarding flow (production-ready) ---
+
+export const ONBOARDING_ENTRY = {
+  heading: 'How would you like to start?',
+  subheading: 'Choose the path that fits you best. You can always change your mind.',
+  guided: {
+    label: 'Guided Start',
+    recommended: true,
+    desc: 'Structured help from setup to first words. We\'ll ask a few questions and tailor the experience.',
+    benefit: 'Best for first-time users and those who want clarity.',
+  },
+  quick: {
+    label: 'Quick Start',
+    desc: 'Jump straight to the editor. Create a blank project and start writing immediately.',
+    benefit: 'Best when you know what you want and want to write now.',
+  },
+} as const;
+
+export const ONBOARDING_INTENT = {
+  heading: 'What are you writing?',
+  subheading: 'This helps us suggest the right structure and tools. You can change it anytime.',
+  fiction: { label: 'Fiction', desc: 'Novels, stories, creative writing.' },
+  nonfiction: { label: 'Non-fiction', desc: 'How-to, business, academic, ideas.' },
+  memoir: { label: 'Memoir', desc: 'Shaping lived experience into story.' },
+  workbook: { label: 'Workbook / Guide', desc: 'Prompts, exercises, action-oriented structure.' },
+  not_sure: { label: 'Not sure yet', desc: 'Show me the options and I\'ll explore.' },
+} as const;
+
+export const ONBOARDING_GUIDANCE = {
+  heading: 'How much guidance do you want?',
+  subheading: 'You can switch this later in settings.',
+  guided: { label: 'Guided', desc: 'Step-by-step. Clear structure and momentum.' },
+  balanced: { label: 'Balanced', desc: 'Some structure where it helps. Freedom where you want it.' },
+  freeform: { label: 'Freeform', desc: 'Write your way. Keep the tools, lose the rails.' },
+} as const;
+
+export const ONBOARDING_PROJECT = {
+  heading: 'Name your project',
+  subheading: 'Give your book a working title. You can refine it later.',
+  namePlaceholder: 'e.g. My Novel, Business Book 2025',
+  descriptionPlaceholder: 'Optional: one sentence about what this book is about',
+  goalPlaceholder: 'Optional: e.g. Finish first draft by summer',
+} as const;
+
+export const ONBOARDING_STRUCTURE = {
+  heading: 'How do you want to start?',
+  subheading: 'Templates give you a ready-made structure. Blank lets you build your own.',
+  useTemplate: { label: 'Use a template', desc: 'Pre-built structure for your type of book.' },
+  startBlank: { label: 'Start blank', desc: 'Clean slate. Build your own structure.' },
+} as const;
+
+export const ONBOARDING_FIRST_ACTION = {
+  heading: 'What would you like to do first?',
+  subheading: 'Both paths lead to writing. Choose what feels right right now.',
+  write: { label: 'Start writing first chapter', desc: 'Jump into the editor and begin.' },
+  outline: { label: 'Outline first sections', desc: 'Plan your structure, then write.' },
+} as const;
+
+export const ONBOARDING_INTRO_OVERLAY = {
+  title: 'Quick intro',
+  points: [
+    'Your chapters are in the sidebar—click to switch.',
+    'The toolbar has AI, notes, and export.',
+    'Just start typing. Your work saves automatically.',
+  ],
+  cta: "Let's write",
+  skip: 'Skip intro',
+} as const;

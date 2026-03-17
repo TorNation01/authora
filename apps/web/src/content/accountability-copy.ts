@@ -29,6 +29,11 @@ export const GOALS_COPY = {
   setDailyGoal: 'Set a daily goal in settings',
   setWeeklyGoal: 'Set a weekly goal in settings',
   ofGoal: (current: number) => `of ${current} goal`,
+  presets: {
+    gentle: { daily: 250, weekly: 1750, label: 'Gentle' },
+    balanced: { daily: 500, weekly: 3500, label: 'Balanced' },
+    structured: { daily: 1000, weekly: 7000, label: 'Structured' },
+  },
 } as const;
 
 // --- Streak section ---
@@ -40,6 +45,7 @@ export const STREAK_COPY = {
   consistencyOverIntensity: 'Consistency matters more than intensity.',
   oneSessionAtATime: 'One session at a time.',
   days: (n: number) => `${n} days`,
+  daysOfWriting: (n: number) => `${n} day${n === 1 ? '' : 's'} of writing`,
   keepGoing: 'Keep going.',
 } as const;
 

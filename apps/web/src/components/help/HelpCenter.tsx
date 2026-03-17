@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, X, BookOpen, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import { Search, X, BookOpen, ChevronRight, ExternalLink } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import {
   HELP_CATEGORIES,
   searchArticles,
   getArticle,
+  ARTICLE_TO_HELP_SLUG,
   type HelpArticle,
 } from '@/content/help-center';
 
@@ -86,6 +88,24 @@ export function HelpCenter() {
                   </p>
                 ))}
               </div>
+              {ARTICLE_TO_HELP_SLUG[selectedArticle.id] && (
+                <Link
+                  href={`/help/${ARTICLE_TO_HELP_SLUG[selectedArticle.id]}`}
+                  className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  Read full guide
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              )}
+              <div className="mt-8 pt-6 border-t border-border/60">
+                <Link
+                  href="/help"
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Browse full help center
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="p-6">
@@ -139,6 +159,15 @@ export function HelpCenter() {
                     </button>
                   ))
                 )}
+              </div>
+              <div className="mt-8 pt-6 border-t border-border/60">
+                <Link
+                  href="/help"
+                  className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Browse full help center
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
           )}

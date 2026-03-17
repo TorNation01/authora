@@ -39,8 +39,17 @@ export default function LoginPage() {
         }
       );
       setTokens(res.access_token, res.refresh_token);
-      toast({ title: 'Welcome back!', description: 'Redirecting to your dashboard.' });
-      router.push('/dashboard');
+      toast({ title: 'Welcome back!', description: 'Redirecting...' });
+      try {
+        const prefs = await api<{ preferences?: { onboarding_completed?: boolean } }>('/api/v1/auth/me/preferences');
+        if (prefs?.preferences?.onboarding_completed !== true) {
+          router.push('/onboarding');
+        } else {
+          router.push('/dashboard');
+        }
+      } catch {
+        router.push('/dashboard');
+      }
       router.refresh();
     } catch (err) {
       toast({

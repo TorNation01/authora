@@ -8,105 +8,80 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import {
+  Compass,
+  Zap,
   BookOpen,
-  PenLine,
-  Bot,
-  User,
   Target,
-  Calendar,
-  Clock,
-  Heart,
-  Sparkles,
+  PenLine,
+  LayoutList,
+  FileText,
   Check,
   Loader2,
   ChevronRight,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react';
 import {
-  ONBOARDING_WELCOME,
-  WRITER_TYPES,
-  PROJECT_TYPE_STEP,
-  GUIDANCE_STEP,
-  WORK_STYLE_STEP,
-  PACE_STEP,
-  COMPLETE_STEP,
+  ONBOARDING_ENTRY,
+  ONBOARDING_INTENT,
+  ONBOARDING_GUIDANCE,
+  ONBOARDING_PROJECT,
+  ONBOARDING_STRUCTURE,
+  ONBOARDING_FIRST_ACTION,
   ONBOARDING_SKIP,
 } from '@/content/onboarding-copy';
+import { EditorIntroOverlay, hasSeenEditorIntro } from '@/components/onboarding/EditorIntroOverlay';
+
+type IntentType = 'fiction' | 'nonfiction' | 'memoir' | 'workbook' | 'not_sure';
+type GuidanceType = 'guided' | 'balanced' | 'freeform';
+type StructureChoice = 'template' | 'blank';
+type FirstAction = 'write' | 'outline';
 
 interface OnboardingData {
-  writer_type: string;
-  book_type: string;
-  writing_mode: string;
-  writing_goals: string;
-  target_timeline: string;
-  writing_schedule: string;
-  accountability_style: string;
-  ai_comfort_level: string;
-  genre_topic: string;
-  guidance_mode: string;
+  entry: 'guided' | 'quick';
+  intent: IntentType;
+  guidance: GuidanceType;
+  projectName: string;
+  projectDescription: string;
+  projectGoal: string;
+  structure: StructureChoice;
+  templateId: string | null;
+  firstAction: FirstAction;
 }
 
-const STEPS = [
-  { id: 'welcome', title: 'Welcome', icon: BookOpen },
-  { id: 'writer_type', title: 'What kind of writer?', icon: User },
-  { id: 'book_type', title: 'What are you writing?', icon: BookOpen },
-  { id: 'guidance', title: 'How much guidance?', icon: Target },
-  { id: 'work_style', title: 'How do you like to work?', icon: PenLine },
-  { id: 'pace', title: 'Set your pace', icon: Calendar },
-  { id: 'complete', title: "You're all set", icon: Check },
-];
+type TemplateSummary = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  book_type: string | null;
+};
 
-const WRITER_TYPE_OPTIONS = [
-  { ...WRITER_TYPES.firstTime, id: 'first_time' as const },
-  { ...WRITER_TYPES.experienced, id: 'experienced' as const },
-  { ...WRITER_TYPES.fiction, id: 'fiction' as const },
-  { ...WRITER_TYPES.nonfiction, id: 'nonfiction' as const },
-  { ...WRITER_TYPES.memoir, id: 'memoir' as const },
-  { ...WRITER_TYPES.workbook, id: 'workbook' as const },
-  { ...WRITER_TYPES.ghostwriter, id: 'ghostwriter' as const },
-  { ...WRITER_TYPES.collaborative, id: 'collaborative' as const },
-  { ...WRITER_TYPES.notSure, id: 'not_sure' as const },
-];
+type TemplateCategory = {
+  category: string;
+  name: string;
+  slug: string;
+  template: TemplateSummary;
+  children: TemplateSummary[];
+};
 
-const TIMELINE_OPTIONS = [
-  { id: '1 month', label: '1 month' },
-  { id: '3 months', label: '3 months' },
-  { id: '6 months', label: '6 months' },
-  { id: '1 year', label: '1 year' },
-  { id: 'no deadline', label: 'No deadline' },
-];
+const ONBOARDING_PREF_KEY = 'authora_onboarding_progress_v2';
 
-const SCHEDULE_OPTIONS = [
-  { id: 'mornings', label: 'Mornings' },
-  { id: 'evenings', label: 'Evenings' },
-  { id: 'weekends', label: 'Weekends' },
-  { id: 'daily', label: 'Daily' },
-  { id: 'flexible', label: 'Flexible' },
-];
-
-const ACCOUNTABILITY_OPTIONS = [
-  { id: 'none', label: PACE_STEP.none, desc: PACE_STEP.noneDesc },
-  { id: 'gentle', label: PACE_STEP.gentle, desc: PACE_STEP.gentleDesc },
-  { id: 'structured', label: PACE_STEP.structured, desc: PACE_STEP.structuredDesc },
-  { id: 'buddy', label: PACE_STEP.buddy, desc: PACE_STEP.buddyDesc },
-];
-
-const ONBOARDING_PREF_KEY = 'authora_onboarding_progress';
-
-function loadProgress(): { stepIndex: number; data: OnboardingData } | null {
+function loadProgress(): { stepIndex: number; data: Partial<OnboardingData> } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(ONBOARDING_PREF_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { stepIndex: number; data: OnboardingData };
+    return JSON.parse(raw) as { stepIndex: number; data: Partial<OnboardingData> };
   } catch {
     return null;
   }
 }
 
-function saveProgress(stepIndex: number, data: OnboardingData) {
+function saveProgress(stepIndex: number, data: Partial<OnboardingData>) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(ONBOARDING_PREF_KEY, JSON.stringify({ stepIndex, data }));
@@ -124,22 +99,62 @@ function clearProgress() {
   }
 }
 
+const INTENT_TO_BOOK_TYPE: Record<IntentType, string> = {
+  fiction: 'fiction',
+  nonfiction: 'nonfiction',
+  memoir: 'nonfiction',
+  workbook: 'nonfiction',
+  not_sure: 'fiction',
+};
+
+const INTENT_TO_KNOWLEDGE: Record<IntentType, string> = {
+  fiction: 'fiction',
+  nonfiction: 'nonfiction',
+  memoir: 'memoir',
+  workbook: 'workbook',
+  not_sure: 'fiction',
+};
+
+const GUIDANCE_TO_API: Record<GuidanceType, string> = {
+  guided: 'guided',
+  balanced: 'flexible',
+  freeform: 'freeform',
+};
+
+const GUIDED_STEPS = [
+  { id: 'entry', title: 'How to start', icon: Compass },
+  { id: 'intent', title: 'What are you writing?', icon: BookOpen },
+  { id: 'guidance', title: 'Guidance level', icon: Target },
+  { id: 'project', title: 'Project setup', icon: PenLine },
+  { id: 'structure', title: 'Structure', icon: LayoutList },
+  { id: 'first_action', title: 'First action', icon: FileText },
+];
+
 export default function OnboardingPage() {
   const [stepIndex, setStepIndex] = useState(0);
-  const [data, setData] = useState<OnboardingData>({
-    writer_type: '',
-    book_type: '',
-    writing_mode: '',
-    writing_goals: '',
-    target_timeline: '',
-    writing_schedule: '',
-    accountability_style: '',
-    ai_comfort_level: 'moderate',
-    genre_topic: '',
-    guidance_mode: 'guided',
+  const [data, setData] = useState<Partial<OnboardingData>>({
+    entry: 'guided',
+    intent: 'fiction',
+    guidance: 'guided',
+    projectName: '',
+    projectDescription: '',
+    projectGoal: '',
+    structure: 'blank',
+    templateId: null,
+    firstAction: 'write',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState<TemplateCategory[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showIntroOverlay, setShowIntroOverlay] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const router = useRouter();
+
+  const isQuickStart = data.entry === 'quick';
+  const steps = isQuickStart ? [{ id: 'entry', title: 'Quick Start', icon: Zap }] : GUIDED_STEPS;
+  const currentStep = steps[stepIndex];
+  const totalSteps = steps.length;
+  const progress = ((stepIndex + 1) / totalSteps) * 100;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -150,86 +165,113 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const saved = loadProgress();
-    if (saved && saved.stepIndex > 0) {
-      setStepIndex(saved.stepIndex);
-      setData(saved.data);
-      return;
+    if (saved && saved.stepIndex > 0 && saved.data) {
+      setStepIndex(Math.min(saved.stepIndex, steps.length - 1));
+      setData((d) => ({ ...d, ...saved.data }));
     }
+  }, []);
+
+  useEffect(() => {
     api<{ step_index: number; data: Record<string, unknown> }>('/api/v1/journey/onboarding/progress')
       .then((res) => {
         if (res.step_index > 0 && res.data && Object.keys(res.data).length > 0) {
-          const merged = {
-            writer_type: '',
-            book_type: '',
-            writing_mode: '',
-            writing_goals: '',
-            target_timeline: '',
-            writing_schedule: '',
-            accountability_style: '',
-            ai_comfort_level: 'moderate',
-            genre_topic: '',
-            guidance_mode: 'guided',
-            ...res.data,
-          } as OnboardingData;
-          setStepIndex(res.step_index);
+          const merged = { ...data, ...res.data } as Partial<OnboardingData>;
           setData(merged);
-          saveProgress(res.step_index, merged);
+          const idx = Math.min(res.step_index, steps.length - 1);
+          setStepIndex(idx);
+          saveProgress(idx, merged);
         }
       })
       .catch(() => {});
   }, []);
 
-  const saveProgressCallback = useCallback(() => {
-    saveProgress(stepIndex, data);
+  useEffect(() => {
+    if (stepIndex > 0 && stepIndex < steps.length - 1) {
+      saveProgress(stepIndex, data);
+    }
   }, [stepIndex, data]);
 
   useEffect(() => {
-    if (stepIndex > 0 && stepIndex < STEPS.length - 1) {
-      saveProgressCallback();
+    if (data.structure === 'template' && data.intent && data.intent !== 'not_sure') {
+      setLoadingTemplates(true);
+      api<TemplateCategory[]>('/api/v1/templates/categories')
+        .then(setCategories)
+        .catch(() => setCategories([]))
+        .finally(() => setLoadingTemplates(false));
     }
-  }, [stepIndex, data, saveProgressCallback]);
+  }, [data.structure, data.intent]);
 
-  const currentStep = STEPS[stepIndex];
-  const totalSteps = STEPS.length;
-  const progress = ((stepIndex + 1) / totalSteps) * 100;
+  const filteredCategories = categories.filter((cat) => {
+    const intent = data.intent || 'fiction';
+    if (intent === 'not_sure') return true;
+    const slug = (cat.slug || '').toLowerCase();
+    if (intent === 'fiction') return slug.includes('fiction');
+    if (intent === 'nonfiction') return slug.includes('nonfiction') || slug.includes('business') || slug.includes('self-help');
+    if (intent === 'memoir') return slug.includes('memoir');
+    if (intent === 'workbook') return slug.includes('workbook');
+    return true;
+  });
 
-  const canProceed = () => {
-    switch (currentStep.id) {
-      case 'welcome':
+  const canProceed = useCallback(() => {
+    switch (currentStep?.id) {
+      case 'entry':
         return true;
-      case 'writer_type':
-        return !!data.writer_type;
-      case 'book_type':
-        return !!data.book_type;
+      case 'intent':
+        return !!data.intent;
       case 'guidance':
-        return !!data.guidance_mode;
-      case 'work_style':
-        return !!data.writing_mode;
-      case 'pace':
+        return !!data.guidance;
+      case 'project':
+        return !!(data.projectName?.trim());
+      case 'structure':
+        if (data.structure === 'template') {
+          return !!data.templateId || filteredCategories.length === 0;
+        }
         return true;
-      case 'complete':
-        return true;
+      case 'first_action':
+        return !!data.firstAction;
       default:
-        return false;
+        return true;
     }
-  };
+  }, [currentStep?.id, data, filteredCategories.length]);
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      await api<{ journey_id: string; current_phase: string }>('/api/v1/journey/onboarding', {
+  const createProject = useCallback(
+    async (firstAction: FirstAction) => {
+      const name = data.projectName?.trim() || 'My Book';
+      const bookType = INTENT_TO_BOOK_TYPE[data.intent || 'fiction'];
+      const knowledgeMode = INTENT_TO_KNOWLEDGE[data.intent || 'fiction'];
+      const guidanceMode = GUIDANCE_TO_API[data.guidance || 'guided'];
+
+      const res = await api<{ project: { id: string }; book_id: string }>('/api/v1/projects/from-wizard', {
         method: 'POST',
         body: JSON.stringify({
-          book_type: data.book_type || 'fiction',
-          writing_mode: data.writing_mode || 'solo',
-          writer_type: data.writer_type || null,
-          guidance_mode: data.guidance_mode || 'guided',
-          writing_goals: data.writing_goals || null,
-          target_timeline: data.target_timeline || null,
-          writing_schedule: data.writing_schedule || null,
-          accountability_style: data.accountability_style || null,
-          ai_comfort_level: data.ai_comfort_level || null,
-          genre_topic: data.genre_topic || null,
+          template_id: data.templateId || null,
+          project_name: name,
+          book_title: name,
+          book_type: bookType,
+          knowledge_mode: knowledgeMode,
+          core_idea: data.projectDescription?.trim() || null,
+          guidance_mode: guidanceMode,
+        }),
+      });
+
+      const url =
+        firstAction === 'write'
+          ? `/dashboard/projects/${res.project.id}/books/${res.book_id}`
+          : `/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`;
+      return url;
+    },
+    [data]
+  );
+
+  const handleComplete = async () => {
+    setSubmitting(true);
+    try {
+      await api('/api/v1/journey/onboarding', {
+        method: 'POST',
+        body: JSON.stringify({
+          book_type: INTENT_TO_BOOK_TYPE[data.intent || 'fiction'],
+          guidance_mode: GUIDANCE_TO_API[data.guidance || 'guided'],
+          writing_mode: 'solo',
         }),
       });
       await api('/api/v1/auth/me/preferences', {
@@ -237,67 +279,116 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           preferences: {
             onboarding_completed: true,
-            onboarding_writer_type: data.writer_type,
-            onboarding_guidance_mode: data.guidance_mode,
+            onboarding_guidance_mode: GUIDANCE_TO_API[data.guidance || 'guided'],
             onboarding_progress: null,
           },
         }),
       });
-      if (data.accountability_style && data.accountability_style !== 'none') {
-        const styleMap: Record<string, string> = {
-          gentle: 'gentle',
-          structured: 'structured',
-          buddy: 'coach',
-        };
-        const accStyle = styleMap[data.accountability_style] || 'gentle';
-        try {
-          await api('/api/v1/accountability/settings', {
-            method: 'PATCH',
-            body: JSON.stringify({
-              accountability_style: accStyle,
-              reminder_enabled: true,
-            }),
-          });
-        } catch {
-          /* non-blocking */
-        }
-      } else if (data.accountability_style === 'none') {
-        try {
-          await api('/api/v1/accountability/settings', {
-            method: 'PATCH',
-            body: JSON.stringify({ reminder_enabled: false }),
-          });
-        } catch {
-          /* non-blocking */
-        }
-      }
       clearProgress();
-      router.push('/dashboard/projects/new');
+
+      const firstAction = data.firstAction || 'write';
+      const url = await createProject(firstAction);
+
+      if (firstAction === 'write' && !hasSeenEditorIntro()) {
+        setRedirectUrl(url);
+        setShowIntroOverlay(true);
+      } else {
+        router.push(url);
+      }
     } catch (e) {
       console.error(e);
       setSubmitting(false);
     }
   };
 
+  const handleQuickStartComplete = async () => {
+    setSubmitting(true);
+    try {
+      const name = data.projectName?.trim() || 'Untitled Project';
+      const res = await api<{ project: { id: string }; book_id: string }>('/api/v1/projects/from-wizard', {
+        method: 'POST',
+        body: JSON.stringify({
+          template_id: null,
+          project_name: name,
+          book_title: name,
+          book_type: 'fiction',
+          guidance_mode: 'freeform',
+          knowledge_mode: 'fiction',
+        }),
+      });
+      await api('/api/v1/auth/me/preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          preferences: { onboarding_completed: true, onboarding_progress: null },
+        }),
+      });
+      clearProgress();
+
+      const url = `/dashboard/projects/${res.project.id}/books/${res.book_id}`;
+      if (!hasSeenEditorIntro()) {
+        setRedirectUrl(url);
+        setShowIntroOverlay(true);
+      } else {
+        router.push(url);
+      }
+    } catch (e) {
+      console.error(e);
+      setSubmitting(false);
+    }
+  };
+
+  const handleIntroComplete = () => {
+    setShowIntroOverlay(false);
+    if (redirectUrl) router.push(redirectUrl);
+  };
+
   const handleNext = () => {
-    if (currentStep.id === 'complete') {
-      handleSubmit();
+    if (isQuickStart && currentStep?.id === 'entry') {
+      setStepIndex(0);
+      setData((d) => ({ ...d, entry: 'quick' }));
       return;
     }
+
+    if (currentStep?.id === 'first_action' || (isQuickStart && currentStep?.id === 'entry')) {
+      if (isQuickStart) {
+        setData((d) => ({ ...d, projectName: d.projectName || 'Untitled Project' }));
+        handleQuickStartComplete();
+      } else {
+        handleComplete();
+      }
+      return;
+    }
+
     const nextIdx = stepIndex + 1;
     saveProgress(nextIdx, data);
     api('/api/v1/journey/onboarding/progress', {
       method: 'POST',
       body: JSON.stringify({ step_index: nextIdx, data }),
     }).catch(() => {});
-    if (nextIdx < totalSteps) setStepIndex(nextIdx);
+    setStepIndex(nextIdx);
   };
 
   const handleBack = () => {
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
   };
 
-  const Icon = currentStep.icon;
+  const handleEntrySelect = (entry: 'guided' | 'quick') => {
+    setData((d) => ({ ...d, entry }));
+    if (entry === 'quick') {
+      setStepIndex(0);
+    }
+  };
+
+  const Icon = currentStep?.icon ?? Compass;
+
+  if (showIntroOverlay) {
+    return (
+      <EditorIntroOverlay
+        onComplete={handleIntroComplete}
+        onSkip={handleIntroComplete}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-muted/20 to-background p-4">
@@ -310,214 +401,236 @@ export default function OnboardingPage() {
         </Link>
         <Card variant="sanctuary" className="shadow-lg">
           <CardHeader>
-            <Progress value={progress} showLabel size="sm" className="mb-4" />
+            {!isQuickStart && (
+              <Progress value={progress} showLabel size="sm" className="mb-4" />
+            )}
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-2">
               <Icon className="h-6 w-6" />
             </div>
-            <CardTitle className="text-xl font-serif">{currentStep.title}</CardTitle>
+            <CardTitle className="text-xl font-serif">{currentStep?.title}</CardTitle>
             <CardDescription className="text-base">
-              {currentStep.id === 'welcome' && ONBOARDING_WELCOME.description}
-              {currentStep.id === 'writer_type' && WRITER_TYPES.subheading}
-              {currentStep.id === 'book_type' && PROJECT_TYPE_STEP.subheading}
-              {currentStep.id === 'guidance' && GUIDANCE_STEP.subheading}
-              {currentStep.id === 'work_style' && WORK_STYLE_STEP.subheading}
-              {currentStep.id === 'pace' && PACE_STEP.subheading}
-              {currentStep.id === 'complete' && COMPLETE_STEP.description}
+              {currentStep?.id === 'entry' && ONBOARDING_ENTRY.subheading}
+              {currentStep?.id === 'intent' && ONBOARDING_INTENT.subheading}
+              {currentStep?.id === 'guidance' && ONBOARDING_GUIDANCE.subheading}
+              {currentStep?.id === 'project' && ONBOARDING_PROJECT.subheading}
+              {currentStep?.id === 'structure' && ONBOARDING_STRUCTURE.subheading}
+              {currentStep?.id === 'first_action' && ONBOARDING_FIRST_ACTION.subheading}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {currentStep.id === 'welcome' && (
+            {/* Entry */}
+            {currentStep?.id === 'entry' && (
               <div className="space-y-4">
-                <p className="text-muted-foreground">
-                  Your writing sanctuary awaits. Let&apos;s set you up for success.
-                </p>
-              </div>
-            )}
-
-            {currentStep.id === 'writer_type' && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {WRITER_TYPE_OPTIONS.map((opt) => (
+                <div className="grid gap-4 sm:grid-cols-2">
                   <button
-                    key={opt.id}
                     type="button"
-                    onClick={() => setData((d) => ({ ...d, writer_type: opt.id }))}
-                    className={`rounded-lg border p-4 text-left transition-colors ${
-                      data.writer_type === opt.id
+                    onClick={() => handleEntrySelect('guided')}
+                    className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                      data.entry === 'guided'
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                     }`}
                   >
-                    <span className="font-medium">{opt.label}</span>
-                    <p className="text-sm text-muted-foreground mt-1">{opt.desc}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Compass className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">{ONBOARDING_ENTRY.guided.label}</span>
+                      {ONBOARDING_ENTRY.guided.recommended && (
+                        <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
+                          Recommended
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{ONBOARDING_ENTRY.guided.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{ONBOARDING_ENTRY.guided.benefit}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEntrySelect('quick')}
+                    className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                      data.entry === 'quick'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">{ONBOARDING_ENTRY.quick.label}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{ONBOARDING_ENTRY.quick.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{ONBOARDING_ENTRY.quick.benefit}</p>
+                  </button>
+                </div>
+                {data.entry === 'quick' && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                    <Label className="text-sm font-medium">Project name</Label>
+                    <Input
+                      placeholder={ONBOARDING_PROJECT.namePlaceholder}
+                      value={data.projectName || ''}
+                      onChange={(e) => setData((d) => ({ ...d, projectName: e.target.value }))}
+                      className="mt-2 h-11"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Intent */}
+            {currentStep?.id === 'intent' && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(['fiction', 'nonfiction', 'memoir', 'workbook', 'not_sure'] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setData((d) => ({ ...d, intent: key }))}
+                    className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                      data.intent === key ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="font-medium">{ONBOARDING_INTENT[key].label}</span>
+                    <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_INTENT[key].desc}</p>
                   </button>
                 ))}
               </div>
             )}
 
-            {currentStep.id === 'book_type' && (
+            {/* Guidance */}
+            {currentStep?.id === 'guidance' && (
+              <div className="space-y-3">
+                {(['guided', 'balanced', 'freeform'] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setData((d) => ({ ...d, guidance: key }))}
+                    className={`w-full rounded-xl border-2 p-4 text-left transition-colors ${
+                      data.guidance === key ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="font-medium">{ONBOARDING_GUIDANCE[key].label}</span>
+                    <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_GUIDANCE[key].desc}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Project setup */}
+            {currentStep?.id === 'project' && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="projectName">Project name *</Label>
+                  <Input
+                    id="projectName"
+                    placeholder={ONBOARDING_PROJECT.namePlaceholder}
+                    value={data.projectName || ''}
+                    onChange={(e) => setData((d) => ({ ...d, projectName: e.target.value }))}
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="projectDesc">Description (optional)</Label>
+                  <Textarea
+                    id="projectDesc"
+                    placeholder={ONBOARDING_PROJECT.descriptionPlaceholder}
+                    value={data.projectDescription || ''}
+                    onChange={(e) => setData((d) => ({ ...d, projectDescription: e.target.value }))}
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="projectGoal">Goal (optional)</Label>
+                  <Input
+                    id="projectGoal"
+                    placeholder={ONBOARDING_PROJECT.goalPlaceholder}
+                    value={data.projectGoal || ''}
+                    onChange={(e) => setData((d) => ({ ...d, projectGoal: e.target.value }))}
+                    className="h-11"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Structure */}
+            {currentStep?.id === 'structure' && (
+              <div className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setData((d) => ({ ...d, structure: 'template', templateId: null }))}
+                    className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                      data.structure === 'template' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="font-medium">{ONBOARDING_STRUCTURE.useTemplate.label}</span>
+                    <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_STRUCTURE.useTemplate.desc}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setData((d) => ({ ...d, structure: 'blank', templateId: null }))}
+                    className={`rounded-xl border-2 p-4 text-left transition-colors ${
+                      data.structure === 'blank' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="font-medium">{ONBOARDING_STRUCTURE.startBlank.label}</span>
+                    <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_STRUCTURE.startBlank.desc}</p>
+                  </button>
+                </div>
+                {data.structure === 'template' && (
+                  <div className="space-y-2">
+                    <Label>Choose a template</Label>
+                    {loadingTemplates ? (
+                      <p className="text-sm text-muted-foreground">Loading templates...</p>
+                    ) : (
+                      <div className="grid gap-2 max-h-48 overflow-y-auto">
+                        {filteredCategories.map((cat) => (
+                          <button
+                            key={cat.slug}
+                            type="button"
+                            onClick={() => setData((d) => ({ ...d, templateId: cat.template.id }))}
+                            className={`rounded-lg border p-3 text-left transition-colors ${
+                              data.templateId === cat.template.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <span className="font-medium text-sm">{cat.name}</span>
+                            {cat.template.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.template.description}</p>
+                            )}
+                          </button>
+                        ))}
+                        {filteredCategories.length === 0 && !loadingTemplates && (
+                          <p className="text-sm text-muted-foreground">No templates found. Start blank instead.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* First action */}
+            {currentStep?.id === 'first_action' && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setData((d) => ({ ...d, book_type: 'fiction' }))}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
-                    data.book_type === 'fiction'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                  onClick={() => setData((d) => ({ ...d, firstAction: 'write' }))}
+                  className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                    data.firstAction === 'write' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <span className="font-medium">{PROJECT_TYPE_STEP.fiction}</span>
-                  <p className="text-sm text-muted-foreground mt-1">{PROJECT_TYPE_STEP.fictionDesc}</p>
+                  <PenLine className="h-6 w-6 text-primary mb-2" />
+                  <span className="font-medium">{ONBOARDING_FIRST_ACTION.write.label}</span>
+                  <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_FIRST_ACTION.write.desc}</p>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setData((d) => ({ ...d, book_type: 'nonfiction' }))}
-                  className={`rounded-lg border p-4 text-left transition-colors ${
-                    data.book_type === 'nonfiction'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                  onClick={() => setData((d) => ({ ...d, firstAction: 'outline' }))}
+                  className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                    data.firstAction === 'outline' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <span className="font-medium">{PROJECT_TYPE_STEP.nonfiction}</span>
-                  <p className="text-sm text-muted-foreground mt-1">{PROJECT_TYPE_STEP.nonfictionDesc}</p>
+                  <LayoutList className="h-6 w-6 text-primary mb-2" />
+                  <span className="font-medium">{ONBOARDING_FIRST_ACTION.outline.label}</span>
+                  <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_FIRST_ACTION.outline.desc}</p>
                 </button>
-              </div>
-            )}
-
-            {currentStep.id === 'guidance' && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">{GUIDANCE_STEP.noneWrong}</p>
-                <div className="grid gap-3">
-                  {(['guided', 'flexible', 'freeform'] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setData((d) => ({ ...d, guidance_mode: m }))}
-                      className={`rounded-lg border p-4 text-left transition-colors ${
-                        data.guidance_mode === m
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <span className="font-medium">{GUIDANCE_STEP[m].label}</span>
-                      <p className="text-sm text-muted-foreground mt-1">{GUIDANCE_STEP[m].desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {currentStep.id === 'work_style' && (
-              <div className="grid gap-3">
-                {[
-                  { id: 'solo', label: WORK_STYLE_STEP.solo.label, desc: WORK_STYLE_STEP.solo.desc, icon: User },
-                  { id: 'cowrite', label: WORK_STYLE_STEP.cowrite.label, desc: WORK_STYLE_STEP.cowrite.desc, icon: PenLine },
-                  { id: 'ghostwriter', label: WORK_STYLE_STEP.ghostwriter.label, desc: WORK_STYLE_STEP.ghostwriter.desc, icon: Bot },
-                ].map((opt) => {
-                  const ModeIcon = opt.icon;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setData((d) => ({ ...d, writing_mode: opt.id }))}
-                      className={`flex items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
-                        data.writing_mode === opt.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <ModeIcon className="h-5 w-5 mt-0.5 text-primary shrink-0" />
-                      <div>
-                        <span className="font-medium">{opt.label}</span>
-                        <p className="text-sm text-muted-foreground mt-1">{opt.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {currentStep.id === 'pace' && (
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-sm font-medium">{PACE_STEP.timeline}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {TIMELINE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setData((d) => ({ ...d, target_timeline: opt.id }))}
-                        className={`rounded-full px-4 py-2 text-sm transition-colors ${
-                          data.target_timeline === opt.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted hover:bg-muted/80'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">{PACE_STEP.schedule}</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {SCHEDULE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setData((d) => ({ ...d, writing_schedule: opt.id }))}
-                        className={`rounded-full px-4 py-2 text-sm transition-colors ${
-                          data.writing_schedule === opt.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted hover:bg-muted/80'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">{PACE_STEP.accountability}</Label>
-                  <div className="grid gap-2 sm:grid-cols-2 mt-2">
-                    {ACCOUNTABILITY_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setData((d) => ({ ...d, accountability_style: opt.id }))}
-                        className={`rounded-lg border p-3 text-left transition-colors ${
-                          data.accountability_style === opt.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                      >
-                        <span className="font-medium text-sm">{opt.label}</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentStep.id === 'complete' && (
-              <div className="rounded-lg bg-muted/50 p-4 space-y-2 text-sm">
-                <p>
-                  <strong>Book type:</strong> {data.book_type === 'fiction' ? 'Fiction' : 'Non-fiction'}
-                </p>
-                <p>
-                  <strong>Mode:</strong>{' '}
-                  {data.writing_mode === 'solo'
-                    ? 'Write myself'
-                    : data.writing_mode === 'cowrite'
-                      ? 'Co-write with AI'
-                      : 'Ghostwriter'}
-                </p>
-                <p>
-                  <strong>Guidance:</strong> {data.guidance_mode.charAt(0).toUpperCase() + data.guidance_mode.slice(1)}
-                </p>
-                <p className="text-muted-foreground pt-2">
-                  Your personalized roadmap will guide you from idea to finished book.
-                </p>
               </div>
             )}
 
@@ -529,24 +642,24 @@ export default function OnboardingPage() {
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : currentStep.id === 'complete' ? (
-                  <Check className="h-4 w-4 mr-2" />
+                ) : currentStep?.id === 'first_action' || (isQuickStart && data.entry === 'quick') ? (
+                  <Sparkles className="h-4 w-4 mr-2" />
                 ) : (
                   <ChevronRight className="h-4 w-4 mr-2" />
                 )}
-                {currentStep.id === 'complete'
-                  ? submitting
-                    ? 'Creating your journey...'
-                    : COMPLETE_STEP.cta
-                  : 'Continue'}
+                {submitting
+                  ? 'Creating...'
+                  : currentStep?.id === 'first_action' || (isQuickStart && data.entry === 'quick')
+                    ? 'Start writing'
+                    : 'Continue'}
               </Button>
-              {stepIndex > 0 && (
+              {stepIndex > 0 && !isQuickStart && (
                 <Button variant="ghost" onClick={handleBack} disabled={submitting}>
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Back
                 </Button>
               )}
-              {currentStep.id !== 'welcome' && currentStep.id !== 'complete' && (
+              {currentStep?.id !== 'entry' && (
                 <Button variant="link" asChild>
                   <Link href="/dashboard">{ONBOARDING_SKIP.skip}</Link>
                 </Button>
