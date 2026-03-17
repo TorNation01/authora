@@ -1,18 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
-import { Brain, ArrowRight } from 'lucide-react';
+import { Brain } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
 
 export function EnginesCombinedSection() {
-  const config = useConfig();
-  const { feature_flags } = config;
-
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-primary/10 via-transparent to-transparent"
+      className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-primary/10 via-transparent to-transparent transition-all duration-300 hover:border-primary/20"
       data-analytics="engines-combined"
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_50%,hsl(var(--primary)/0.06),transparent)]" />
@@ -30,19 +24,13 @@ export function EnginesCombinedSection() {
         <p className="mt-8 font-serif text-xl font-semibold text-foreground">
           Write better. Revise faster. Finish stronger.
         </p>
-        {feature_flags.standalone_auth && (
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button asChild size="lg" data-analytics="cta-engines-combined">
-              <Link href={`${getAppBaseUrl()}/register`}>
-                Start Writing Free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/pricing">View Pricing</Link>
-            </Button>
-          </div>
-        )}
+        <div className="mt-10 flex justify-center">
+          <CTAPair
+            primary="start-writing-free"
+            secondary="view-pricing"
+            analyticsPrefix="engines-combined-"
+          />
+        </div>
       </div>
     </section>
   );

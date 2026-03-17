@@ -1,43 +1,40 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
+import { PenLine } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
+import { CTA_MICROCOPY } from '@/content/cta-copy';
 
 export function CTASection() {
-  const config = useConfig();
-  const { feature_flags } = config;
-
   return (
-    <section className="py-20" data-analytics="cta">
-      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-        <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-          Your book is not finished yet — but it can be.
+    <section
+      className="relative overflow-hidden py-[var(--section-padding-y)]"
+      data-analytics="cta"
+    >
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.04] to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_50%,hsl(var(--primary)/0.06),transparent)]" />
+
+      <div className="relative mx-auto max-w-4xl px-[var(--section-padding-x)] text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary/90 mb-8">
+          <PenLine className="h-4 w-4" />
+          Your next chapter starts here
+        </div>
+
+        <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl lg:text-5xl">
+          Your book isn&apos;t finished yet — but it can be.
         </h2>
-        <p className="mt-4 text-lg text-muted-foreground">
+        <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
           Authora gives you the tools, structure, and support to get there.
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {feature_flags.standalone_auth && (
-            <>
-              <Button asChild size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/register`}>Start Writing Free</Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/register`}>Create Your First Book</Link>
-              </Button>
-            </>
-          )}
-          {!feature_flags.standalone_auth && feature_flags.sso_ready && (
-            <Button asChild size="lg" className="min-w-[200px]">
-              <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
-            </Button>
-          )}
+
+        <div className="mt-10 flex flex-col items-center">
+          <CTAPair
+            primary="start-writing-free"
+            secondary="create-first-book"
+            microcopy={CTA_MICROCOPY.ctaSection}
+            analyticsPrefix="cta-final-"
+          />
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Stop circling the idea. Start finishing the book.
-        </p>
       </div>
     </section>
   );

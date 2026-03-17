@@ -4,10 +4,13 @@ import { Target, Zap } from 'lucide-react';
 
 export function PricingAccountabilitySection() {
   return (
-    <section className="py-20 border-t border-border/60" data-analytics="pricing-accountability">
+    <section
+      className="py-20 border-t border-white/[0.06]"
+      data-analytics="pricing-accountability"
+    >
       <div className="mx-auto max-w-2xl text-center">
-        <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Target className="h-7 w-7 text-primary" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 shadow-[var(--shadow-card-premium)]">
+          <Target className="h-8 w-8 text-primary" />
         </div>
         <h2 className="font-serif text-2xl font-bold text-foreground sm:text-3xl">
           Built to help you finish

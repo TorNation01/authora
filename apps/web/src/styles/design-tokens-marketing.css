@@ -2,6 +2,7 @@
  * AUTHORA Marketing Design Tokens
  * Premium dark theme: black base, gold accent, money green support, white text
  * Applied when [data-theme="marketing"] is set on a parent element
+ * Brand: premium, elegant, sophisticated, calm, futuristic but professional
  */
 
 [data-theme="marketing"] {
@@ -32,4 +33,25 @@
   --marketing-green: 142 52% 42%;
   --marketing-gold: 43 74% 49%;
   --marketing-black: 0 0% 4%;
+
+  /* Section rhythm */
+  --section-padding-y: clamp(4rem, 10vw, 6rem);
+  --section-padding-x: clamp(1rem, 4vw, 2rem);
+  --content-max: 80rem;
+  --content-narrow: 42rem;
+
+  /* Premium shadows and glow */
+  --glow-gold: 0 0 40px -10px hsl(var(--primary) / 0.25);
+  --glow-gold-subtle: 0 0 60px -20px hsl(var(--primary) / 0.12);
+  --glow-green: 0 0 40px -10px hsl(var(--success) / 0.2);
+  --shadow-card-premium: 0 4px 24px -4px rgb(0 0 0 / 0.4), 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-card-hover: 0 8px 32px -8px rgb(0 0 0 / 0.5), 0 0 1px rgb(255 255 255 / 0.06);
+
+  /* Typography scale - strong hierarchy */
+  --text-hero: clamp(2.5rem, 5vw + 1rem, 4rem);
+  --text-hero-sm: clamp(2rem, 4vw + 0.5rem, 3rem);
+  --text-section: clamp(1.75rem, 3vw + 0.5rem, 2.5rem);
+  --text-card: 1.125rem;
+  --text-body: 1rem;
+  --text-small: 0.875rem;
 }

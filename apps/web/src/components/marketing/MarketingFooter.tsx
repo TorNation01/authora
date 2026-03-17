@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useConfig } from '@/contexts/ConfigProvider';
 import { getAppBaseUrl } from '@/lib/config';
 import { Shield, Lock, FileText, PenLine } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
+import { CTA_MICROCOPY } from '@/content/cta-copy';
 
 const TRUST_ITEMS = [
   { icon: Shield, label: 'Secure' },
@@ -12,49 +14,125 @@ const TRUST_ITEMS = [
   { icon: PenLine, label: 'Built for real writers' },
 ];
 
+const FOOTER_LINKS = {
+  product: [
+    { href: '/pricing', label: 'Pricing' },
+    { href: '/features', label: 'Features' },
+    { href: '/faq', label: 'FAQ' },
+  ],
+  legal: [
+    { href: '/privacy', label: 'Privacy' },
+    { href: '/terms', label: 'Terms' },
+  ],
+  support: [
+    { href: '/contact', label: 'Contact' },
+  ],
+};
+
 export function MarketingFooter() {
   const config = useConfig();
   const { branding, feature_flags } = config;
 
   return (
-    <footer className="border-t border-border/60 bg-muted/30" data-analytics="marketing-footer">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap justify-center gap-6 mb-10">
+    <footer
+      className="footer-public"
+      data-analytics="marketing-footer"
+    >
+      <div className="mx-auto max-w-7xl px-[var(--section-padding-x)] py-16">
+        {/* Trust badges */}
+        <div className="flex flex-wrap justify-center gap-8 mb-12">
           {TRUST_ITEMS.map((item) => (
-            <div key={item.label} className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div
+              key={item.label}
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+            >
               <item.icon className="h-4 w-4 text-primary" />
               <span>{item.label}</span>
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm">
-          <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
-            Privacy
-          </Link>
-          <Link href="/terms" className="text-muted-foreground hover:text-foreground">
-            Terms
-          </Link>
-          <Link href="/contact" className="text-muted-foreground hover:text-foreground">
-            Contact
-          </Link>
-          <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
-            Pricing
-          </Link>
-          {feature_flags.standalone_auth && (
-            <>
-              <Link href={`${getAppBaseUrl()}/login`} className="text-muted-foreground hover:text-foreground">
-                Login
-              </Link>
-              <Link href={`${getAppBaseUrl()}/register`} className="text-muted-foreground hover:text-foreground">
-                Sign up
-              </Link>
-            </>
-          )}
+
+        {/* Navigation grid */}
+        <div className="flex flex-wrap justify-center gap-x-12 gap-y-8 mb-12">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+              Product
+            </p>
+            <ul className="space-y-3">
+              {FOOTER_LINKS.product.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+              Legal
+            </p>
+            <ul className="space-y-3">
+              {FOOTER_LINKS.legal.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+              Support
+            </p>
+            <ul className="space-y-3">
+              {FOOTER_LINKS.support.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <div className="mt-8 text-center">
-          <span className="text-sm text-muted-foreground">
+
+        {/* Footer CTA */}
+        {feature_flags.standalone_auth && (
+          <div className="flex flex-col items-center gap-4 mb-12">
+            <CTAPair
+              primary="start-free"
+              secondary="view-pricing"
+              microcopy={CTA_MICROCOPY.footer}
+              analyticsPrefix="footer-"
+            />
+            <Link
+              href={`${getAppBaseUrl()}/login`}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Log in
+            </Link>
+          </div>
+        )}
+
+        {/* Copyright and microcopy */}
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} {branding.product_name}. All rights reserved.
-          </span>
+          </p>
+          <p className="text-xs text-muted-foreground/80 max-w-md mx-auto">
+            authora.studio — marketing & public site · app.authora.studio — writing app
+          </p>
         </div>
       </div>
     </footer>

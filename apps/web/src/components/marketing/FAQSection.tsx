@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { ChevronDown } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
+import { CTA_MICROCOPY } from '@/content/cta-copy';
+import { cn } from '@/lib/utils';
 
 const FAQ_ITEMS = [
   {
@@ -32,9 +36,13 @@ const FAQ_ITEMS = [
 
 export function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+
   return (
-    <section className="py-20" data-analytics="faq">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+    <section
+      className="border-t border-white/[0.06] bg-muted/20 py-[var(--section-padding-y)]"
+      data-analytics="faq"
+    >
+      <div className="mx-auto max-w-3xl px-[var(--section-padding-x)]">
         <div className="text-center">
           <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
             Frequently asked questions
@@ -43,34 +51,61 @@ export function FAQSection() {
             Everything you need to know about Authora.
           </p>
         </div>
-        <div className="mt-12 space-y-2">
+
+        <div className="mt-12 space-y-3">
           {FAQ_ITEMS.map((item, i) => (
             <div
               key={i}
-              className="rounded-lg border border-border/60 bg-card overflow-hidden"
+              className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors hover:border-white/[0.12]"
             >
               <button
                 type="button"
-                className="w-full px-6 py-4 text-left font-medium text-foreground hover:bg-muted/50 transition-colors flex justify-between items-center"
+                className="w-full px-6 py-5 text-left font-medium text-foreground flex justify-between items-center gap-4 transition-colors hover:bg-white/[0.02]"
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
                 aria-expanded={openIndex === i}
+                aria-controls={`faq-answer-${i}`}
+                id={`faq-question-${i}`}
               >
-                {item.q}
-                <span className="text-muted-foreground">
-                  {openIndex === i ? '−' : '+'}
-                </span>
+                <span>{item.q}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200',
+                    openIndex === i && 'rotate-180'
+                  )}
+                />
               </button>
-              {openIndex === i && (
-                <div className="px-6 pb-4 text-muted-foreground text-sm leading-relaxed">
-                  {item.a}
+              <div
+                id={`faq-answer-${i}`}
+                role="region"
+                aria-labelledby={`faq-question-${i}`}
+                className={cn(
+                  'grid transition-all duration-200 ease-out',
+                  openIndex === i ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="px-6 pb-5 text-muted-foreground text-sm leading-relaxed border-t border-white/[0.06] pt-4">
+                    {item.a}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>
-        <div className="mt-8 text-center">
-          <Link href="/faq" className="text-sm font-medium text-primary hover:underline">
-            View all FAQs →
+
+        <div className="mt-12 flex flex-col items-center gap-6">
+          <CTAPair
+            primary="start-free"
+            secondary="view-pricing"
+            microcopy={CTA_MICROCOPY.faqClose}
+            analyticsPrefix="faq-"
+          />
+          <Link
+            href="/faq"
+            className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
+          >
+            View all FAQs
+            <span aria-hidden>→</span>
           </Link>
         </div>
       </div>

@@ -1,10 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { BookOpen } from 'lucide-react';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
+import { BookOpen, Check } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
+import { CTA_MICROCOPY } from '@/content/cta-copy';
 
 const BULLETS = [
   'Know what to write next',
@@ -15,63 +13,81 @@ const BULLETS = [
 ];
 
 export function HeroSection() {
-  const config = useConfig();
-  const { branding, feature_flags } = config;
-
   return (
-    <section className="relative overflow-hidden" data-analytics="hero">
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.12),transparent)]" />
-      <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            Finally finish the book you&apos;ve been trying to write.
+    <section
+      className="relative min-h-[90vh] overflow-hidden flex items-center"
+      data-analytics="hero"
+    >
+      {/* Background: black base + subtle gradient + soft gold glow */}
+      <div className="absolute inset-0 bg-[hsl(var(--background))]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-transparent to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,hsl(var(--primary)/0.12),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_80%,hsl(var(--primary)/0.04),transparent)]" />
+
+      <div className="relative mx-auto w-full max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <div className="mx-auto max-w-4xl text-center">
+          {/* Headline - strong hierarchy */}
+          <h1
+            className="font-serif font-bold tracking-tight text-foreground opacity-0 animate-fade-up"
+            style={{ fontSize: 'var(--text-hero)', lineHeight: 1.1 }}
+          >
+            Finally finish the book
+            <br />
+            <span className="text-primary">you&apos;ve been trying to write.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground font-serif leading-relaxed">
-            Authora helps you start, structure, write, improve, and finish your book — with AI guidance, smart editing tools, and built-in momentum that keeps you moving.
+
+          <p
+            className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground font-serif leading-relaxed opacity-0 animate-fade-up animation-delay-100"
+            style={{ animationFillMode: 'forwards' }}
+          >
+            Authora helps you start, structure, write, improve, and finish your book — with AI
+            guidance, smart editing tools, and built-in momentum that keeps you moving.
           </p>
-          <ul className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium text-muted-foreground">
+
+          {/* Value stack - concise bullets */}
+          <ul
+            className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm font-medium text-muted-foreground opacity-0 animate-fade-up animation-delay-200"
+            style={{ animationFillMode: 'forwards' }}
+          >
             {BULLETS.map((b) => (
               <li key={b} className="flex items-center gap-2">
-                <span className="text-primary">•</span>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                  <Check className="h-3 w-3 text-primary" />
+                </span>
                 {b}
               </li>
             ))}
           </ul>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            {feature_flags.standalone_auth && (
-              <>
-                <Button asChild size="lg" className="min-w-[200px]" data-analytics="cta-start-free">
-                  <Link href={`${getAppBaseUrl()}/register`}>Start Writing Free</Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                  <Link href="#how-it-works">See How It Works</Link>
-                </Button>
-              </>
-            )}
-            {!feature_flags.standalone_auth && feature_flags.sso_ready && (
-              <Button asChild size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
-              </Button>
-            )}
+
+          {/* CTAs */}
+          <div
+            className="mt-10 opacity-0 animate-fade-up animation-delay-300"
+            style={{ animationFillMode: 'forwards' }}
+          >
+            <CTAPair
+              primary="start-writing-free"
+              secondary="see-how-it-works"
+              microcopy={CTA_MICROCOPY.hero}
+              analyticsPrefix="hero-"
+            />
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            No clutter. No guesswork. Just a clear path to a finished book.
-          </p>
-          <div className="mt-16 flex justify-center">
+
+          {/* Product preview / dashboard mockup */}
+          <div
+            className="mt-16 flex justify-center opacity-0 animate-fade-up animation-delay-500"
+            style={{ animationFillMode: 'forwards' }}
+          >
             <div
-              className="relative w-full max-w-4xl overflow-hidden rounded-xl border border-border/60 bg-card shadow-xl"
+              className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/[0.08] bg-card shadow-2xl"
               data-analytics="hero-preview"
             >
-              <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
-                    <BookOpen className="h-8 w-8 text-primary" />
+              <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-muted/80 to-muted/40">
+                <div className="text-center p-8">
+                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/20">
+                    <BookOpen className="h-10 w-10 text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Your writing studio
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground/80">
+                  <p className="text-base font-medium text-foreground">Your writing studio</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Plan, write, and finish in one place
                   </p>
                 </div>

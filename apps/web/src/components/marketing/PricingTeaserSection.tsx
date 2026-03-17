@@ -1,43 +1,66 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
+import { Check } from 'lucide-react';
+import { CTAPair } from '@/components/public/CTAPair';
+import { CTA_MICROCOPY, CTA_TRUST_BADGES } from '@/content/cta-copy';
 
-const PLANS = ['Free', 'Starter', 'Pro', 'Studio'];
+const PLANS = [
+  { name: 'Free', highlight: 'Start here' },
+  { name: 'Starter', highlight: null },
+  { name: 'Pro', highlight: 'Most popular' },
+  { name: 'Studio', highlight: null },
+];
 
 export function PricingTeaserSection() {
-  const config = useConfig();
-  const { feature_flags } = config;
-
   return (
-    <section className="border-t border-border/60 bg-muted/30 py-20" data-analytics="pricing-teaser">
-      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-        <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
-          Start free. Upgrade when you are ready.
-        </h2>
-        <div className="mt-6 flex flex-wrap justify-center gap-4 text-muted-foreground">
-          {PLANS.map((plan) => (
-            <span key={plan} className="font-medium">{plan}</span>
-          ))}
-        </div>
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {feature_flags.standalone_auth && (
-            <>
-              <Button asChild size="lg" className="min-w-[200px]">
-                <Link href={`${getAppBaseUrl()}/register`}>Start Writing Free</Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="min-w-[200px]">
-                <Link href="/pricing">View Pricing</Link>
-              </Button>
-            </>
-          )}
-          {!feature_flags.standalone_auth && feature_flags.sso_ready && (
-            <Button asChild size="lg" className="min-w-[200px]">
-              <Link href={`${getAppBaseUrl()}/sso`}>Sign in</Link>
-            </Button>
-          )}
+    <section
+      className="py-[var(--section-padding-y)]"
+      data-analytics="pricing-teaser"
+    >
+      <div className="mx-auto max-w-4xl px-[var(--section-padding-x)]">
+        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-primary/5 to-transparent p-8 sm:p-12">
+          <div className="text-center">
+            <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
+              Start free. Upgrade when you&apos;re ready.
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              {CTA_MICROCOPY.pricingTeaserAlt}
+            </p>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              {PLANS.map((plan) => (
+                <div
+                  key={plan.name}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-2"
+                >
+                  <span className="font-medium text-foreground">{plan.name}</span>
+                  {plan.highlight && (
+                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
+                      {plan.highlight}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <CTAPair
+                primary="start-writing-free"
+                secondary="view-full-pricing"
+                microcopy={CTA_MICROCOPY.pricingTeaser}
+                analyticsPrefix="pricing-teaser-"
+              />
+            </div>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
+              {CTA_TRUST_BADGES.map((badge) => (
+                <span key={badge} className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-success" />
+                  {badge}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

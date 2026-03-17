@@ -1,16 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
+import { CTAPair } from '@/components/public/CTAPair';
 import {
   Scissors,
   Copy,
   Gauge,
   MinusSquare,
   BarChart3,
-  ArrowRight,
   CheckCircle2,
   Repeat,
 } from 'lucide-react';
@@ -25,12 +21,9 @@ const FEATURES = [
 ];
 
 export function StoryDensityEngineSection() {
-  const config = useConfig();
-  const { feature_flags } = config;
-
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-success/5"
+      className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-card via-card to-success/5 transition-all duration-300 hover:border-success/20 hover:shadow-glow-green"
       data-analytics="story-density-engine"
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_0%_0%,hsl(var(--success)/0.08),transparent)]" />
@@ -63,30 +56,23 @@ export function StoryDensityEngineSection() {
                 </li>
               ))}
             </ul>
-            <div className="mt-8 rounded-lg border border-border/60 bg-muted/30 p-4">
+            <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
               <p className="flex items-start gap-3 text-sm text-muted-foreground">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
                 <span>
-                  Instead of over-editing blindly, you can see where the manuscript is bloated, where
-                  it is too thin, and what to do next.
+                  Instead of over-editing blindly, you can see where the manuscript is bloated,
+                  where it&apos;s too thin, and what to do next.
                 </span>
               </p>
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-4 lg:min-w-[200px]">
-            {feature_flags.standalone_auth && (
-              <>
-                <Button asChild size="lg" className="w-full sm:w-auto" data-analytics="cta-density-start">
-                  <Link href={`${getAppBaseUrl()}/register`}>
-                    Start Writing Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Link href="/pricing">View Pricing</Link>
-                </Button>
-              </>
-            )}
+            <CTAPair
+              primary="start-writing-free"
+              secondary="view-pricing"
+              analyticsPrefix="density-"
+              className="items-start"
+            />
           </div>
         </div>
       </div>

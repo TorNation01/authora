@@ -13,7 +13,10 @@ const AI_POINTS = [
 
 export function PricingAISection() {
   return (
-    <section className="py-20 border-t border-border/60" data-analytics="pricing-ai">
+    <section
+      className="py-20 border-t border-white/[0.06]"
+      data-analytics="pricing-ai"
+    >
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-serif text-2xl font-bold text-foreground sm:text-3xl">
           AI that supports your writing, not replaces your voice
@@ -27,7 +30,7 @@ export function PricingAISection() {
           {AI_POINTS.map((item) => (
             <li
               key={item.text}
-              className="flex items-center gap-2 rounded-full border border-border/60 bg-card px-4 py-2 text-sm text-muted-foreground"
+              className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-card px-5 py-2.5 text-sm text-muted-foreground shadow-[var(--shadow-card-premium)]"
             >
               <item.icon className="h-4 w-4 text-primary" />
               {item.text}

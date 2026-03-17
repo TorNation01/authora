@@ -1,6 +1,7 @@
 @tailwind base;
 @import '../styles/design-tokens.css';
 @import '../styles/design-tokens-marketing.css';
+@import '../styles/public-design-system.css';
 @tailwind components;
 @tailwind utilities;
 
@@ -104,4 +105,53 @@
 }
 .animate-celebrate {
   animation: celebrate 0.5s ease-in-out;
+}
+
+/* Marketing homepage - premium entrance and motion */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in-simple {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-fade-in-simple {
+  animation: fade-in-simple 0.5s ease-out forwards;
+}
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+.animation-delay-300 { animation-delay: 300ms; }
+.animation-delay-400 { animation-delay: 400ms; }
+.animation-delay-500 { animation-delay: 500ms; }
+
+/* ========== PUBLIC DESIGN SYSTEM - Component Styles ========== */
+/* Premium card - marketing/public */
+[data-theme="marketing"] .card-premium {
+  @apply rounded-xl border border-white/[0.08] bg-white/[0.02] transition-all duration-300;
+  box-shadow: var(--shadow-card-premium);
+}
+[data-theme="marketing"] .card-premium:hover {
+  @apply border-white/[0.12] bg-white/[0.04];
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Public form - textarea */
+[data-theme="marketing"] .input-public {
+  @apply flex min-h-[88px] w-full rounded-md border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30;
+  @apply transition-colors duration-200 resize-y;
+}
+
+/* Public header pattern */
+[data-theme="marketing"] .header-public {
+  @apply sticky top-0 z-50 w-full border-b border-white/[0.06] bg-background/95 backdrop-blur;
+}
+
+/* Public footer pattern */
+[data-theme="marketing"] .footer-public {
+  @apply border-t border-white/[0.06] bg-muted/30;
 }

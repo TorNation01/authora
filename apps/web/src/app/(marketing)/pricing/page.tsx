@@ -1,11 +1,5 @@
 import type { Metadata } from 'next';
-import { PricingHero } from './PricingHero';
-import { PricingPlanCards } from './PricingPlanCards';
-import { PricingComparisonTable } from './PricingComparisonTable';
-import { PricingValueSection } from './PricingValueSection';
-import { PricingAISection } from './PricingAISection';
-import { PricingAccountabilitySection } from './PricingAccountabilitySection';
-import { PricingFAQ } from './PricingFAQ';
+import { PricingContent } from './PricingContent';
 
 export const metadata: Metadata = {
   title: 'Pricing | Authora — Plans for Every Kind of Writer',
@@ -20,17 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function PricingPage() {
-  return (
-    <div data-page="pricing">
-      <PricingHero />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <PricingPlanCards />
-        <PricingComparisonTable />
-        <PricingValueSection />
-        <PricingAISection />
-        <PricingAccountabilitySection />
-        <PricingFAQ />
-      </div>
-    </div>
-  );
+  return <PricingContent />;
 }

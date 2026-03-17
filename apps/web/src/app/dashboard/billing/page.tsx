@@ -21,7 +21,7 @@ import {
   type BillingStatus,
 } from '@/lib/billing';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
-import { CreditCard, Calendar, Zap, ArrowUpRight } from 'lucide-react';
+import { CreditCard, Calendar, Zap, ArrowUpRight, FileText, Receipt } from 'lucide-react';
 
 export default function BillingPage() {
   const { toast } = useToast();
@@ -86,8 +86,10 @@ export default function BillingPage() {
   }
 
   const sub = status.subscription;
-  const isLifetime = sub?.is_lifetime ?? status.plan.slug === 'founder_lifetime';
+  const isLifetime =
+    sub?.is_lifetime ?? status.plan.slug === 'founder_lifetime';
   const renewalDate = sub?.period_end ? new Date(sub.period_end) : null;
+  const isCanceled = sub?.cancel_at_period_end ?? false;
 
   return (
     <div className="p-6 lg:p-8 max-w-2xl space-y-8">
@@ -118,6 +120,11 @@ export default function BillingPage() {
                   Lifetime Access
                 </span>
               )}
+              {isCanceled && !isLifetime && (
+                <span className="inline-block mt-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                  Access ends at renewal
+                </span>
+              )}
             </div>
             {status.can_upgrade && (
               <Button asChild size="sm">
@@ -134,13 +141,13 @@ export default function BillingPage() {
               <Calendar className="h-4 w-4" />
               <span>
                 Renewal date: {renewalDate.toLocaleDateString()}
-                {sub?.cancel_at_period_end && ' (Access Ends)'}
+                {isCanceled && ' (Access ends)'}
               </span>
             </div>
           )}
 
           {status.subscription?.has_stripe_customer && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={handleManageBilling}>
                 Manage billing
               </Button>
@@ -173,9 +180,31 @@ export default function BillingPage() {
         </Card>
       )}
 
+      {status.subscription?.has_stripe_customer && (
+        <Card variant="soft">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Billing history & payment
+            </CardTitle>
+            <CardDescription>
+              View invoices, update payment method, cancel or resume subscription
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={handleManageBilling}>
+              Open billing portal
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card variant="soft">
         <CardHeader>
-          <CardTitle>Plan comparison</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Plan comparison
+          </CardTitle>
           <CardDescription>Compare plans and upgrade when you are ready</CardDescription>
         </CardHeader>
         <CardContent>

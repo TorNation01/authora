@@ -70,6 +70,9 @@ const config: Config = {
       boxShadow: {
         'card': 'var(--shadow-card)',
         'soft': '0 2px 12px -4px rgb(0 0 0 / 0.06)',
+        'glow-gold': '0 0 40px -10px hsl(var(--primary) / 0.25)',
+        'glow-gold-subtle': '0 0 60px -20px hsl(var(--primary) / 0.12)',
+        'glow-green': '0 0 40px -10px hsl(var(--success) / 0.2)',
       },
     },
   },

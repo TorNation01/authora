@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { FAQAccordion } from '@/components/public/FAQAccordion';
 
 const FAQ_ITEMS = [
   {
@@ -46,37 +46,16 @@ const FAQ_ITEMS = [
 ];
 
 export function PricingFAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-
   return (
-    <section className="py-20 border-t border-border/60" data-analytics="pricing-faq">
+    <section
+      className="py-20 border-t border-white/[0.06]"
+      data-analytics="pricing-faq"
+    >
       <h2 className="font-serif text-2xl font-bold text-center text-foreground sm:text-3xl">
         Frequently asked questions
       </h2>
-      <div className="mx-auto mt-12 max-w-2xl space-y-2">
-        {FAQ_ITEMS.map((item, i) => (
-          <div
-            key={i}
-            className="rounded-lg border border-border/60 bg-card overflow-hidden"
-          >
-            <button
-              type="button"
-              className="w-full px-6 py-4 text-left font-medium text-foreground hover:bg-muted/50 transition-colors flex justify-between items-center"
-              onClick={() => setOpenIndex(openIndex === i ? null : i)}
-              aria-expanded={openIndex === i}
-            >
-              {item.q}
-              <span className="text-muted-foreground">
-                {openIndex === i ? '−' : '+'}
-              </span>
-            </button>
-            {openIndex === i && (
-              <div className="px-6 pb-4 text-muted-foreground text-sm leading-relaxed">
-                {item.a}
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="mx-auto mt-12 max-w-2xl">
+        <FAQAccordion items={FAQ_ITEMS} />
       </div>
     </section>
   );

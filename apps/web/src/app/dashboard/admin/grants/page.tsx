@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -198,9 +199,16 @@ export default function AdminGrantsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Billing, Plans, and Access</h1>
-        <p className="mt-1 text-muted-foreground">Manual access grants and special access codes.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Entitlement grants</h1>
+          <p className="mt-1 text-muted-foreground">
+            Manual access grants. Assign tier, duration, and reason.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/admin/promo-codes">Special access codes</Link>
+        </Button>
       </div>
 
       <Card variant="soft">
@@ -328,7 +336,9 @@ export default function AdminGrantsPage() {
         <Card variant="soft">
           <CardHeader>
             <h2 className="font-semibold">Grant history</h2>
-            <p className="text-sm text-muted-foreground">Revoke or extend grants. Convert temporary to Lifetime Access.</p>
+            <p className="text-sm text-muted-foreground">
+              Revoke or extend grants. Convert temporary to Lifetime Access.
+            </p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -336,39 +346,69 @@ export default function AdminGrantsPage() {
             ) : grants.length === 0 ? (
               <p className="text-muted-foreground">No grants for this user.</p>
             ) : (
-              <div className="space-y-2">
-                {grants.map((g) => (
-                  <div key={g.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <span className="font-medium">{g.plan_slug}</span>
-                      <span className="mx-2 text-muted-foreground">•</span>
-                      <span className="text-sm text-muted-foreground">{g.reason}</span>
-                      {g.expires_at && (
-                        <span className="ml-2 text-sm">Access Ends {new Date(g.expires_at).toLocaleDateString()}</span>
-                      )}
-                      {g.revoked_at && (
-                        <span className="ml-2 text-sm text-destructive">revoked</span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {!g.revoked_at && g.expires_at && (
-                        <>
-                          <Button variant="outline" size="sm" onClick={() => openExtendDialog(g)}>
-                            Extend
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => convertToLifetime(g.id)}>
-                            Convert to Lifetime Access
-                          </Button>
-                        </>
-                      )}
-                      {!g.revoked_at && (
-                        <Button variant="outline" size="sm" onClick={() => revokeGrant(g.id)}>
-                          Revoke
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-4 py-3 text-left font-medium">Plan</th>
+                      <th className="px-4 py-3 text-left font-medium">Reason</th>
+                      <th className="px-4 py-3 text-left font-medium">Expires</th>
+                      <th className="px-4 py-3 text-left font-medium">Status</th>
+                      <th className="px-4 py-3 text-right font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grants.map((g) => (
+                      <tr key={g.id} className="border-b last:border-0">
+                        <td className="px-4 py-3 font-medium">{g.plan_slug}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{g.reason}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {g.expires_at
+                            ? new Date(g.expires_at).toLocaleDateString()
+                            : 'Lifetime'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {g.revoked_at ? (
+                            <span className="text-destructive">Revoked</span>
+                          ) : (
+                            <span className="text-muted-foreground">Active</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {!g.revoked_at && (
+                            <div className="flex justify-end gap-2">
+                              {g.expires_at && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openExtendDialog(g)}
+                                  >
+                                    Extend
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => convertToLifetime(g.id)}
+                                  >
+                                    Convert to Lifetime
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => revokeGrant(g.id)}
+                              >
+                                Revoke
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>

@@ -1,17 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useConfig } from '@/contexts/ConfigProvider';
-import { getAppBaseUrl } from '@/lib/config';
+import { CTAPair } from '@/components/public/CTAPair';
 import {
-  Search,
   GitBranch,
   Users,
   Target,
   Clock,
   Sparkles,
-  ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -25,12 +20,9 @@ const FEATURES = [
 ];
 
 export function StoryIntegrityEngineSection() {
-  const config = useConfig();
-  const { feature_flags } = config;
-
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-primary/5"
+      className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-card via-card to-primary/5 transition-all duration-300 hover:border-primary/20 hover:shadow-glow-gold-subtle"
       data-analytics="story-integrity-engine"
     >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_100%_0%,hsl(var(--primary)/0.08),transparent)]" />
@@ -38,7 +30,7 @@ export function StoryIntegrityEngineSection() {
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex-1">
             <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/20">
-              <Search className="h-8 w-8 text-primary" />
+              <GitBranch className="h-8 w-8 text-primary" />
             </div>
             <p className="text-sm font-medium uppercase tracking-wider text-primary/90">
               Story Integrity Engine™
@@ -47,11 +39,11 @@ export function StoryIntegrityEngineSection() {
               Know what your story is missing.
             </h2>
             <p className="mt-4 max-w-xl text-muted-foreground leading-relaxed">
-              Authora detects unresolved threads, weak arcs, missing payoff, and structural gaps — then
-              helps you fix them with clarity.
+              Authora detects unresolved threads, weak arcs, missing payoff, and structural gaps —
+              then helps you fix them with clarity.
             </p>
             <p className="mt-6 font-serif text-lg font-medium text-foreground">
-              Find what is missing. Fix what matters. Finish stronger.
+              Find what&apos;s missing. Fix what matters. Finish stronger.
             </p>
             <ul className="mt-8 space-y-4">
               {FEATURES.map((item) => (
@@ -63,7 +55,7 @@ export function StoryIntegrityEngineSection() {
                 </li>
               ))}
             </ul>
-            <div className="mt-8 rounded-lg border border-border/60 bg-muted/30 p-4">
+            <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
               <p className="flex items-start gap-3 text-sm text-muted-foreground">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <span>
@@ -74,19 +66,12 @@ export function StoryIntegrityEngineSection() {
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-4 lg:min-w-[200px]">
-            {feature_flags.standalone_auth && (
-              <>
-                <Button asChild size="lg" className="w-full sm:w-auto" data-analytics="cta-integrity-start">
-                  <Link href={`${getAppBaseUrl()}/register`}>
-                    Start Writing Free
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Link href="/pricing">View Pricing</Link>
-                </Button>
-              </>
-            )}
+            <CTAPair
+              primary="start-writing-free"
+              secondary="view-pricing"
+              analyticsPrefix="integrity-"
+              className="items-start"
+            />
           </div>
         </div>
       </div>

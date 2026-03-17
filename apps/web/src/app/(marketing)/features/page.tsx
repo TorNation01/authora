@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { getAppBaseUrl } from '@/lib/config';
+import { FeaturesCTASection } from '@/components/marketing/FeaturesCTASection';
 import { ProductPreview } from '@/components/marketing/ProductPreview';
 import { StoryIntegrityEngineSection } from '@/components/marketing/StoryIntegrityEngineSection';
 import { StoryDensityEngineSection } from '@/components/marketing/StoryDensityEngineSection';
@@ -97,11 +95,7 @@ export default function FeaturesPage() {
       <div className="mt-20">
         <ProductPreview />
       </div>
-      <div className="mt-12 text-center">
-        <Button asChild size="lg">
-          <Link href={`${getAppBaseUrl()}/register`}>Start writing free</Link>
-        </Button>
-      </div>
+      <FeaturesCTASection />
     </div>
   );
 }

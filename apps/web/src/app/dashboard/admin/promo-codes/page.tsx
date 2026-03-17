@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,9 +96,16 @@ export default function AdminPromoCodesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Special Access Codes</h1>
-        <p className="mt-1 text-muted-foreground">Create codes for tier, free or discounted access, duration, and redemption tracking.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Special access codes</h1>
+          <p className="mt-1 text-muted-foreground">
+            Create codes for tier, free or discounted access, duration, and redemption tracking.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/admin/grants">Entitlement grants</Link>
+        </Button>
       </div>
 
       <Card variant="soft">
@@ -188,27 +196,48 @@ export default function AdminPromoCodesPage() {
           ) : codes.length === 0 ? (
             <p className="text-muted-foreground">No promo codes.</p>
           ) : (
-            <div className="space-y-2">
-              {codes.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <span className="font-mono font-medium">{c.code}</span>
-                    <span className="mx-2 text-muted-foreground">→</span>
-                    <span className="text-sm">{c.plan_slug}</span>
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      {c.use_count}{c.max_uses != null ? ` / ${c.max_uses}` : ''} uses
-                    </span>
-                    {c.revoked_at && (
-                      <span className="ml-2 text-sm text-destructive">revoked</span>
-                    )}
-                  </div>
-                  {!c.revoked_at && (
-                    <Button variant="outline" size="sm" onClick={() => revokeCode(c.id)}>
-                      Revoke
-                    </Button>
-                  )}
-                </div>
-              ))}
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium">Code</th>
+                    <th className="px-4 py-3 text-left font-medium">Tier</th>
+                    <th className="px-4 py-3 text-left font-medium">Uses</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                    <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {codes.map((c) => (
+                    <tr key={c.id} className="border-b last:border-0">
+                      <td className="px-4 py-3 font-mono font-medium">{c.code}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.plan_slug}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {c.use_count}
+                        {c.max_uses != null ? ` / ${c.max_uses}` : ''}
+                      </td>
+                      <td className="px-4 py-3">
+                        {c.revoked_at ? (
+                          <span className="text-destructive">Revoked</span>
+                        ) : (
+                          <span className="text-muted-foreground">Active</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {!c.revoked_at && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => revokeCode(c.id)}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
