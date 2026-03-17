@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Trophy, Flame, BookOpen, Zap, Sunrise } from 'lucide-react';
+import { ShareButton } from '@/components/growth/ShareButton';
 
 export type CelebrationEvent =
   | { type: 'badge'; badge_id: string; name: string; xp: number }
@@ -19,6 +20,8 @@ interface CelebrationToastProps {
   event: CelebrationEvent;
   onDismiss?: () => void;
   className?: string;
+  displayName?: string;
+  showShare?: boolean;
 }
 
 const icons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -58,9 +61,27 @@ function getMessage(event: CelebrationEvent): string {
   }
 }
 
-export function CelebrationToast({ event, onDismiss, className }: CelebrationToastProps) {
+function getSharePayload(event: CelebrationEvent): { shareType: 'progress' | 'milestone' | 'achievement'; payload: Record<string, unknown> } | null {
+  switch (event.type) {
+    case 'badge':
+      return { shareType: 'achievement', payload: { badge_name: event.name } };
+    case 'milestone':
+      return { shareType: 'milestone', payload: { milestone: `${event.words.toLocaleString()} words` } };
+    case 'chapter_complete':
+      return { shareType: 'milestone', payload: { chapter: 'chapter' } };
+    case 'personal_best_daily':
+      return { shareType: 'progress', payload: { words: event.words, caption_key: 'words_today' } };
+    case 'personal_best_weekly':
+      return { shareType: 'progress', payload: { words: event.words, caption_key: 'words_today' } };
+    default:
+      return null;
+  }
+}
+
+export function CelebrationToast({ event, onDismiss, className, displayName, showShare = true }: CelebrationToastProps) {
   const [visible, setVisible] = useState(true);
   const Icon = icons[event.type] ?? Trophy;
+  const sharePayload = getSharePayload(event);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -85,6 +106,15 @@ export function CelebrationToast({ event, onDismiss, className }: CelebrationToa
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">{getMessage(event)}</p>
       </div>
+      {showShare && sharePayload && (
+        <ShareButton
+          shareType={sharePayload.shareType}
+          payload={sharePayload.payload}
+          displayName={displayName}
+          size="icon"
+          variant="ghost"
+        />
+      )}
     </div>
   );
 }

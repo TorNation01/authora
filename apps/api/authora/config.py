@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     feature_billing: bool = False
     feature_story_integrity: bool = True
     feature_story_density: bool = True
+    feature_growth: bool = True
+    feature_affiliate: bool = False
+
+    # Public URLs (for share links, affiliate links, redirects)
+    app_base_url: str = "https://authora.studio"  # APP_BASE_URL; marketing or app root
 
     # White-label branding (overridable via env)
     branding_product_name: str = "AUTHORA"
@@ -260,6 +265,7 @@ class Settings(BaseSettings):
             "billing": self.feature_billing,
             "story_integrity": self.feature_story_integrity,
             "story_density": self.feature_story_density,
+            "growth": self.feature_growth,
         }
 
     def get_integration_flags(self) -> dict[str, bool]:

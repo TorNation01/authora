@@ -316,6 +316,14 @@ async def _handle_checkout_completed(db: AsyncSession, event: dict) -> None:
             is_lifetime=True,
         )
         db.add(sub)
+        await db.flush()
+        if get_settings().feature_affiliate:
+            from authora.services.affiliate_service import record_conversion_on_payment
+            revenue_cents = plan.price_lifetime_cents or 0
+            if revenue_cents > 0:
+                await record_conversion_on_payment(
+                    db, user_id, sub.id, revenue_cents, is_recurring=False
+                )
 
 
 async def _handle_subscription_created_or_updated(db: AsyncSession, event: dict) -> None:
@@ -444,7 +452,7 @@ async def _handle_invoice_payment_failed(db: AsyncSession, event: dict) -> None:
 
 
 async def _handle_invoice_paid(db: AsyncSession, event: dict) -> None:
-    """Clear grace period when payment succeeds."""
+    """Clear grace period when payment succeeds. Record affiliate conversion."""
     invoice = event.get("data", {}).get("object", {})
     subscription_id = _get_subscription_id(invoice)
     if not subscription_id:
@@ -457,3 +465,11 @@ async def _handle_invoice_paid(db: AsyncSession, event: dict) -> None:
     if sub:
         sub.grace_period_end = None
         sub.status = "active"
+
+        if get_settings().feature_affiliate:
+            from authora.services.affiliate_service import record_conversion_on_payment
+            amount_paid = invoice.get("amount_paid", 0) or 0
+            if amount_paid > 0:
+                await record_conversion_on_payment(
+                    db, sub.user_id, sub.id, amount_paid, is_recurring=True
+                )

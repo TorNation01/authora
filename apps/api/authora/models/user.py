@@ -11,7 +11,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from authora.database import Base
 
 if TYPE_CHECKING:
+    from authora.models.affiliate import AffiliateProfile
     from authora.models.ai_action_log import AIActionLog
+    from authora.models.growth import Referral, ShareLink
     from authora.models.ai_revision import AIRevision
     from authora.models.entitlement_grant import EntitlementGrant
     from authora.models.export_profile import ExportProfile
@@ -40,6 +42,7 @@ class User(Base):
     plan_override_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("plans.id", ondelete="SET NULL"), nullable=True)
     billing_exempt: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
+    referral_code: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -62,6 +65,15 @@ class User(Base):
     usage_records: Mapped[list["UsageRecord"]] = relationship("UsageRecord", back_populates="user", cascade="all, delete-orphan")
     export_profiles: Mapped[list["ExportProfile"]] = relationship(
         "ExportProfile", back_populates="user", cascade="all, delete-orphan"
+    )
+    share_links: Mapped[list["ShareLink"]] = relationship(
+        "ShareLink", back_populates="user", cascade="all, delete-orphan"
+    )
+    referrals_sent: Mapped[list["Referral"]] = relationship(
+        "Referral", foreign_keys="Referral.inviter_id", cascade="all, delete-orphan"
+    )
+    affiliate_profile: Mapped["AffiliateProfile | None"] = relationship(
+        "AffiliateProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
 

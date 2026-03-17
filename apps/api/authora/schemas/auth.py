@@ -20,6 +20,8 @@ class UserCreate(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
     display_name: str | None = None
+    referral_code: str | None = None
+    affiliate_code: str | None = None
 
     @field_validator("email")
     @classmethod

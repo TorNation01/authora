@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = searchParams?.get('ref') || undefined;
   const { toast } = useToast();
   const config = useConfig();
 
@@ -36,7 +38,12 @@ export default function RegisterPage() {
         '/api/v1/auth/register',
         {
           method: 'POST',
-          body: JSON.stringify({ email, password, display_name: displayName || undefined }),
+          body: JSON.stringify({
+            email,
+            password,
+            display_name: displayName || undefined,
+            referral_code: referralCode,
+          }),
         }
       );
       setTokens(res.access_token, res.refresh_token);

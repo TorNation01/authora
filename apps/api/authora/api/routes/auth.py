@@ -61,6 +61,14 @@ async def register(
     audit = AuditLogger(db)
     await audit.log("register", "user", str(user.id), user.id, {"email": data.email})
 
+    if data.referral_code:
+        from authora.services.growth_service import resolve_referral_on_signup
+        await resolve_referral_on_signup(db, user.id, data.referral_code)
+
+    if data.affiliate_code and get_settings().feature_affiliate:
+        from authora.services.affiliate_service import attribute_signup
+        await attribute_signup(db, user.id, data.affiliate_code)
+
     await db.commit()
 
     return Token(

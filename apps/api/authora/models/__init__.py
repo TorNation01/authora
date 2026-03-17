@@ -59,6 +59,14 @@ from authora.models.ghostwriter import ChapterBrief, GhostwriterWorkspace
 from authora.models.journey import JourneyTask, UserJourney
 from authora.models.note import Note, NoteAttachment
 from authora.models.organization import OrgMember, OrgSubscription, Organization
+from authora.models.affiliate import (
+    AffiliateAttribution,
+    AffiliateClick,
+    AffiliateConversion,
+    AffiliatePayout,
+    AffiliateProfile,
+)
+from authora.models.growth import GrowthSetting, Referral, SEOPage, ShareLink
 from authora.models.project import Project
 from authora.models.setting import Setting
 from authora.models.user import Session, User
@@ -248,4 +256,13 @@ __all__ = [
     "Organization",
     "OrgMember",
     "OrgSubscription",
+    "ShareLink",
+    "Referral",
+    "GrowthSetting",
+    "SEOPage",
+    "AffiliateProfile",
+    "AffiliateClick",
+    "AffiliateAttribution",
+    "AffiliateConversion",
+    "AffiliatePayout",
 ]
