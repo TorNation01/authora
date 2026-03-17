@@ -33,6 +33,14 @@ services:
   api:
     restart: unless-stopped
     env_file: .env
+    deploy:
+      replicas: 1  # Set to 2+ for horizontal scaling; requires load balancer
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          memory: 512M
     volumes:
       - authora_storage:/app/storage
     environment:
@@ -50,6 +58,12 @@ services:
   web:
     restart: unless-stopped
     env_file: .env
+    deploy:
+      replicas: 1  # Set to 2+ for horizontal scaling
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.authora.studio}
       NEXT_PUBLIC_MARKETING_URL: ${NEXT_PUBLIC_MARKETING_URL:-https://authora.studio}

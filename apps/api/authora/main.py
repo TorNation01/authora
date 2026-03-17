@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, integrity, journey, leads, nonfiction, notes, projects, rag, reference, revision_passes, setup, templates, vault
+from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, integrity, journey, leads, nonfiction, notes, organizations, projects, rag, reference, revision_passes, setup, templates, vault
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
@@ -57,7 +57,7 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan. Validates AI dependencies at startup."""
-    from authora.services.ai_config import (
+    from authora.services.ai_config import (  # noqa: E402
         get_available_providers,
         get_environment,
         is_ai_available,
@@ -69,6 +69,23 @@ async def lifespan(app: FastAPI):
 
     env = get_environment()
     logger.info("AUTHORA starting in %s environment", env)
+
+    # Error tracking (optional)
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+            sentry_sdk.init(
+                dsn=settings.sentry_dsn,
+                environment=env,
+                integrations=[FastApiIntegration()],
+                traces_sample_rate=0.1,
+                send_default_pii=False,
+            )
+            logger.info("Sentry error tracking enabled")
+        except ImportError:
+            logger.warning("SENTRY_DSN set but sentry-sdk not installed. pip install sentry-sdk.")
 
     providers = get_available_providers()
     for name, configured in providers.items():
@@ -108,7 +125,13 @@ app.add_exception_handler(Exception, _unhandled_exception_handler)
 # HTTPException before Exception so HTTP errors get request_id
 app.add_exception_handler(HTTPException, _http_exception_handler)
 
-app.add_middleware(SecurityMiddleware)  # First: rate limit, headers, request ID
+app.add_middleware(
+    SecurityMiddleware,
+    rate_limit_requests=settings.rate_limit_requests_per_minute or 100,
+    rate_limit_auth_attempts=settings.rate_limit_auth_attempts or 5,
+    rate_limit_auth_window=settings.rate_limit_auth_window_seconds,
+    hsts_max_age=settings.hsts_max_age,
+)  # First: rate limit, headers, request ID
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
 app.add_middleware(IntegrationAuditForwardingMiddleware)  # Optional: forward to Anakatech when enabled
@@ -121,6 +144,7 @@ app.add_middleware(
 )
 
 app.include_router(config.router, prefix="/api/v1")
+app.include_router(organizations.router, prefix="/api/v1")
 app.include_router(community.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")

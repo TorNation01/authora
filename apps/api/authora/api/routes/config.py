@@ -1,15 +1,17 @@
 """Config API - deployment mode, feature flags, branding for frontend."""
 
 import time
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.config import get_settings
 from authora.database import get_db
 from authora.models import Setting
+from authora.services.org_service import get_org_by_id
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -70,19 +72,45 @@ async def get_mode(db: Annotated[AsyncSession, Depends(get_db)]):
 
 
 @router.get("/branding")
-async def get_branding():
-    """Return white-label branding config. Public endpoint."""
+async def get_branding(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    x_tenant_id: str | None = Header(None, alias="X-Tenant-Id"),
+):
+    """Return white-label branding config. Public endpoint. Per-tenant when X-Tenant-Id provided."""
     settings = get_settings()
-    return settings.get_branding()
+    base = settings.get_branding()
+    if x_tenant_id and settings.feature_tenant_aware:
+        try:
+            tid = uuid.UUID(x_tenant_id)
+            org = await get_org_by_id(db, tid)
+            if org and org.branding:
+                merged = {**base, **org.branding}
+                return merged
+        except (ValueError, TypeError):
+            pass
+    return base
 
 
 @router.get("")
-async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
-    """Combined config for frontend. Public endpoint. Cached 60s."""
-    cached = _get_cached("full")
+async def get_config(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    x_tenant_id: str | None = Header(None, alias="X-Tenant-Id"),
+):
+    """Combined config for frontend. Public endpoint. Cached 60s. Branding per-tenant when X-Tenant-Id."""
+    cache_key = f"full:{x_tenant_id or 'default'}"
+    cached = _get_cached(cache_key)
     if cached is not None:
         return cached
     settings = get_settings()
+    branding = settings.get_branding()
+    if x_tenant_id and settings.feature_tenant_aware:
+        try:
+            tid = uuid.UUID(x_tenant_id)
+            org = await get_org_by_id(db, tid)
+            if org and org.branding:
+                branding = {**branding, **org.branding}
+        except (ValueError, TypeError):
+            pass
     data = {
         "deployment_mode": settings.deployment_mode,
         "app_mode": settings.effective_app_mode(),
@@ -91,9 +119,9 @@ async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
         "is_white_label": settings.is_white_label(),
         "feature_flags": await _merged_feature_flags(db),
         "integration_flags": settings.get_integration_flags(),
-        "branding": settings.get_branding(),
+        "branding": branding,
     }
-    _set_cached("full", data)
+    _set_cached(cache_key, data)
     return data
 
 

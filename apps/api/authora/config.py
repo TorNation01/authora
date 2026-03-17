@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Rate limiting (global and auth)
+    rate_limit_requests_per_minute: Optional[int] = None  # Default 100 when unset
+    rate_limit_auth_attempts: Optional[int] = None  # Login/register; default 5 per window
+    rate_limit_auth_window_seconds: int = 900  # 15 min for auth
+
+    # Security headers
+    hsts_max_age: Optional[int] = None  # Seconds; set in prod for HTTPS (e.g. 31536000)
+
+    # Error tracking (optional)
+    sentry_dsn: Optional[str] = None  # Enable Sentry when set
+
     # Auth
     secret_key: str = "change-me-in-production-use-openssl-rand-hex-32"
     access_token_expire_minutes: int = 60

@@ -231,6 +231,35 @@ async def get_my_preferences(
     return PreferencesResponse(preferences=pref.preferences if pref else {})
 
 
+class PushTokenRequest(BaseModel):
+    """Register push notification token for mobile."""
+
+    token: str
+    platform: str  # ios | android
+
+
+@router.post("/me/push-token")
+async def register_push_token(
+    data: PushTokenRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Register Expo push token for reminders, streaks, milestones. Replaces previous tokens for this platform."""
+    if data.platform not in ("ios", "android"):
+        raise HTTPException(status_code=400, detail="platform must be ios or android")
+    result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
+    pref = result.scalar_one_or_none()
+    if not pref:
+        pref = UserPreference(user_id=current_user.id, preferences={})
+        db.add(pref)
+    tokens = (pref.preferences or {}).get("push_tokens") or []
+    tokens = [t for t in tokens if isinstance(t, dict) and t.get("platform") != data.platform]
+    tokens.append({"token": data.token, "platform": data.platform})
+    pref.preferences = {**(pref.preferences or {}), "push_tokens": tokens}
+    await db.commit()
+    return {"ok": True}
+
+
 @router.patch("/me/preferences", response_model=PreferencesResponse)
 async def update_my_preferences(
     data: PreferencesUpdate,

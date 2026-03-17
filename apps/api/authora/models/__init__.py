@@ -58,6 +58,7 @@ from authora.models.editing import (
 from authora.models.ghostwriter import ChapterBrief, GhostwriterWorkspace
 from authora.models.journey import JourneyTask, UserJourney
 from authora.models.note import Note, NoteAttachment
+from authora.models.organization import OrgMember, OrgSubscription, Organization
 from authora.models.project import Project
 from authora.models.setting import Setting
 from authora.models.user import Session, User
@@ -244,4 +245,7 @@ __all__ = [
     "WritingGroupInvite",
     "FeedbackThread",
     "FeedbackComment",
+    "Organization",
+    "OrgMember",
+    "OrgSubscription",
 ]

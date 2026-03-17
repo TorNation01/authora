@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from authora.models.ai_revision import AIRevision
     from authora.models.entitlement_grant import EntitlementGrant
     from authora.models.export_profile import ExportProfile
+    from authora.models.organization import OrgMember, Organization
     from authora.models.plan import Plan
     from authora.models.profile import Profile
     from authora.models.project import Project
@@ -38,6 +39,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(default=False, nullable=False)
     plan_override_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("plans.id", ondelete="SET NULL"), nullable=True)
     billing_exempt: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -50,6 +52,10 @@ class User(Base):
     ai_action_logs: Mapped[list["AIActionLog"]] = relationship("AIActionLog", back_populates="user", cascade="all, delete-orphan")
     plan_override: Mapped["Plan | None"] = relationship("Plan", foreign_keys=[plan_override_id], lazy="joined")
     subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
+    org_memberships: Mapped[list["OrgMember"]] = relationship(
+        "OrgMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    tenant: Mapped["Organization | None"] = relationship("Organization", foreign_keys=[tenant_id], lazy="joined")
     entitlement_grants: Mapped[list["EntitlementGrant"]] = relationship(
         "EntitlementGrant", foreign_keys="EntitlementGrant.user_id", cascade="all, delete-orphan"
     )
