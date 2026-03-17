@@ -97,6 +97,7 @@ from authora.models.promo_code import PromoCode, PromoCodeRedemption
 from authora.models.entitlement_audit_log import EntitlementAuditLog
 from authora.models.content_embedding import ContentEmbedding, IndexingJob
 from authora.models.integrity import IntegrityIssue, IntegrityScan, IntegrityScanAnalytics
+from authora.models.density import DensityIssue, DensityScan
 from authora.models.vault import (
     ChapterCharacterLink,
     ChapterEventLink,
@@ -227,4 +228,6 @@ __all__ = [
     "IntegrityScan",
     "IntegrityIssue",
     "IntegrityScanAnalytics",
+    "DensityScan",
+    "DensityIssue",
 ]

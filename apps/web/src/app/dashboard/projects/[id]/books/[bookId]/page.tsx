@@ -82,6 +82,7 @@ export default function BookStudioPage() {
   const { toast } = useToast();
   const config = useConfig();
   const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
+  const storyDensityEnabled = config.feature_flags?.story_density ?? true;
 
   const fetchFinishMode = useCallback(() => {
     api<FinishModeStats>(`/api/v1/projects/${projectId}/books/${bookId}/finish-mode`)
@@ -888,6 +889,7 @@ export default function BookStudioPage() {
               bookId={bookId}
               activeChapterId={activeChapter?.id ?? null}
               onSelectChapter={(id) => handleSelectChapter({ id } as Chapter)}
+              densityEnabled={storyDensityEnabled}
             />
           )}
         </div>

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ChapterHealthPanel } from './ChapterHealthPanel';
+import { StoryDensityPanel } from './StoryDensityPanel';
 
 interface StoryHealthSummary {
   total_issues: number;
@@ -42,6 +43,7 @@ export function StoryIntegrityPanel({
   bookId,
   activeChapterId,
   onSelectChapter,
+  densityEnabled = true,
 }: StoryIntegrityPanelProps) {
   const { toast } = useToast();
   const [health, setHealth] = useState<StoryHealthSummary | null>(null);
@@ -191,6 +193,15 @@ export function StoryIntegrityPanel({
             <BookOpen className="h-4 w-4" />
             Chapter Health
           </Tabs.Trigger>
+          {densityEnabled && (
+            <Tabs.Trigger
+              value="density"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:font-medium"
+            >
+              <Activity className="h-4 w-4" />
+              Density
+            </Tabs.Trigger>
+          )}
         </Tabs.List>
         <Tabs.Content value="issues" className="flex-1 overflow-auto min-h-0">
       <div className="p-4 space-y-4">
@@ -300,6 +311,16 @@ export function StoryIntegrityPanel({
             onSelectChapter={onSelectChapter}
           />
         </Tabs.Content>
+        {densityEnabled && (
+          <Tabs.Content value="density" className="flex-1 overflow-auto min-h-0">
+            <StoryDensityPanel
+              projectId={projectId}
+              bookId={bookId}
+              activeChapterId={activeChapterId}
+              onSelectChapter={onSelectChapter}
+            />
+          </Tabs.Content>
+        )}
       </Tabs.Root>
     </div>
   );

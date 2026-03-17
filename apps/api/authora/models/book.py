@@ -12,6 +12,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.ai_revision import AIRevision
+    from authora.models.density import DensityIssue, DensityScan
     from authora.models.integrity import IntegrityIssue, IntegrityScan
     from authora.models.book_settings import BookSettings
     from authora.models.collaboration import ChapterApproval
@@ -70,6 +71,12 @@ class Book(Base):
     )
     integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
         "IntegrityIssue", back_populates="book", cascade="all, delete-orphan"
+    )
+    density_scans: Mapped[list["DensityScan"]] = relationship(
+        "DensityScan", back_populates="book", cascade="all, delete-orphan"
+    )
+    density_issues: Mapped[list["DensityIssue"]] = relationship(
+        "DensityIssue", back_populates="book", cascade="all, delete-orphan"
     )
 
 
@@ -137,6 +144,9 @@ class Chapter(Base):
     )
     integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
         "IntegrityIssue", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    density_issues: Mapped[list["DensityIssue"]] = relationship(
+        "DensityIssue", back_populates="chapter", cascade="all, delete-orphan"
     )
 
 

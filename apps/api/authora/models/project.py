@@ -15,6 +15,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.book import Book
+    from authora.models.density import DensityIssue, DensityScan
     from authora.models.integrity import IntegrityIssue, IntegrityScan
     from authora.models.collaboration import (
         CollaborationActivity,
@@ -95,4 +96,10 @@ class Project(Base):
     )
     integrity_issues: Mapped[list["IntegrityIssue"]] = relationship(
         "IntegrityIssue", back_populates="project", cascade="all, delete-orphan"
+    )
+    density_scans: Mapped[list["DensityScan"]] = relationship(
+        "DensityScan", back_populates="project", cascade="all, delete-orphan"
+    )
+    density_issues: Mapped[list["DensityIssue"]] = relationship(
+        "DensityIssue", back_populates="project", cascade="all, delete-orphan"
     )

@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     feature_tenant_aware: bool = False
     feature_billing: bool = False
     feature_story_integrity: bool = True
+    feature_story_density: bool = True
 
     # White-label branding (overridable via env)
     branding_product_name: str = "AUTHORA"
@@ -245,6 +246,7 @@ class Settings(BaseSettings):
             "tenant_aware": self.feature_tenant_aware,
             "billing": self.feature_billing,
             "story_integrity": self.feature_story_integrity,
+            "story_density": self.feature_story_density,
         }
 
     def get_integration_flags(self) -> dict[str, bool]:

@@ -15,6 +15,8 @@ from authora.models import (
     AuditLog,
     Book,
     Chapter,
+    DensityIssue,
+    DensityScan,
     ExportJob,
     FeatureFlag,
     IntegrityIssue,
@@ -213,6 +215,45 @@ async def admin_integrity_analytics(
         "avg_duration_ms": round(float(scans_row.avg_duration_ms or 0), 1),
         "total_issues_detected": scans_row.total_issues or 0,
         "issues_by_category": by_category,
+    }
+
+
+# --- Story Density Engine admin ---
+
+
+@router.get("/density/analytics")
+async def admin_density_analytics(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = Query(30, ge=1, le=365),
+):
+    """Story Density Engine analytics: scans run, issue counts, performance."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    scans_q = select(
+        func.count(DensityScan.id).label("total"),
+        func.avg(DensityScan.duration_ms).label("avg_duration_ms"),
+        func.sum(DensityScan.issue_count).label("total_issues"),
+    ).where(DensityScan.started_at >= since, DensityScan.status == "completed")
+    scans_row = (await db.execute(scans_q)).one()
+    issues_q = (
+        select(DensityIssue.category, DensityIssue.action_category, func.count(DensityIssue.id).label("cnt"))
+        .join(DensityScan, DensityIssue.scan_id == DensityScan.id)
+        .where(DensityScan.started_at >= since)
+        .group_by(DensityIssue.category, DensityIssue.action_category)
+    )
+    issues_rows = (await db.execute(issues_q)).all()
+    by_category: dict[str, int] = {}
+    by_action: dict[str, int] = {}
+    for r in issues_rows:
+        by_category[r.category] = by_category.get(r.category, 0) + r.cnt
+        by_action[r.action_category] = by_action.get(r.action_category, 0) + r.cnt
+    return {
+        "period_days": days,
+        "scans_total": scans_row.total or 0,
+        "avg_duration_ms": round(float(scans_row.avg_duration_ms or 0), 1),
+        "total_issues_detected": scans_row.total_issues or 0,
+        "issues_by_category": by_category,
+        "issues_by_action": by_action,
     }
 
 
