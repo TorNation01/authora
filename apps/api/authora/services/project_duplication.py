@@ -87,6 +87,8 @@ async def duplicate_project(db: AsyncSession, project_id: uuid.UUID, user_id: uu
                 content=dict(ch.content) if ch.content else dict(),
                 word_count=ch.word_count,
                 section_status=ch.section_status,
+                section_group=ch.section_group,
+                tags=list(ch.tags) if ch.tags else [],
                 content_source=ch.content_source,
             )
             db.add(new_ch)

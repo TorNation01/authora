@@ -612,11 +612,21 @@ async def list_activity(
     project, role = await get_project_with_access_or_404(db, project_id, current_user.id)
     _require_permission(role, PERMISSION_VIEW_ACTIVITY)
 
+    from sqlalchemy.orm import selectinload
+
     result = await db.execute(
         select(CollaborationActivity)
+        .options(selectinload(CollaborationActivity.user))
         .where(CollaborationActivity.project_id == project_id)
         .order_by(CollaborationActivity.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
-    return [CollaborationActivityResponse.model_validate(a) for a in result.scalars().all()]
+    activities = result.scalars().all()
+    out = []
+    for a in activities:
+        d = dict(a.extra_data or {})
+        if a.user:
+            d["actor_display_name"] = a.user.display_name or a.user.email
+        out.append(CollaborationActivityResponse.model_validate(a).model_copy(update={"extra_data": d}))
+    return out

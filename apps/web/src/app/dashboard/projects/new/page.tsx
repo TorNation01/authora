@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,8 @@ type StarterWithTemplateId = {
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateIdFromUrl = searchParams.get('templateId');
   const { toast } = useToast();
   const [mode, setMode] = useState<'starters' | 'quick' | 'wizard'>('starters');
   const [step, setStep] = useState(1);
@@ -94,7 +96,15 @@ export default function NewProjectPage() {
 
   // Starter flow: selected starter for quick create or customize
   const [selectedStarter, setSelectedStarter] = useState<StarterWithTemplateId | null>(null);
-  const [preselectedTemplateId, setPreselectedTemplateId] = useState<string | null>(null);
+  const [preselectedTemplateId, setPreselectedTemplateId] = useState<string | null>(templateIdFromUrl);
+
+  // When landing with ?templateId=xxx, switch to wizard and pre-select template
+  useEffect(() => {
+    if (templateIdFromUrl) {
+      setMode('wizard');
+      setPreselectedTemplateId(templateIdFromUrl);
+    }
+  }, [templateIdFromUrl]);
 
   // Wizard state
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory | null>(null);

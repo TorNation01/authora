@@ -76,6 +76,13 @@ from authora.models.collaboration import (
     ProjectMember,
     ProjectShare,
 )
+from authora.models.community import (
+    FeedbackComment,
+    FeedbackThread,
+    WritingGroup,
+    WritingGroupInvite,
+    WritingGroupMember,
+)
 from authora.models.revision_pass import RevisionChecklistItem, RevisionPass, RevisionPassChapter
 from authora.models.reference_item import ReferenceItem
 from authora.models.ai_revision import AIRevision
@@ -232,4 +239,9 @@ __all__ = [
     "IntegrityScanAnalytics",
     "DensityScan",
     "DensityIssue",
+    "WritingGroup",
+    "WritingGroupMember",
+    "WritingGroupInvite",
+    "FeedbackThread",
+    "FeedbackComment",
 ]

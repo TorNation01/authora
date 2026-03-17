@@ -402,8 +402,9 @@ def build_system_prompt(
     level: AssistanceLevel,
     book_type: BookType,
     workspace_context: str = "",
+    personalization_context: str = "",
 ) -> str:
-    """Build system prompt from mode, level, and context."""
+    """Build system prompt from mode, level, context, and optional personalization."""
     parts = [MODE_SYSTEM_PREFIXES.get(mode, MODE_SYSTEM_PREFIXES[AIMode.ASSIST])]
     parts.append(ASSISTANCE_LEVEL_HINTS.get(level, ASSISTANCE_LEVEL_HINTS[AssistanceLevel.MODERATE]))
     parts.append("Always clearly indicate AI-generated content when suggesting changes.")
@@ -411,6 +412,8 @@ def build_system_prompt(
         parts.append("This is fiction. Consider narrative, character voice, and pacing.")
     elif book_type == BookType.NONFICTION:
         parts.append("This is non-fiction. Prioritize clarity, logic, and evidence.")
+    if personalization_context:
+        parts.append(f"\n\n{personalization_context}")
     if workspace_context:
         parts.append(f"\n\nWorkspace context:\n{workspace_context}")
     return "\n\n".join(parts)

@@ -16,6 +16,8 @@ Export presets define format, compile options, styling, and naming for common ex
 | `workbook_export` | Workbook Export | PDF | Printable prompts and exercises |
 | `memoir_review_draft` | Memoir Review Draft | DOCX | Chaptered review copy |
 | `sample_chapters_export` | Sample Chapters Export | DOCX | First 3 chapters for proposal |
+| `amazon_kdp_paperback` | Amazon KDP Paperback | PDF | Print-ready for KDP paperback interior |
+| `amazon_kdp_ebook` | Amazon KDP Ebook | EPUB | EPUB for Kindle Direct Publishing |
 
 ## Custom Profiles
 

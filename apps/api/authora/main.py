@@ -6,9 +6,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, collaboration, config, content, content_annotations, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, integrity, journey, leads, nonfiction, notes, projects, rag, reference, revision_passes, setup, templates, vault
+from authora.api.routes import accountability, admin, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, integrity, journey, leads, nonfiction, notes, projects, rag, reference, revision_passes, setup, templates, vault
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
@@ -108,6 +109,7 @@ app.add_exception_handler(Exception, _unhandled_exception_handler)
 app.add_exception_handler(HTTPException, _http_exception_handler)
 
 app.add_middleware(SecurityMiddleware)  # First: rate limit, headers, request ID
+app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
 app.add_middleware(IntegrationAuditForwardingMiddleware)  # Optional: forward to Anakatech when enabled
 app.add_middleware(
@@ -119,6 +121,7 @@ app.add_middleware(
 )
 
 app.include_router(config.router, prefix="/api/v1")
+app.include_router(community.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
 app.include_router(content.router, prefix="/api/v1")

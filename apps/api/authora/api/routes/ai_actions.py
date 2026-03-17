@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404
+from authora.api.resolvers import get_book_with_access_by_id
+from authora.models.collaboration import PERMISSION_EDIT_MANUSCRIPT, has_permission
 from authora.config import get_settings
 from authora.database import get_db
 from authora.models import AIRevision, Book, BookSettings, Chapter, Project, UserPreference
@@ -140,7 +141,11 @@ async def run_action_stream(
             detail="Prompt was filtered for safety",
         )
 
-    book = await get_book_or_404(db, data.book_id, current_user.id)
+    book = await get_book_with_access_by_id(db, data.book_id, current_user.id)
+    from authora.api.resolvers import get_project_with_access_or_404
+    _, role = await get_project_with_access_or_404(db, book.project_id, current_user.id)
+    if not has_permission(role, PERMISSION_EDIT_MANUSCRIPT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions for AI actions")
     project_prefs: dict | None = None
     result = await db.execute(select(BookSettings).where(BookSettings.book_id == data.book_id))
     bs = result.scalar_one_or_none()
@@ -148,10 +153,12 @@ async def run_action_stream(
         project_prefs = bs.settings.get("ai_prefs") or {}
 
     user_prefs: dict | None = None
+    ai_personalization: dict | None = None
     pref_result = await db.execute(select(UserPreference).where(UserPreference.user_id == current_user.id))
     up = pref_result.scalar_one_or_none()
     if up and up.preferences:
         user_prefs = up.preferences.get("ai_prefs") or {}
+        ai_personalization = up.preferences.get("ai_personalization")
 
     from authora.services.ai_registry import action_to_task
 
@@ -169,11 +176,15 @@ async def run_action_stream(
         user_id=current_user.id,
     )
 
+    from authora.services.ai_personalization import build_personalization_context
+
+    personalization_ctx = build_personalization_context(ai_personalization) if ai_personalization else ""
     system_prompt = build_system_prompt(
         AIMode(data.mode),
         AssistanceLevel(data.level),
         BookType(data.book_type),
         workspace_context=workspace_context,
+        personalization_context=personalization_ctx,
     )
 
     if get_cfg().feature_billing:
@@ -271,7 +282,11 @@ async def create_revision(
     from authora.services.ai_service import create_revision
 
     if data.book_id:
-        await get_book_or_404(db, data.book_id, current_user.id)
+        book = await get_book_with_access_by_id(db, data.book_id, current_user.id)
+        from authora.api.resolvers import get_project_with_access_or_404
+        _, role = await get_project_with_access_or_404(db, book.project_id, current_user.id)
+        if not has_permission(role, PERMISSION_EDIT_MANUSCRIPT):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     rev_id = await create_revision(
         db,
         current_user.id,

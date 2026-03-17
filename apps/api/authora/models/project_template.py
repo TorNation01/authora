@@ -44,6 +44,12 @@ class ProjectTemplate(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_featured: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_disabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Marketplace future-ready: paid templates, creator attribution
+    price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_paid: Mapped[bool] = mapped_column(default=False, nullable=False)
+    creator_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

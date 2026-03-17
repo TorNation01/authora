@@ -12,12 +12,15 @@ settings = get_settings()
 # Use asyncpg for async; convert postgresql:// to postgresql+asyncpg://
 db_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+pool_size = settings.db_pool_size
+max_overflow = settings.db_pool_max_overflow
+
 engine = create_async_engine(
     db_url,
     echo=settings.debug,
     pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
+    pool_size=pool_size,
+    max_overflow=max_overflow,
 )
 
 async_session_factory = async_sessionmaker(

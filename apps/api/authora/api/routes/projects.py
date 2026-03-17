@@ -26,8 +26,10 @@ async def list_projects(
     status_filter: str | None = Query(None, alias="status", description="active | archived | all"),
     q: str | None = Query(None, description="Search by project name"),
     sort: str = Query("updated_at", description="updated_at | name | created_at | last_accessed_at"),
+    limit: int = Query(50, ge=1, le=200, description="Max projects to return"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
 ):
-    """List user's projects (owned or shared) with optional filters and search."""
+    """List user's projects (owned or shared) with optional filters, search, and pagination."""
     # Include owned projects and projects where user is a member
     member_project_ids = select(ProjectMember.project_id).where(
         ProjectMember.user_id == current_user.id
@@ -56,6 +58,7 @@ async def list_projects(
     else:
         base = base.order_by(Project.updated_at.desc())
 
+    base = base.offset(offset).limit(limit)
     result = await db.execute(base)
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -34,6 +34,8 @@ interface Chapter {
   sort_order: number;
   word_count: number;
   section_status?: string | null;
+  section_group?: string | null;
+  tags?: string[];
 }
 
 interface ManuscriptSidebarProps {
@@ -50,6 +52,8 @@ interface ManuscriptSidebarProps {
   onDuplicateChapter?: (chapterId: string) => void;
   onDeleteChapter?: (chapterId: string) => void;
   onStatusChange?: (chapterId: string, status: SectionStatus) => void;
+  onSectionGroupChange?: (chapterId: string, sectionGroup: string | null) => void;
+  onTagsChange?: (chapterId: string, tags: string[]) => void;
   canEnterFinishMode?: boolean;
   suggestFinishMode?: boolean;
   onEnterFinishMode?: () => void;
@@ -86,10 +90,16 @@ export function ManuscriptSidebar({
   suggestFinishMode,
   onEnterFinishMode,
   onStatusChange,
+  onSectionGroupChange,
+  onTagsChange,
 }: ManuscriptSidebarProps) {
   const { shouldShowIntroCard, markDismissed } = useTutorial();
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [sectionTarget, setSectionTarget] = useState<{ id: string; sectionGroup: string | null } | null>(null);
+  const [sectionValue, setSectionValue] = useState('');
+  const [tagsTarget, setTagsTarget] = useState<{ id: string; tags: string[] } | null>(null);
+  const [tagsValue, setTagsValue] = useState('');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleDragEnd(result: any) {
@@ -226,8 +236,11 @@ export function ManuscriptSidebar({
                           className="flex-1 min-w-0 text-left px-2 py-2 rounded-md text-sm hover:bg-muted/50"
                         >
                           <div className="font-medium truncate">{ch.title}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
                             <span className="text-xs opacity-75">{ch.word_count} words</span>
+                            {ch.section_group && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">{ch.section_group}</span>
+                            )}
                             {ch.section_status && (
                               <span
                                 className={cn(
@@ -240,7 +253,7 @@ export function ManuscriptSidebar({
                             )}
                           </div>
                         </button>
-                        {(onRenameChapter || onDuplicateChapter || onDeleteChapter) && (
+                        {(onRenameChapter || onDuplicateChapter || onDeleteChapter || onSectionGroupChange || onTagsChange) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -269,6 +282,30 @@ export function ManuscriptSidebar({
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicateChapter(ch.id); }}>
                                   <Copy className="h-4 w-4 mr-2" />
                                   Duplicate
+                                </DropdownMenuItem>
+                              )}
+                              {onSectionGroupChange && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSectionTarget({ id: ch.id, sectionGroup: ch.section_group ?? null });
+                                    setSectionValue(ch.section_group ?? '');
+                                  }}
+                                >
+                                  <Layers className="h-4 w-4 mr-2" />
+                                  Set section
+                                </DropdownMenuItem>
+                              )}
+                              {onTagsChange && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTagsTarget({ id: ch.id, tags: ch.tags ?? [] });
+                                    setTagsValue((ch.tags ?? []).join(', '));
+                                  }}
+                                >
+                                  <Tag className="h-4 w-4 mr-2" />
+                                  Set tags
                                 </DropdownMenuItem>
                               )}
                               {onDeleteChapter && (
@@ -305,6 +342,71 @@ export function ManuscriptSidebar({
           <TooltipContent side="right">{getTooltip('add_chapter') ?? 'Add chapter'}</TooltipContent>
         </Tooltip>
       </div>
+
+      <Dialog open={!!sectionTarget} onOpenChange={(open) => !open && setSectionTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set section group</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="section">Section (e.g. Part 1, Act 2)</Label>
+              <Input
+                id="section"
+                value={sectionValue}
+                onChange={(e) => setSectionValue(e.target.value)}
+                placeholder="Part 1"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSectionTarget(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (sectionTarget) {
+                    onSectionGroupChange?.(sectionTarget.id, sectionValue.trim() || null);
+                    setSectionTarget(null);
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!tagsTarget} onOpenChange={(open) => !open && setTagsTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set tags</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="tags">Tags (comma-separated)</Label>
+              <Input
+                id="tags"
+                value={tagsValue}
+                onChange={(e) => setTagsValue(e.target.value)}
+                placeholder="action, pov-john, key-scene"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTagsTarget(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (tagsTarget) {
+                    const tags = tagsValue.split(/[,\s]+/).map((t) => t.trim().toLowerCase()).filter(Boolean);
+                    onTagsChange?.(tagsTarget.id, tags);
+                    setTagsTarget(null);
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
         <DialogContent>

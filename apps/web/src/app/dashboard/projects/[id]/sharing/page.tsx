@@ -12,7 +12,7 @@ import {
   XCircle,
   Trash2,
   RefreshCw,
-  ChevronDown,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,12 +39,12 @@ import { api, ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   COLLABORATION_ROLES,
+  PRIMARY_COLLABORATION_ROLES,
   SHARE_SCOPES,
   INVITE_STATUS_LABELS,
   INVITE_LABELS,
   SHARING_HEADINGS,
   SHARING_PAGE_COPY,
-  SAFETY_COPY,
 } from '@/content/collaboration-copy';
 
 interface ProjectInvite {
@@ -75,6 +75,14 @@ interface ProjectShare {
   created_at: string;
 }
 
+interface CollaborationActivity {
+  id: string;
+  action: string;
+  entity_type: string | null;
+  extra_data: Record<string, unknown> | null;
+  created_at: string;
+}
+
 interface ProjectData {
   name: string;
 }
@@ -87,7 +95,28 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 function getRoleLabel(value: string): string {
+  if (value === 'owner') return 'Owner';
   return COLLABORATION_ROLES.find((r) => r.value === value)?.label ?? value;
+}
+
+function formatActivityAction(a: CollaborationActivity): string {
+  const actor = (a.extra_data?.actor_display_name as string) || 'Someone';
+  const email = a.extra_data?.email as string | undefined;
+  const role = a.extra_data?.role as string | undefined;
+  switch (a.action) {
+    case 'invite_created':
+      return `${actor} invited ${email || 'someone'} as ${role ? getRoleLabel(role) : 'collaborator'}.`;
+    case 'invite_accepted':
+      return `${email || 'Someone'} joined as ${role ? getRoleLabel(role) : 'member'}.`;
+    case 'member_removed':
+      return `${actor} removed a member.`;
+    case 'approval_created':
+      return `${actor} requested chapter approval.`;
+    case 'approval_updated':
+      return `${actor} updated chapter approval.`;
+    default:
+      return `${actor} ${a.action.replace(/_/g, ' ')}.`;
+  }
 }
 
 export default function ProjectSharingPage() {
@@ -100,9 +129,10 @@ export default function ProjectSharingPage() {
   const [invites, setInvites] = useState<ProjectInvite[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [shares, setShares] = useState<ProjectShare[]>([]);
+  const [activity, setActivity] = useState<CollaborationActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<string>('beta_reader');
+  const [inviteRole, setInviteRole] = useState<string>('co_writer');
   const [inviting, setInviting] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -115,14 +145,16 @@ export default function ProjectSharingPage() {
       const proj = await api<ProjectData>(`/api/v1/projects/${projectId}`);
       setProject(proj);
       try {
-        const [inv, mem, sh] = await Promise.all([
+        const [inv, mem, sh, act] = await Promise.all([
           api<ProjectInvite[]>(`/api/v1/projects/${projectId}/invites`),
           api<ProjectMember[]>(`/api/v1/projects/${projectId}/members`),
           api<ProjectShare[]>(`/api/v1/projects/${projectId}/shares`),
+          api<CollaborationActivity[]>(`/api/v1/projects/${projectId}/activity`).catch(() => []),
         ]);
         setInvites(inv);
         setMembers(mem);
         setShares(sh);
+        setActivity(act);
       } catch (err) {
         if (err instanceof ApiError && err.status === 403) setAccessDenied(true);
         else throw err;
@@ -148,7 +180,7 @@ export default function ProjectSharingPage() {
       });
       toast({ title: SHARING_PAGE_COPY.inviteSent, description: `${inviteEmail} can now accept the invite.` });
       setInviteEmail('');
-      setInviteRole('beta_reader');
+      setInviteRole('co_writer');
       setShowInviteDialog(false);
       fetchAll();
     } catch (err: unknown) {
@@ -357,6 +389,38 @@ export default function ProjectSharingPage() {
         </CardContent>
       </Card>
 
+      {/* Activity feed */}
+      {activity.length > 0 && (
+        <Card variant="sanctuary" className="mt-6">
+          <CardHeader>
+            <CardTitle className="font-serif flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Activity
+            </CardTitle>
+            <CardDescription>
+              Recent collaboration activity on this project.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {activity.slice(0, 15).map((a) => (
+                <li key={a.id} className="flex items-start gap-3 text-sm">
+                  <Activity className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <div>
+                    <p>
+                      {formatActivityAction(a)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(a.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Share scope info */}
       <Card variant="sanctuary" className="mt-6">
         <CardHeader>
@@ -417,7 +481,7 @@ export default function ProjectSharingPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {COLLABORATION_ROLES.map((r) => (
+                  {PRIMARY_COLLABORATION_ROLES.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
                       <div>
                         <span className="font-medium">{r.label}</span>

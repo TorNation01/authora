@@ -92,6 +92,8 @@ class Chapter(Base):
     content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     section_status: Mapped[str | None] = mapped_column(String(50), nullable=True, default="draft")
+    section_group: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     gamification_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

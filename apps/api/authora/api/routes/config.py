@@ -1,5 +1,6 @@
 """Config API - deployment mode, feature flags, branding for frontend."""
 
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -11,6 +12,10 @@ from authora.database import get_db
 from authora.models import Setting
 
 router = APIRouter(prefix="/config", tags=["config"])
+
+# Cache config responses for 60s to reduce DB load on repeated frontend loads
+_CONFIG_CACHE: dict[str, tuple[dict, float]] = {}
+_CONFIG_CACHE_TTL = 60.0
 
 
 async def _merged_feature_flags(db: AsyncSession) -> dict[str, bool]:
@@ -30,11 +35,28 @@ async def _merged_feature_flags(db: AsyncSession) -> dict[str, bool]:
         return env_flags  # Fallback to env-only when DB unavailable
 
 
+def _get_cached(key: str) -> dict | None:
+    now = time.time()
+    if key in _CONFIG_CACHE:
+        data, expiry = _CONFIG_CACHE[key]
+        if now < expiry:
+            return data
+        del _CONFIG_CACHE[key]
+    return None
+
+
+def _set_cached(key: str, data: dict) -> None:
+    _CONFIG_CACHE[key] = (data, time.time() + _CONFIG_CACHE_TTL)
+
+
 @router.get("/mode")
 async def get_mode(db: Annotated[AsyncSession, Depends(get_db)]):
-    """Return deployment mode and feature flags. Public endpoint for frontend bootstrap."""
+    """Return deployment mode and feature flags. Public endpoint for frontend bootstrap. Cached 60s."""
+    cached = _get_cached("mode")
+    if cached is not None:
+        return cached
     settings = get_settings()
-    return {
+    data = {
         "deployment_mode": settings.deployment_mode,
         "app_mode": settings.effective_app_mode(),
         "is_standalone": settings.is_standalone(),
@@ -43,6 +65,8 @@ async def get_mode(db: Annotated[AsyncSession, Depends(get_db)]):
         "feature_flags": await _merged_feature_flags(db),
         "integration_flags": settings.get_integration_flags(),
     }
+    _set_cached("mode", data)
+    return data
 
 
 @router.get("/branding")
@@ -54,9 +78,12 @@ async def get_branding():
 
 @router.get("")
 async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
-    """Combined config for frontend. Public endpoint."""
+    """Combined config for frontend. Public endpoint. Cached 60s."""
+    cached = _get_cached("full")
+    if cached is not None:
+        return cached
     settings = get_settings()
-    return {
+    data = {
         "deployment_mode": settings.deployment_mode,
         "app_mode": settings.effective_app_mode(),
         "is_standalone": settings.is_standalone(),
@@ -66,17 +93,22 @@ async def get_config(db: Annotated[AsyncSession, Depends(get_db)]):
         "integration_flags": settings.get_integration_flags(),
         "branding": settings.get_branding(),
     }
+    _set_cached("full", data)
+    return data
 
 
 @router.get("/ai")
 async def get_ai_config():
-    """AI provider config for frontend. Public endpoint."""
+    """AI provider config for frontend. Public endpoint. Cached 60s."""
+    cached = _get_cached("ai")
+    if cached is not None:
+        return cached
     from authora.services.ai_registry import list_available_providers
     from authora.services.embedding_service import is_embeddings_configured
 
     settings = get_settings()
     providers = list_available_providers()
-    return {
+    data = {
         "provider_mode": settings.ai_provider_mode,
         "providers": providers,
         "ollama_enabled": settings.ollama_enabled,
@@ -85,3 +117,5 @@ async def get_ai_config():
         "embeddings_enabled": is_embeddings_configured(),
         "rag_max_chunks": settings.rag_max_chunks,
     }
+    _set_cached("ai", data)
+    return data

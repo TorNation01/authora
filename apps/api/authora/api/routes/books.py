@@ -3,14 +3,21 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_or_404, get_book_with_access_or_404, get_project_or_404, get_project_with_access_or_404
+from authora.api.resolvers import (
+    get_book_in_project_or_404,
+    get_book_or_404,
+    get_book_with_access_or_404,
+    get_project_or_404,
+    get_project_with_access_or_404,
+)
+from authora.models.collaboration import PERMISSION_EDIT_MANUSCRIPT, has_permission
 from authora.core.audit import AuditLogger
 from authora.database import get_db
 from authora.models import Book, BookSettings, Chapter, ChapterVersion, Project
@@ -92,20 +99,32 @@ async def create_book(
 
 @router.get("/{book_id}", response_model=BookWithChaptersResponse)
 async def get_book(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
+    section_status: str | None = Query(None, description="Filter by label: draft, revising, review, done"),
+    section_group: str | None = Query(None, description="Filter by section group"),
+    tag: str | None = Query(None, description="Filter by tag (chapters containing this tag)"),
 ):
-    """Get book with chapters."""
+    """Get book with chapters. Optional filters: section_status, section_group, tag."""
+    await get_project_with_access_or_404(db, project_id, current_user.id)
     result = await db.execute(
-        select(Book).options(selectinload(Book.chapters)).join(Project).where(Book.id == book_id, Project.user_id == current_user.id)
+        select(Book).options(selectinload(Book.chapters)).where(Book.id == book_id, Book.project_id == project_id)
     )
     book = result.scalar_one_or_none()
     if not book:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    chapters = sorted(book.chapters, key=lambda x: x.sort_order)
+    if section_status:
+        chapters = [c for c in chapters if c.section_status == section_status]
+    if section_group:
+        chapters = [c for c in chapters if c.section_group == section_group]
+    if tag:
+        chapters = [c for c in chapters if tag in (c.tags or [])]
     return BookWithChaptersResponse(
         **BookResponse.model_validate(book).model_dump(),
-        chapters=[ChapterResponse.model_validate(c) for c in sorted(book.chapters, key=lambda x: x.sort_order)],
+        chapters=[ChapterResponse.model_validate(c) for c in chapters],
     )
 
 
@@ -117,8 +136,11 @@ async def update_book(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update book."""
-    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
+    """Update book. Requires edit_manuscript for members."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    if not has_permission(role, PERMISSION_EDIT_MANUSCRIPT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    book = await get_book_in_project_or_404(db, book_id, project_id)
     if data.title is not None:
         book.title = data.title
     if data.genre is not None:
@@ -187,7 +209,10 @@ async def update_chapter(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update chapter."""
+    """Update chapter. Requires edit_manuscript for members."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    if not has_permission(role, PERMISSION_EDIT_MANUSCRIPT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id))
     chapter = result.scalar_one_or_none()
@@ -203,7 +228,25 @@ async def update_chapter(
         if data.section_status == "done" and chapter.gamification_completed_at is None:
             from authora.services.gamification import record_chapter_complete
             await record_chapter_complete(db, current_user.id, chapter.id, book_id)
+    if data.section_group is not None:
+        chapter.section_group = data.section_group or None
+    if data.tags is not None:
+        chapter.tags = data.tags
     if data.content is not None:
+        # Conflict check: if client sent if_unchanged_since, verify chapter wasn't modified since
+        if data.if_unchanged_since is not None:
+            from datetime import timezone
+            client_ts = data.if_unchanged_since
+            if client_ts.tzinfo is None:
+                client_ts = client_ts.replace(tzinfo=timezone.utc)
+            ch_ts = chapter.updated_at
+            if ch_ts.tzinfo is None:
+                ch_ts = ch_ts.replace(tzinfo=timezone.utc)
+            if ch_ts > client_ts:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Chapter was modified by another user. Refresh and try again.",
+                )
         # Save version before overwriting
         version = ChapterVersion(
             chapter_id=chapter.id,
@@ -273,6 +316,35 @@ async def list_chapter_versions(
     return [ChapterVersionResponse.model_validate(v) for v in result.scalars().all()]
 
 
+@router.post("/{book_id}/chapters/{chapter_id}/snapshot", response_model=ChapterVersionResponse, status_code=status.HTTP_201_CREATED)
+async def create_chapter_snapshot(
+    project_id: uuid.UUID,
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create a manual checkpoint from current chapter content."""
+    book = await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
+    result = await db.execute(
+        select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
+    )
+    chapter = result.scalar_one_or_none()
+    if not chapter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chapter not found")
+    version = ChapterVersion(
+        chapter_id=chapter.id,
+        content=chapter.content,
+        word_count=chapter.word_count,
+        content_source=chapter.content_source,
+        created_by=current_user.id,
+    )
+    db.add(version)
+    await db.flush()
+    await db.refresh(version)
+    return ChapterVersionResponse.model_validate(version)
+
+
 @router.delete("/{book_id}/chapters/{chapter_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_chapter(
     project_id: uuid.UUID,
@@ -322,12 +394,13 @@ async def duplicate_chapter(
 # Finish Mode
 @router.get("/{book_id}/finish-mode")
 async def get_finish_mode(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get finish mode stats and settings."""
-    stats = await get_finish_mode_stats(db, book_id, current_user.id)
+    """Get finish mode stats and settings. Accessible to owner and members."""
+    stats = await get_finish_mode_stats(db, book_id, current_user.id, project_id)
     if not stats:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     return stats
@@ -413,16 +486,18 @@ async def patch_ai_preferences(
 
 @router.patch("/{book_id}/finish-mode")
 async def patch_finish_mode(
+    project_id: uuid.UUID,
     book_id: uuid.UUID,
     data: FinishModeUpdate,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Enable, disable, or update finish mode settings."""
+    """Enable, disable, or update finish mode settings. Accessible to owner and members."""
     stats = await update_finish_mode_settings(
         db,
         book_id,
         current_user.id,
+        project_id=project_id,
         enabled=data.enabled,
         target_date=data.target_date,
         words_per_day=data.words_per_day,

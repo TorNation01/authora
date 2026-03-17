@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ChapterCreate(BaseModel):
@@ -16,13 +16,16 @@ class ChapterCreate(BaseModel):
 
 
 class ChapterUpdate(BaseModel):
-    """Update chapter."""
+    """Update chapter. Use if_unchanged_since for conflict detection (returns 409 if changed)."""
 
     title: str | None = Field(None, min_length=1, max_length=500)
     sort_order: int | None = None
     content: dict[str, Any] | None = None
     section_status: str | None = Field(None, pattern="^(draft|revising|review|done)$")
+    section_group: str | None = Field(None, max_length=255)
+    tags: list[str] | None = None
     content_source: str | None = Field(None, pattern="^(user_written|ai_assisted|ai_generated)$")
+    if_unchanged_since: datetime | None = Field(None, description="Conflict check: ISO datetime of last known update")
 
 
 class ChaptersReorder(BaseModel):
@@ -54,11 +57,18 @@ class ChapterResponse(BaseModel):
     content: dict[str, Any]
     word_count: int
     section_status: str | None = None
+    section_group: str | None = None
+    tags: list[str] = Field(default_factory=list)
     content_source: str | None = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def coerce_tags(cls, v: Any) -> list[str]:
+        return v if isinstance(v, list) else []
 
 
 class BookCreate(BaseModel):

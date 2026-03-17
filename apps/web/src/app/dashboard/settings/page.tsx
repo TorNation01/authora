@@ -12,12 +12,31 @@ import { useConfig } from '@/contexts/ConfigProvider';
 import { useToast } from '@/hooks/use-toast';
 import { createCustomerPortalSession } from '@/lib/billing';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
+import { Sparkles } from 'lucide-react';
 
 interface User {
   id: string;
   email: string;
   display_name: string | null;
   created_at: string;
+}
+
+interface AIPersonalization {
+  enabled: boolean;
+  tone_preferences: string[];
+  style_profile: {
+    voice?: string;
+    tone?: string;
+    vocabulary?: string;
+    sentence_style?: string;
+  } | null;
+  updated_at: string | null;
+}
+
+interface Book {
+  id: string;
+  title: string;
+  project_id: string;
 }
 
 export default function SettingsPage() {
@@ -30,6 +49,11 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [aiPersonalization, setAIPersonalization] = useState<AIPersonalization | null>(null);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [learnBookId, setLearnBookId] = useState('');
+  const [savingPersonalization, setSavingPersonalization] = useState(false);
+  const [toneInput, setToneInput] = useState('');
 
   const canEditProfile = config.feature_flags.standalone_auth;
 
@@ -40,6 +64,24 @@ export default function SettingsPage() {
         setDisplayName(u.display_name || '');
       })
       .catch(() => setUser(null));
+  }, []);
+
+  useEffect(() => {
+    api<AIPersonalization>('/api/v1/auth/me/ai-personalization')
+      .then((p) => {
+        setAIPersonalization(p);
+        if (p?.tone_preferences?.length) setToneInput(p.tone_preferences.join(', '));
+      })
+      .catch(() => setAIPersonalization(null));
+  }, []);
+
+  useEffect(() => {
+    api<{ id: string; name: string }[]>('/api/v1/projects')
+      .then((projects) =>
+        Promise.all(projects.map((p) => api<Book[]>(`/api/v1/projects/${p.id}/books`)))
+      )
+      .then((results) => setBooks(results.flat()))
+      .catch(() => setBooks([]));
   }, []);
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -88,6 +130,78 @@ export default function SettingsPage() {
       toast({ title: 'Failed to update password. Check current password.', variant: 'destructive' });
     } finally {
       setSavingPassword(false);
+    }
+  }
+
+  async function handleTogglePersonalization(enabled: boolean) {
+    setSavingPersonalization(true);
+    try {
+      const updated = await api<AIPersonalization>('/api/v1/auth/me/ai-personalization', {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      });
+      setAIPersonalization(updated);
+      toast({ title: enabled ? 'Personalization on' : 'Personalization off' });
+    } catch {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    } finally {
+      setSavingPersonalization(false);
+    }
+  }
+
+  async function handleUpdateTonePreferences() {
+    const tones = toneInput
+      .split(/[,\s]+/)
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    setSavingPersonalization(true);
+    try {
+      const updated = await api<AIPersonalization>('/api/v1/auth/me/ai-personalization', {
+        method: 'PATCH',
+        body: JSON.stringify({ tone_preferences: tones }),
+      });
+      setAIPersonalization(updated);
+      setToneInput(tones.join(', '));
+      toast({ title: 'Tone preferences saved' });
+    } catch {
+      toast({ title: 'Failed to update', variant: 'destructive' });
+    } finally {
+      setSavingPersonalization(false);
+    }
+  }
+
+  async function handleResetStyleProfile() {
+    setSavingPersonalization(true);
+    try {
+      const updated = await api<AIPersonalization>('/api/v1/auth/me/ai-personalization/reset', {
+        method: 'POST',
+      });
+      setAIPersonalization(updated);
+      toast({ title: 'Style profile reset' });
+    } catch {
+      toast({ title: 'Failed to reset', variant: 'destructive' });
+    } finally {
+      setSavingPersonalization(false);
+    }
+  }
+
+  async function handleLearnFromBook() {
+    if (!learnBookId) {
+      toast({ title: 'Select a book first', variant: 'destructive' });
+      return;
+    }
+    setSavingPersonalization(true);
+    try {
+      const updated = await api<AIPersonalization>('/api/v1/auth/me/ai-personalization/learn', {
+        method: 'POST',
+        body: JSON.stringify({ book_id: learnBookId }),
+      });
+      setAIPersonalization(updated);
+      toast({ title: 'Style learned from book' });
+    } catch {
+      toast({ title: 'Failed to learn style', variant: 'destructive' });
+    } finally {
+      setSavingPersonalization(false);
     }
   }
 
@@ -222,6 +336,97 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card variant="soft">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            AI personalization
+          </CardTitle>
+          <CardDescription>
+            Adapt AI to your writing style. Optional—AI enhances, never replaces your voice.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Personalization</Label>
+              <p className="text-sm text-muted-foreground">Turn on to adapt AI suggestions to your style</p>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={aiPersonalization?.enabled ?? false}
+                onChange={(e) => handleTogglePersonalization(e.target.checked)}
+                disabled={savingPersonalization}
+                className="rounded border-input"
+              />
+              <span className="text-sm">On</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <Label>Tone preferences</Label>
+            <p className="text-xs text-muted-foreground">e.g. formal, casual, lyrical (comma-separated)</p>
+            <div className="flex gap-2">
+              <Input
+                value={toneInput}
+                onChange={(e) => setToneInput(e.target.value)}
+                placeholder="formal, conversational"
+                disabled={savingPersonalization}
+                onBlur={() => toneInput && handleUpdateTonePreferences()}
+              />
+              <Button size="sm" variant="outline" onClick={handleUpdateTonePreferences} disabled={savingPersonalization}>
+                Save
+              </Button>
+            </div>
+          </div>
+          {aiPersonalization?.style_profile && (
+            <div className="rounded-md border border-border/50 p-3 text-sm">
+              <p className="font-medium mb-1">Learned style</p>
+              <p className="text-muted-foreground">
+                {[
+                  aiPersonalization.style_profile.tone,
+                  aiPersonalization.style_profile.sentence_style,
+                ]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleResetStyleProfile}
+              disabled={savingPersonalization || !aiPersonalization?.style_profile}
+            >
+              Reset style profile
+            </Button>
+            <div className="flex items-center gap-2">
+              <select
+                value={learnBookId}
+                onChange={(e) => setLearnBookId(e.target.value)}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Learn from book...</option>
+                {books.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.title}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleLearnFromBook}
+                disabled={savingPersonalization || !learnBookId}
+              >
+                {savingPersonalization ? 'Learning…' : 'Learn style'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card variant="soft">
         <CardHeader>

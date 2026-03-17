@@ -42,6 +42,9 @@ interface Chapter {
   content: Record<string, unknown>;
   word_count: number;
   section_status?: string | null;
+  section_group?: string | null;
+  tags?: string[];
+  updated_at?: string;
 }
 
 interface Book {
@@ -119,18 +122,26 @@ export default function BookStudioPage() {
   const saveChapter = useCallback(
     async (data: { content: Record<string, unknown>; wordCount: number }) => {
       if (!activeChapter) throw new Error('No chapter');
-      await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ content: data.content }),
-      });
+      const body: Record<string, unknown> = { content: data.content };
+      if (activeChapter.updated_at) {
+        body.if_unchanged_since = activeChapter.updated_at;
+      }
+      const updated = await api<{ updated_at?: string }>(
+        `/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      );
+      const merged = { content: data.content, word_count: data.wordCount, updated_at: updated?.updated_at };
       setActiveChapter((prev) =>
-        prev ? { ...prev, content: data.content, word_count: data.wordCount } : null
+        prev ? { ...prev, ...merged } : null
       );
       if (book) {
         setBook({
           ...book,
           chapters: book.chapters.map((c) =>
-            c.id === activeChapter.id ? { ...c, content: data.content, word_count: data.wordCount } : c
+            c.id === activeChapter.id ? { ...c, ...merged } : c
           ),
         });
       }
@@ -386,6 +397,51 @@ export default function BookStudioPage() {
     [activeChapter, book, projectId, bookId, toast, fetchFinishMode]
   );
 
+  const handleSectionGroupChange = useCallback(
+    async (chapterId: string, sectionGroup: string | null) => {
+      try {
+        await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${chapterId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ section_group: sectionGroup || null }),
+        });
+        const val = sectionGroup || null;
+        setActiveChapter((prev) => (prev?.id === chapterId ? { ...prev, section_group: val } : prev));
+        if (book) {
+          setBook({
+            ...book,
+            chapters: book.chapters.map((c) =>
+              c.id === chapterId ? { ...c, section_group: val } : c
+            ),
+          });
+        }
+      } catch {
+        toast({ title: 'Failed to update section', variant: 'destructive' });
+      }
+    },
+    [book, projectId, bookId, toast]
+  );
+
+  const handleTagsChange = useCallback(
+    async (chapterId: string, tags: string[]) => {
+      try {
+        await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${chapterId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ tags }),
+        });
+        setActiveChapter((prev) => (prev?.id === chapterId ? { ...prev, tags } : prev));
+        if (book) {
+          setBook({
+            ...book,
+            chapters: book.chapters.map((c) => (c.id === chapterId ? { ...c, tags } : c)),
+          });
+        }
+      } catch {
+        toast({ title: 'Failed to update tags', variant: 'destructive' });
+      }
+    },
+    [book, projectId, bookId, toast]
+  );
+
   const handleEnterFinishMode = useCallback(async () => {
     try {
       const updated = await api<FinishModeStats>(
@@ -493,6 +549,22 @@ export default function BookStudioPage() {
       setVersionsLoading(false);
     }
   }, [projectId, bookId, activeChapter?.id]);
+
+  const handleCheckpoint = useCallback(async () => {
+    if (!activeChapter) return;
+    // Save current editor content first so snapshot captures latest state
+    const content = editorRef.current?.getJSON();
+    if (content && typeof content === 'object') {
+      const plain = tiptapToPlainText(content as Record<string, unknown>);
+      const wordCount = plain.split(/\s+/).filter(Boolean).length;
+      await saveChapter({ content: content as Record<string, unknown>, wordCount });
+    }
+    await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}/snapshot`, {
+      method: 'POST',
+    });
+    await loadVersions();
+    toast({ title: 'Checkpoint created' });
+  }, [projectId, bookId, activeChapter?.id, saveChapter, loadVersions, toast]);
 
   useEffect(() => {
     if (showHistory && activeChapter) loadVersions();
@@ -639,6 +711,8 @@ export default function BookStudioPage() {
           onRenameChapter={handleRenameChapter}
           onDuplicateChapter={handleDuplicateChapter}
           onDeleteChapter={handleDeleteChapter}
+          onSectionGroupChange={handleSectionGroupChange}
+          onTagsChange={handleTagsChange}
           canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
           suggestFinishMode={finishModeStats?.suggest_finish_mode}
           onEnterFinishMode={handleEnterFinishMode}
@@ -1004,6 +1078,7 @@ export default function BookStudioPage() {
         versions={versions}
         loading={versionsLoading}
         onRestore={handleRestoreVersion}
+        onCheckpoint={handleCheckpoint}
       />
       <RecoveryCenterDialog
         open={showRecoveryCenter}

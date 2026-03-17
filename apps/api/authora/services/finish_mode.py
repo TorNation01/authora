@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from authora.models import Book, BookSettings, Chapter, Project, StreakLog, WritingPlan
+from authora.models import Book, BookSettings, Chapter, Project, ProjectMember, StreakLog, WritingPlan
 
 # Encouraging messages by progress tier
 PROGRESS_MESSAGES = [
@@ -80,19 +80,39 @@ async def get_finish_mode_stats(
     db: AsyncSession,
     book_id: UUID,
     user_id: UUID,
+    project_id: UUID | None = None,
 ) -> dict[str, Any]:
     """
     Compute finish mode stats: remaining chapters, forecast, next section, etc.
+    If project_id given, allows owner or project member. Otherwise owner only.
     """
-    result = await db.execute(
-        select(Book)
-        .options()
-        .join(Project)
-        .where(Book.id == book_id, Project.user_id == user_id)
-    )
-    book = result.scalar_one_or_none()
-    if not book:
-        return {}
+    if project_id:
+        result = await db.execute(
+            select(Book)
+            .where(Book.id == book_id, Book.project_id == project_id)
+        )
+        book = result.scalar_one_or_none()
+        if not book:
+            return {}
+        proj = await db.get(Project, project_id)
+        if not proj:
+            return {}
+        if proj.user_id != user_id:
+            member = await db.execute(
+                select(ProjectMember).where(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.user_id == user_id,
+                )
+            )
+            if not member.scalar_one_or_none():
+                return {}
+    else:
+        result = await db.execute(
+            select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
+        )
+        book = result.scalar_one_or_none()
+        if not book:
+            return {}
 
     # Load book_settings for finish_mode
     settings_result = await db.execute(
@@ -262,16 +282,35 @@ async def update_finish_mode_settings(
     book_id: UUID,
     user_id: UUID,
     *,
+    project_id: UUID | None = None,
     enabled: bool | None = None,
     target_date: str | None = None,
     words_per_day: int | None = None,
 ) -> dict[str, Any]:
-    """Update finish mode settings in book_settings."""
-    result = await db.execute(
-        select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
-    )
-    if not result.scalar_one_or_none():
-        return {}
+    """Update finish mode settings in book_settings. If project_id given, allows owner or member."""
+    if project_id:
+        result = await db.execute(select(Book).where(Book.id == book_id, Book.project_id == project_id))
+        book = result.scalar_one_or_none()
+        if not book:
+            return {}
+        proj = await db.get(Project, project_id)
+        if not proj:
+            return {}
+        if proj.user_id != user_id:
+            member = await db.execute(
+                select(ProjectMember).where(
+                    ProjectMember.project_id == project_id,
+                    ProjectMember.user_id == user_id,
+                )
+            )
+            if not member.scalar_one_or_none():
+                return {}
+    else:
+        result = await db.execute(
+            select(Book).join(Project).where(Book.id == book_id, Project.user_id == user_id)
+        )
+        if not result.scalar_one_or_none():
+            return {}
 
     settings_result = await db.execute(
         select(BookSettings).where(BookSettings.book_id == book_id)
@@ -294,4 +333,4 @@ async def update_finish_mode_settings(
     await db.flush()
     await db.refresh(book_settings)
 
-    return await get_finish_mode_stats(db, book_id, user_id)
+    return await get_finish_mode_stats(db, book_id, user_id, project_id)

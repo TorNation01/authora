@@ -81,6 +81,14 @@ const FORMATS = [
   { id: 'pdf', label: 'PDF', desc: 'Print-ready format', icon: FileImage },
   { id: 'epub', label: 'ePub', desc: 'For e-readers', icon: FileText },
   { id: 'txt', label: 'Plain text', desc: 'Simple, universal', icon: FileText },
+  { id: 'md', label: 'Markdown', desc: 'Version control, conversion', icon: FileText },
+];
+
+const PUBLISHING_PRESETS = [
+  { id: 'clean-manuscript-pdf', label: 'Print-ready PDF', desc: 'Amazon KDP paperback, IngramSpark', icon: FileImage },
+  { id: 'clean-manuscript', label: 'Paperback source', desc: 'DOCX for KDP paperback interior', icon: FileText },
+  { id: 'epub', label: 'Ebook format', desc: 'Kindle, Kobo, Apple Books', icon: FileText },
+  { id: 'submission', label: 'Submission copy', desc: 'Professional format for agents', icon: FileText },
 ];
 
 export default function ExportCenterPage() {
@@ -398,6 +406,7 @@ export default function ExportCenterPage() {
         <p><strong>PDF</strong>: Read-only. Good for beta readers, proofreading, print preview.</p>
         <p><strong>EPUB</strong>: E-book format. Use for Kindle, Kobo, Apple Books, self-publishing.</p>
         <p><strong>TXT</strong>: Plain text. Minimal formatting. Good for backups or conversion.</p>
+        <p><strong>Markdown</strong>: Version control, conversion pipelines, and developer workflows.</p>
       </HowThisWorks>
 
       {books.length === 0 ? (
@@ -413,8 +422,18 @@ export default function ExportCenterPage() {
         </Card>
       ) : (
         <div className="space-y-6">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Export wizard</span>
+            <span>1. Select book</span>
+            <span>→</span>
+            <span>2. Format & styling</span>
+            <span>→</span>
+            <span>3. Preview</span>
+            <span>→</span>
+            <span>4. Export</span>
+          </div>
           <div>
-            <label className="text-sm font-medium mb-2 block">Select book</label>
+            <label className="text-sm font-medium mb-2 block">1. Select book</label>
             <select
               value={selectedBook?.id ?? ''}
               onChange={(e) => setSelectedBook(books.find((b) => b.id === e.target.value) ?? null)}
@@ -440,8 +459,8 @@ export default function ExportCenterPage() {
                 <>
                 <Card variant="soft" className="mb-4">
                   <CardHeader>
-                    <h3 className="font-semibold">Choose what to include</h3>
-                    <p className="text-sm text-muted-foreground">Keep your export clean and focused.</p>
+                    <h3 className="font-semibold">2. Format & styling</h3>
+                    <p className="text-sm text-muted-foreground">Title page, TOC, format style, and front/back matter.</p>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <label className="flex items-center gap-2">
@@ -574,7 +593,7 @@ export default function ExportCenterPage() {
                 </Card>
                 <Card variant="soft">
                   <CardHeader>
-                    <h3 className="font-semibold">Preview export</h3>
+                    <h3 className="font-semibold">3. Preview export</h3>
                     <p className="text-sm text-muted-foreground">
                       {preview.chapter_count} chapters • {preview.total_words.toLocaleString()} words
                     </p>
@@ -674,12 +693,49 @@ export default function ExportCenterPage() {
 
               <Card variant="soft" className="border-primary/20">
                 <CardHeader>
-                  <h3 className="font-semibold text-lg">Compile manuscript</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Prepare a version that fits the next stage of the process. Export a working draft or a polished copy.
-                  </p>
+                  <h3 className="font-semibold text-lg">4. Export</h3>
+                  <p className="text-sm text-muted-foreground">Publish to Amazon KDP, export formats, or compile manuscript.</p>
                 </CardHeader>
                 <CardContent>
+                  <h4 className="font-medium text-sm mb-3">Publish to Amazon KDP & more</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    One-click presets for paperback, ebook, and print-ready PDF.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+                    {PUBLISHING_PRESETS.map((p) => {
+                      const isFormat = p.id === 'epub';
+                      const ext = isFormat ? 'epub' : p.id === 'clean-manuscript-pdf' ? 'pdf' : p.id === 'clean-manuscript' ? 'docx' : 'docx';
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex flex-col gap-2 rounded-lg border border-border/50 bg-background/50 p-4 hover:border-primary/30 transition-colors"
+                        >
+                          <p.icon className="h-7 w-7 text-primary" />
+                          <div>
+                            <p className="font-medium">{p.label}</p>
+                            <p className="text-xs text-muted-foreground">{p.desc}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="mt-auto"
+                            onClick={() =>
+                              isFormat
+                                ? handleExport(p.id)
+                                : handlePriorityExport(p.id, ext)
+                            }
+                            disabled={!!exporting}
+                          >
+                            {exporting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                            Export
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <h4 className="font-medium text-sm mb-3 mt-6">Compile manuscript</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Prepare a version that fits the next stage of the process. Export a working draft or a polished copy.
+                  </p>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {PRIORITY_EXPORTS.map((p) => (
                       <div
@@ -703,10 +759,8 @@ export default function ExportCenterPage() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <h4 className="font-medium text-sm mb-3 mt-6">Export formats</h4>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {FORMATS.map((f) => (
                   <Card key={f.id} variant="soft" className="p-4">
                     <div className="flex flex-col gap-2">
@@ -727,7 +781,9 @@ export default function ExportCenterPage() {
                     </div>
                   </Card>
                 ))}
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={handleCompilePreview} disabled={!!exporting}>

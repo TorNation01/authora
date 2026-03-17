@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { getEmptyStateConfig } from '@/content/empty-states';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { BookOpen, Plus, Search, Settings, Users, Library } from 'lucide-react';
+import { BookOpen, Plus, Search, Settings, Users, Library, LayoutGrid } from 'lucide-react';
 import { ProjectProgressCard } from '@/components/retention';
 import { api } from '@/lib/api';
 
@@ -84,6 +84,12 @@ export default function ProjectPage() {
               <Link href={`/dashboard/projects/${projectId}/search`}>
                 <Search className="h-4 w-4 mr-2" />
                 Search
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/manage`}>
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Manage
               </Link>
             </Button>
             <Button asChild>

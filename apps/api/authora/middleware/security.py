@@ -6,11 +6,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-
-# In-memory rate limit store: {key: (count, window_start)}
+# In-memory rate limit store (fallback when Redis unavailable): {key: (count, window_start)}
 _rate_limit_store: dict[str, tuple[int, float]] = {}
 _rate_limit_cleanup_interval = 60.0  # seconds
 _last_cleanup = time.monotonic()
+_redis_available: bool | None = None
 
 
 def _get_client_ip(request: Request) -> str:
@@ -49,6 +49,31 @@ def _cleanup_expired_entries():
 RATE_LIMIT_REQUESTS = 100
 RATE_LIMIT_WINDOW = 60  # seconds
 
+
+async def _check_rate_limit_redis(key: str, limit: int, window: int) -> tuple[bool, bool]:
+    """Check rate limit via Redis. Returns (allowed, used_redis). When used_redis=False, caller uses in-memory."""
+    global _redis_available
+    try:
+        from redis.asyncio import Redis
+
+        from authora.config import get_settings
+
+        r = Redis.from_url(get_settings().redis_url, decode_responses=True)
+        redis_key = f"ratelimit:{key}"
+        count = await r.incr(redis_key)
+        if count == 1:
+            await r.expire(redis_key, window)
+        ttl = await r.ttl(redis_key)
+        if ttl < 0:
+            await r.expire(redis_key, window)
+        await r.aclose()
+        _redis_available = True
+        return (count <= limit, True)
+    except Exception:
+        _redis_available = False
+        return (True, False)  # Fall back to in-memory
+
+
 SECURE_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -71,7 +96,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.rate_limit_requests = rate_limit_requests
         self.rate_limit_window = rate_limit_window
-        self.skip_paths = skip_paths or {"/health", "/health/ready", "/"}
+        self.skip_paths = skip_paths or {"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json"}
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Add request ID
@@ -82,26 +107,40 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if request.url.path not in self.skip_paths:
             key = _rate_limit_key(request)
             now = time.monotonic()
-            _cleanup_expired_entries()
 
-            if key in _rate_limit_store:
-                count, window_start = _rate_limit_store[key]
-                if now - window_start >= self.rate_limit_window:
-                    _rate_limit_store[key] = (1, now)
-                else:
-                    count += 1
-                    if count > self.rate_limit_requests:
-                        return JSONResponse(
-                            {"detail": "Rate limit exceeded", "request_id": request_id},
-                            status_code=429,
-                            headers={
-                                "Retry-After": str(self.rate_limit_window),
-                                "X-Request-ID": request_id,
-                            },
-                        )
-                    _rate_limit_store[key] = (count, window_start)
+            # Try Redis first (scales across instances)
+            allowed, used_redis = await _check_rate_limit_redis(key, self.rate_limit_requests, self.rate_limit_window)
+            if used_redis:
+                if not allowed:
+                    return JSONResponse(
+                        {"detail": "Rate limit exceeded", "request_id": request_id},
+                        status_code=429,
+                        headers={
+                            "Retry-After": str(self.rate_limit_window),
+                            "X-Request-ID": request_id,
+                        },
+                    )
             else:
-                _rate_limit_store[key] = (1, now)
+                # Fallback: in-memory when Redis unavailable
+                _cleanup_expired_entries()
+                if key in _rate_limit_store:
+                    count, window_start = _rate_limit_store[key]
+                    if now - window_start >= self.rate_limit_window:
+                        _rate_limit_store[key] = (1, now)
+                    else:
+                        count += 1
+                        if count > self.rate_limit_requests:
+                            return JSONResponse(
+                                {"detail": "Rate limit exceeded", "request_id": request_id},
+                                status_code=429,
+                                headers={
+                                    "Retry-After": str(self.rate_limit_window),
+                                    "X-Request-ID": request_id,
+                                },
+                            )
+                        _rate_limit_store[key] = (count, window_start)
+                else:
+                    _rate_limit_store[key] = (1, now)
 
         response = await call_next(request)
 

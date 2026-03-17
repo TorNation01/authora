@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
-from authora.api.resolvers import get_book_with_access_or_404
+from authora.api.resolvers import get_book_with_access_or_404, get_project_with_access_or_404
+from authora.models.collaboration import PERMISSION_COMMENT, has_permission
 from authora.database import get_db
 from authora.models import Chapter, ContentComment, ContentHighlight
 from authora.schemas.content_annotation import (
@@ -64,7 +65,9 @@ async def create_highlight(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create highlight on chapter content."""
+    """Create highlight on chapter content. Requires comment permission."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    _require_comment_permission(role)
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
@@ -95,7 +98,9 @@ async def delete_highlight(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete highlight."""
+    """Delete highlight. Requires comment permission."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    _require_comment_permission(role)
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentHighlight).where(
@@ -263,6 +268,11 @@ async def list_comments(
     return await _with_user_info(roots)
 
 
+def _require_comment_permission(role: str) -> None:
+    if not has_permission(role, PERMISSION_COMMENT):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to comment")
+
+
 @router.post(
     "/chapters/{chapter_id}/comments",
     response_model=ContentCommentResponse,
@@ -276,7 +286,9 @@ async def create_comment(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create comment on chapter content."""
+    """Create comment on chapter content. Requires comment permission."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    _require_comment_permission(role)
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(Chapter).where(Chapter.id == chapter_id, Chapter.book_id == book_id)
@@ -310,7 +322,9 @@ async def update_comment(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update comment (body, tag, status, or resolved)."""
+    """Update comment (body, tag, status, or resolved). Requires comment permission."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    _require_comment_permission(role)
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentComment).where(
@@ -355,7 +369,9 @@ async def delete_comment(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete comment and its replies."""
+    """Delete comment and its replies. Requires comment permission."""
+    _, role = await get_project_with_access_or_404(db, project_id, current_user.id)
+    _require_comment_permission(role)
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(
         select(ContentComment).where(

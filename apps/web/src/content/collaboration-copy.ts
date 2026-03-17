@@ -47,13 +47,30 @@ export interface RoleOption {
   permissionGroups: readonly (keyof typeof PERMISSION_GROUPS)[];
 }
 
-export const COLLABORATION_ROLES: RoleOption[] = [
+/** Primary roles for collaboration: Owner, Editor, Writer, Viewer. */
+export const PRIMARY_COLLABORATION_ROLES: RoleOption[] = [
   {
     value: 'editor',
     label: 'Editor',
-    description: 'Review the manuscript in depth. Track notes, issues, and revision priorities clearly.',
+    description: 'Edit content, use story engines, leave comments. Full editorial access.',
     permissionGroups: ['canView', 'canComment', 'canReview', 'canEdit'],
   },
+  {
+    value: 'co_writer',
+    label: 'Writer',
+    description: 'Write content and edit assigned sections. Collaborate on the manuscript.',
+    permissionGroups: ['canView', 'canComment', 'canEdit'],
+  },
+  {
+    value: 'viewer',
+    label: 'Viewer',
+    description: 'Read only. No editing or commenting.',
+    permissionGroups: ['canView'],
+  },
+];
+
+export const COLLABORATION_ROLES: RoleOption[] = [
+  ...PRIMARY_COLLABORATION_ROLES,
   {
     value: 'beta_reader',
     label: 'Beta reader',
@@ -71,18 +88,6 @@ export const COLLABORATION_ROLES: RoleOption[] = [
     label: 'Reviewer',
     description: 'Review and approve chapters. Keep delivery stages organised.',
     permissionGroups: ['canView', 'canComment', 'canReview', 'canApprove'],
-  },
-  {
-    value: 'co_writer',
-    label: 'Co-writer',
-    description: 'Collaborate on writing with full edit access.',
-    permissionGroups: ['canView', 'canComment', 'canEdit'],
-  },
-  {
-    value: 'viewer',
-    label: 'Viewer',
-    description: 'View only. No editing or commenting.',
-    permissionGroups: ['canView'],
   },
 ];
 

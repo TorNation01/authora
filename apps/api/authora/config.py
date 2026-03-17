@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql://authora:authora@localhost:5432/authora"
+    db_pool_size: int = 20
+    db_pool_max_overflow: int = 10
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

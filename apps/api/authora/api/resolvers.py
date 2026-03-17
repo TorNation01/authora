@@ -97,6 +97,18 @@ async def get_book_in_project_or_404(
     return book
 
 
+async def get_book_with_access_by_id(
+    db: AsyncSession, book_id: uuid.UUID, user_id: uuid.UUID
+) -> Book:
+    """Resolve book by ID, ensuring user has access (owner or member). Use when project_id unknown."""
+    result = await db.execute(select(Book).where(Book.id == book_id))
+    book = result.scalar_one_or_none()
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    await get_project_with_access_or_404(db, book.project_id, user_id)
+    return book
+
+
 async def get_chapter_or_404(db: AsyncSession, book_id: uuid.UUID, chapter_id: uuid.UUID) -> Chapter:
     """Resolve chapter by ID within book. Raises 404 if not found."""
     result = await db.execute(

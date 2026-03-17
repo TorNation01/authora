@@ -16,6 +16,7 @@ import {
   HelpCircle,
   Shield,
   CreditCard,
+  LayoutTemplate,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { href: '/dashboard/templates', label: 'Templates', icon: LayoutTemplate },
   { href: '/dashboard/notes', label: 'Ideas & notes', icon: StickyNote },
   { href: '/dashboard/journey', label: 'Your journey', icon: Map },
   { href: '/dashboard/accountability', label: 'Progress', icon: Target },
