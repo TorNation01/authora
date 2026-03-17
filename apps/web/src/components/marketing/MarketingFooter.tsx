@@ -18,6 +18,10 @@ const FOOTER_LINKS = {
   product: [
     { href: '/pricing', label: 'Pricing' },
     { href: '/features', label: 'Features' },
+    { href: '/story-integrity-engine', label: 'Story Integrity Engine' },
+    { href: '/story-density-engine', label: 'Story Density Engine' },
+    { href: '/for-fiction-writers', label: 'For Fiction Writers' },
+    { href: '/for-nonfiction-writers', label: 'For Non-Fiction Writers' },
     { href: '/faq', label: 'FAQ' },
   ],
   legal: [

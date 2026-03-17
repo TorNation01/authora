@@ -1,6 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { CTAPair } from '@/components/public/CTAPair';
+import { ArrowRight } from 'lucide-react';
 import {
   GitBranch,
   Users,
@@ -66,6 +68,13 @@ export function StoryIntegrityEngineSection() {
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-4 lg:min-w-[200px]">
+            <Link
+              href="/story-integrity-engine"
+              className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Learn more about Story Integrity Engine
+              <ArrowRight className="h-4 w-4" />
+            </Link>
             <CTAPair
               primary="start-writing-free"
               secondary="view-pricing"
