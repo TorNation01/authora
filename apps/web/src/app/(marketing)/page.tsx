@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/marketing/HeroSection';
 import { ProblemSection } from '@/components/marketing/ProblemSection';
 import { SolutionSection } from '@/components/marketing/SolutionSection';
 import { HowItWorksSection } from '@/components/marketing/HowItWorksSection';
+import { FeatureSection } from '@/components/marketing/FeatureSection';
 import { FeatureDifferentiatorSection } from '@/components/marketing/FeatureDifferentiatorSection';
 import { WritingExperienceSection } from '@/components/marketing/WritingExperienceSection';
 import { AccountabilitySection } from '@/components/marketing/AccountabilitySection';
@@ -39,6 +40,7 @@ export default function LandingPage() {
       <ProblemSection />
       <SolutionSection />
       <HowItWorksSection />
+      <FeatureSection />
       <FeatureDifferentiatorSection />
       <WritingExperienceSection />
       <AccountabilitySection />

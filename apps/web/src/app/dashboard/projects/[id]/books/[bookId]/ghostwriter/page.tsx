@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getBillingStatus, canUseFeature } from '@/lib/billing';
+import { useUpgradeTrigger } from '@/contexts/UpgradeTriggerContext';
+import { useConfig } from '@/contexts/ConfigProvider';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +67,8 @@ export default function GhostwriterPage() {
   const projectId = params.id as string;
   const bookId = params.bookId as string;
   const { toast } = useToast();
+  const config = useConfig();
+  const { showUpgrade } = useUpgradeTrigger();
   const [workspace, setWorkspace] = useState<GhostwriterWorkspace | null>(null);
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,8 +96,20 @@ export default function GhostwriterPage() {
   }, [projectId, bookId, router]);
 
   useEffect(() => {
-    Promise.all([fetchWorkspace(), fetchBook()]).finally(() => setLoading(false));
-  }, [fetchWorkspace, fetchBook]);
+    if (!config.feature_flags.billing) {
+      Promise.all([fetchWorkspace(), fetchBook()]).finally(() => setLoading(false));
+      return;
+    }
+    getBillingStatus().then((status) => {
+      if (!canUseFeature(status, 'ghostwriter')) {
+        showUpgrade('feature_locked', { featureLabel: 'Ghostwriter' });
+        router.replace(`/dashboard/projects/${projectId}/books/${bookId}`);
+        setLoading(false);
+        return;
+      }
+      Promise.all([fetchWorkspace(), fetchBook()]).finally(() => setLoading(false));
+    });
+  }, [config.feature_flags.billing, fetchWorkspace, fetchBook, projectId, bookId, router, showUpgrade]);
 
   useEffect(() => {
     if (workspace) {

@@ -2,6 +2,7 @@
 
 import { Trophy, Sparkles, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ShareTrigger } from '@/components/viral/ShareTrigger';
 import { cn } from '@/lib/utils';
 
 interface FinishModeCompletionCeremonyProps {
@@ -50,6 +51,14 @@ export function FinishModeCompletionCeremony({
         your next project.
       </p>
       <div className="flex flex-wrap gap-3 justify-center">
+        <ShareTrigger
+          shareType="book_finished"
+          payload={{ book_title: bookTitle, total_words: totalWords }}
+          variant="default"
+          size="lg"
+        >
+          Share your achievement
+        </ShareTrigger>
         <Button onClick={() => onExport('docx')} size="lg" className="gap-2">
           <Download className="h-4 w-4" />
           Export manuscript (.docx)

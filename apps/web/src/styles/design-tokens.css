@@ -1,96 +1,187 @@
 /**
- * AUTHORA Design System
- * Brand: elegant, soft premium, calm creative, writing sanctuary
+ * AUTHORA Color System
+ * Production-ready theme tokens. Light (default) | Dark (optional toggle).
+ * No hard-coded colors — use tokens only.
+ *
+ * Light: #FAF9F7, #FF6A2B, #00A86B, #D4AF37
+ * Dark: #0B0B0B, #FF6A2B, #00C27A, #D4AF37
  */
 
-:root {
-    /* === Color Palette - Soft Premium === */
-    --background: 40 25% 98%;
-    --foreground: 30 12% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 30 12% 12%;
-    --primary: 28 65% 52%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 40 20% 94%;
-    --secondary-foreground: 30 12% 25%;
-    --muted: 40 18% 94%;
-    --muted-foreground: 30 8% 48%;
-    --accent: 35 55% 60%;
-    --accent-foreground: 30 12% 12%;
-    --success: 142 45% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --destructive: 0 65% 48%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 30 15% 90%;
-    --input: 30 15% 92%;
-    --ring: 28 65% 52%;
-    --radius: 0.75rem;
-    --radius-sm: 0.5rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
+/* =============================================================================
+   LIGHT THEME (DEFAULT)
+   Background: #FAF9F7, #FFFFFF, #F3F1EC
+   Text: #1A1A1A, #5F5A54, #8C857D
+   Accent: #FF6A2B, hover #E85C1F, soft #FFE6DB
+   Support: green #00A86B, gold #D4AF37
+   ============================================================================= */
+:root,
+[data-theme="light"] {
+  /* Background */
+  --background: 40 20% 98%;           /* #FAF9F7 */
+  --background-secondary: 0 0% 100%; /* #FFFFFF */
+  --background-soft: 40 25% 94%;     /* #F3F1EC */
+  --background-surface: 0 0% 100%;
+  --background-elevated: 0 0% 100%;
 
-    /* === Typography Scale === */
-    --font-sans: var(--font-source-sans), system-ui, sans-serif;
-    --font-serif: var(--font-crimson), Georgia, serif;
+  /* Text */
+  --foreground: 0 0% 10%;            /* #1A1A1A */
+  --foreground-secondary: 30 6% 35%;  /* #5F5A54 */
+  --muted-foreground: 30 8% 52%;      /* #8C857D */
 
-    --text-xs: 0.75rem;
-    --text-sm: 0.875rem;
-    --text-base: 1rem;
-    --text-lg: 1.125rem;
-    --text-xl: 1.25rem;
-    --text-2xl: 1.5rem;
-    --text-3xl: 1.875rem;
-    --text-4xl: 2.25rem;
-    --text-5xl: 3rem;
+  /* Card (maps to background-secondary) */
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
 
-    --leading-tight: 1.25;
-    --leading-snug: 1.375;
-    --leading-normal: 1.5;
-    --leading-relaxed: 1.625;
-    --leading-loose: 2;
+  /* Primary accent (orange) */
+  --primary: 18 100% 58%;             /* #FF6A2B */
+  --primary-hover: 18 81% 52%;        /* #E85C1F */
+  --primary-soft: 18 100% 93%;       /* #FFE6DB */
+  --primary-foreground: 0 0% 100%;
 
-    /* === Spacing Scale (4px base) === */
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-5: 1.25rem;
-    --space-6: 1.5rem;
-    --space-8: 2rem;
-    --space-10: 2.5rem;
-    --space-12: 3rem;
-    --space-16: 4rem;
-    --space-20: 5rem;
-    --space-24: 6rem;
+  /* Secondary / muted surfaces */
+  --secondary: 40 25% 94%;
+  --secondary-foreground: 30 6% 35%;
+  --muted: 40 25% 94%;
+  --accent: 18 100% 58%;
+  --accent-foreground: 0 0% 10%;
 
-    /* === Shadows - Soft === */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-    --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.05), 0 4px 12px -4px rgb(0 0 0 / 0.05);
+  /* Support colors */
+  --success: 160 100% 33%;            /* #00A86B */
+  --success-foreground: 0 0% 100%;
+  --support-gold: 43 65% 52%;         /* #D4AF37 */
+  --support-green: 160 100% 33%;      /* #00A86B */
+
+  /* Semantic */
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  --destructive: 0 65% 48%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders & inputs */
+  --border: 30 10% 88%;
+  --input: 40 20% 94%;
+  --ring: 18 100% 58%;
+
+  /* Typography - Inter primary */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-serif: var(--font-inter), Georgia, serif;
+
+  /* Type scale - strong hierarchy */
+  --text-xs: 0.75rem;      /* 12px */
+  --text-sm: 0.875rem;     /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg: 1.125rem;     /* 18px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+  --text-4xl: 2.25rem;     /* 36px */
+  --text-5xl: 3rem;       /* 48px */
+
+  /* Line height - readable spacing */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Spacing - 8px grid */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+  --space-24: 6rem;     /* 96px */
+  --space-32: 8rem;     /* 128px */
+
+  /* Section rhythm */
+  --section-gap: 6rem;     /* 96px */
+  --section-gap-sm: 4rem;  /* 64px */
+  --section-gap-lg: 8rem;  /* 128px */
+
+  /* Radius */
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.05), 0 4px 12px -4px rgb(0 0 0 / 0.05);
+  --shadow-card-hover: 0 4px 12px -4px rgb(0 0 0 / 0.08), 0 8px 24px -8px rgb(0 0 0 / 0.06);
+
+  /* Interaction - smooth transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
 }
 
-.dark {
-    --background: 30 15% 7%;
-    --foreground: 40 15% 96%;
-    --card: 30 12% 9%;
-    --card-foreground: 40 15% 96%;
-    --primary: 35 70% 58%;
-    --primary-foreground: 30 15% 7%;
-    --secondary: 30 10% 14%;
-    --secondary-foreground: 40 15% 92%;
-    --muted: 30 10% 14%;
-    --muted-foreground: 30 10% 58%;
-    --accent: 35 55% 50%;
-    --accent-foreground: 40 15% 96%;
-    --success: 142 45% 40%;
-    --warning: 38 92% 45%;
-    --destructive: 0 60% 45%;
-    --border: 30 10% 18%;
-    --input: 30 10% 16%;
-    --ring: 35 70% 58%;
-    --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.3);
+/* =============================================================================
+   DARK THEME (OPTIONAL)
+   Background: #0B0B0B, #141414, #1E1E1E
+   Text: #F5F5F5, #A1A1A1
+   Accent: orange #FF6A2B, gold #D4AF37, green #00C27A
+   ============================================================================= */
+[data-theme="dark"] {
+  /* Background */
+  --background: 0 0% 4%;             /* #0B0B0B */
+  --background-secondary: 0 0% 8%;    /* #141414 */
+  --background-soft: 0 0% 8%;
+  --background-surface: 0 0% 8%;     /* #141414 */
+  --background-elevated: 0 0% 12%;   /* #1E1E1E */
+
+  /* Text */
+  --foreground: 0 0% 96%;            /* #F5F5F5 */
+  --foreground-secondary: 0 0% 63%;   /* #A1A1A1 */
+  --muted-foreground: 0 0% 63%;
+
+  /* Card */
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 96%;
+
+  /* Primary accent (orange - shared) */
+  --primary: 18 100% 58%;            /* #FF6A2B */
+  --primary-hover: 18 81% 52%;
+  --primary-soft: 18 100% 93% / 0.15;
+  --primary-foreground: 0 0% 4%;
+
+  /* Secondary / muted */
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 12%;
+  --accent: 43 65% 52%;              /* gold #D4AF37 */
+  --accent-foreground: 0 0% 4%;
+
+  /* Support colors */
+  --success: 160 100% 38%;            /* #00C27A */
+  --success-foreground: 0 0% 100%;
+  --support-gold: 43 65% 52%;         /* #D4AF37 */
+  --support-green: 160 100% 38%;      /* #00C27A */
+
+  /* Semantic */
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 4%;
+  --destructive: 0 65% 48%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders & inputs */
+  --border: 0 0% 16%;
+  --input: 0 0% 14%;
+  --ring: 18 100% 58%;
+
+  /* Shadows (dark) */
+  --shadow-card: 0 4px 24px -4px rgb(0 0 0 / 0.4), 0 0 1px rgb(255 255 255 / 0.04);
+  --shadow-card-hover: 0 8px 32px -8px rgb(0 0 0 / 0.5), 0 0 1px rgb(255 255 255 / 0.06);
+  --glow-gold: 0 0 40px -10px hsl(var(--support-gold) / 0.25);
+  --glow-gold-subtle: 0 0 60px -20px hsl(var(--support-gold) / 0.12);
+  --glow-green: 0 0 40px -10px hsl(var(--success) / 0.2);
+  --shadow-card-premium: 0 4px 24px -4px rgb(0 0 0 / 0.4), 0 0 1px rgb(255 255 255 / 0.04);
 }

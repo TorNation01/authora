@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Trophy, Flame, BookOpen, Zap, Sunrise } from 'lucide-react';
-import { ShareButton } from '@/components/growth/ShareButton';
+import { ShareTrigger } from '@/components/viral/ShareTrigger';
 
 export type CelebrationEvent =
   | { type: 'badge'; badge_id: string; name: string; xp: number }
@@ -61,7 +61,7 @@ function getMessage(event: CelebrationEvent): string {
   }
 }
 
-function getSharePayload(event: CelebrationEvent): { shareType: 'progress' | 'milestone' | 'achievement'; payload: Record<string, unknown> } | null {
+function getSharePayload(event: CelebrationEvent): { shareType: 'progress' | 'milestone' | 'achievement' | 'book_finished'; payload: Record<string, unknown> } | null {
   switch (event.type) {
     case 'badge':
       return { shareType: 'achievement', payload: { badge_name: event.name } };
@@ -107,7 +107,7 @@ export function CelebrationToast({ event, onDismiss, className, displayName, sho
         <p className="text-sm font-medium text-foreground">{getMessage(event)}</p>
       </div>
       {showShare && sharePayload && (
-        <ShareButton
+        <ShareTrigger
           shareType={sharePayload.shareType}
           payload={sharePayload.payload}
           displayName={displayName}

@@ -108,10 +108,10 @@ async def payout_request(
 
 @router.get("/track")
 async def track_click(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
     aff: str = Query(..., alias="aff", description="Affiliate code"),
     landing: str | None = Query(None, description="Landing path (e.g. /pricing)"),
-    db: Annotated[AsyncSession, Depends(get_db)],
-    request: Request,
 ):
     """Record affiliate link click. Public, no auth. Use: GET /affiliates/track?aff=CODE"""
     _affiliate_enabled()

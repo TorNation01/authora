@@ -18,6 +18,12 @@ AUTHORA's reminder system is fully operational for production. It supports in-ap
 | `stuck_nudge` | 5+ days since last write | Supportive re-engagement |
 | `missed_goal_recovery` | When recovery plan created | Notify about recovery plan |
 
+## UX Principles
+
+- **Motivating tone**: Supportive, never guilt-heavy. Copy aligned with accountability-copy.ts.
+- **Not annoying**: Opt-in reminders, quiet hours, per-type toggles, plan pause.
+- **Optional controls**: Users choose reminder_enabled, email_reminders_enabled, reminder_types, reminder_times, timezone, quiet hours. Full control in Progress settings.
+
 ## Tone Modes
 
 - **Gentle**: Soft nudges, no pressure

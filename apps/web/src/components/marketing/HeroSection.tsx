@@ -1,8 +1,9 @@
 'use client';
 
-import { BookOpen, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { CTAPair } from '@/components/public/CTAPair';
 import { CTA_MICROCOPY } from '@/content/cta-copy';
+import { ProductPreview } from '@/components/marketing/ProductPreview';
 
 const BULLETS = [
   'Know what to write next',
@@ -72,27 +73,12 @@ export function HeroSection() {
             />
           </div>
 
-          {/* Product preview / dashboard mockup */}
+          {/* Live dynamic product preview - cycles through Writing studio, AI assist, Notes, Journey, Accountability, Export */}
           <div
             className="mt-16 flex justify-center opacity-0 animate-fade-up animation-delay-500"
             style={{ animationFillMode: 'forwards' }}
           >
-            <div
-              className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/[0.08] bg-card shadow-2xl"
-              data-analytics="hero-preview"
-            >
-              <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-muted/80 to-muted/40">
-                <div className="text-center p-8">
-                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/20">
-                    <BookOpen className="h-10 w-10 text-primary" />
-                  </div>
-                  <p className="text-base font-medium text-foreground">Your writing studio</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Plan, write, and finish in one place
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ProductPreview />
           </div>
         </div>
       </div>

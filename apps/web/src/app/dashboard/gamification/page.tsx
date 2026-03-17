@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Trophy, Flame, Star, Target, ListTodo, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { JourneyMap } from '@/components/gamification/JourneyMap';
+import { ShareTrigger } from '@/components/viral/ShareTrigger';
 
 interface Stats {
   total_words: number;
@@ -83,14 +84,24 @@ export default function GamificationPage() {
         </Card>
 
         <Card variant="sanctuary" className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Flame className="h-6 w-6" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Flame className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats?.current_streak ?? 0}</p>
+                <p className="text-sm text-muted-foreground">Day streak</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{stats?.current_streak ?? 0}</p>
-              <p className="text-sm text-muted-foreground">Day streak</p>
-            </div>
+            {stats && stats.current_streak > 0 && (
+              <ShareTrigger
+                shareType="milestone"
+                payload={{ milestone: `${stats.current_streak} day streak` }}
+                variant="ghost"
+                size="icon"
+              />
+            )}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Best: {stats?.longest_streak ?? 0} days
@@ -98,14 +109,24 @@ export default function GamificationPage() {
         </Card>
 
         <Card variant="sanctuary" className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Trophy className="h-6 w-6" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats?.total_words?.toLocaleString() ?? 0}</p>
+                <p className="text-sm text-muted-foreground">Total words</p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold">{stats?.total_words?.toLocaleString() ?? 0}</p>
-              <p className="text-sm text-muted-foreground">Total words</p>
-            </div>
+            {stats && (stats.total_words ?? 0) > 0 && (
+              <ShareTrigger
+                shareType="milestone"
+                payload={{ milestone: `${(stats.total_words ?? 0).toLocaleString()} words` }}
+                variant="ghost"
+                size="icon"
+              />
+            )}
           </div>
         </Card>
 
@@ -121,9 +142,21 @@ export default function GamificationPage() {
           </div>
           {stats?.next_milestone && (
             <>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Next milestone: {stats.next_milestone.toLocaleString()} words
-              </p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Next milestone: {stats.next_milestone.toLocaleString()} words
+                </p>
+                {stats.milestone_progress && stats.milestone_progress[0] > 0 && (
+                  <ShareTrigger
+                    shareType="milestone"
+                    payload={{
+                      milestone: `${stats.milestone_progress[0].toLocaleString()} words`,
+                    }}
+                    variant="ghost"
+                    size="sm"
+                  />
+                )}
+              </div>
               <Progress value={milestonePct} size="sm" className="mt-2" />
             </>
           )}

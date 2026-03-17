@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +22,7 @@ from authora.models import (
     Notification,
     NotificationDeliveryLog,
     Project,
+    ProjectTemplate,
     RecoveryPlan,
     StreakLog,
     User,
@@ -52,6 +53,7 @@ from authora.services.accountability_engine import (
     suggest_recovery_plan,
 )
 from authora.services.gamification import get_or_create_user_stats
+from authora.services.retention_service import get_daily_prompt
 from authora.services.progress_dashboard import (
     get_monthly_summary,
     get_progress_dashboard,
@@ -206,7 +208,54 @@ async def update_settings(
     return AccountabilitySettingsResponse.model_validate(settings)
 
 
-# --- Progress Dashboard ---
+# --- Daily Prompt (Retention) ---
+
+@router.get("/daily-prompt")
+async def get_daily_prompt_endpoint(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    date_str: str | None = Query(None, description="Date YYYY-MM-DD; defaults to today"),
+    project_id: uuid.UUID | None = Query(None, description="Project ID to prefer template prompts"),
+):
+    """Return today's writing prompt. Date-seeded so same day = same prompt for all users."""
+    from datetime import date as date_type
+
+    for_date = None
+    if date_str:
+        try:
+            for_date = date_type.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    template_id = None
+    if project_id:
+        result = await db.execute(
+            select(Project, ProjectTemplate.slug)
+            .outerjoin(ProjectTemplate, Project.template_id == ProjectTemplate.id)
+            .where(Project.id == project_id, Project.user_id == current_user.id)
+        )
+        row = result.one_or_none()
+        if row:
+            _, slug = row[0], row[1]
+            if slug:
+                slug_to_id = {
+                    "fiction-romance": "romance",
+                    "fiction-thriller": "thriller",
+                    "fiction-fantasy": "fantasy",
+                    "fiction-mystery": "mystery",
+                    "fiction-literary": "fiction",
+                    "memoir": "memoir",
+                    "nonfiction-business": "business",
+                    "nonfiction-selfhelp": "self_help",
+                    "nonfiction-howto": "educational",
+                    "nonfiction-personal-story": "memoir",
+                    "thought-leadership": "thought_leadership",
+                }
+                template_id = slug_to_id.get(slug) or (
+                    slug.split("-")[-1] if "-" in slug else slug
+                )
+
+    return get_daily_prompt(for_date=for_date, project_template_id=template_id)
 
 @router.get("/progress")
 async def get_progress(

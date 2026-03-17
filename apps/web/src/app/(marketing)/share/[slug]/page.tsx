@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ShareCard } from '@/components/viral/ShareCard';
 
 interface ShareData {
   share_type: string;
@@ -18,6 +19,8 @@ interface ShareData {
   };
   share_url: string;
 }
+
+const SHARE_TYPE = ['progress', 'milestone', 'achievement', 'book_finished'] as const;
 
 export default function SharePage() {
   const params = useParams();
@@ -59,29 +62,35 @@ export default function SharePage() {
 
   const { card, share_url } = data;
   const productName = branding?.product_name || card.product_name || 'AUTHORA';
+  const shareType = (SHARE_TYPE.includes(data.share_type as (typeof SHARE_TYPE)[number])
+    ? data.share_type
+    : 'milestone') as 'progress' | 'milestone' | 'achievement' | 'book_finished';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-muted/50 to-background p-4">
-      <div className="max-w-md w-full bg-card rounded-xl shadow-lg border p-8 text-center">
-        <h1 className="text-xl font-semibold text-foreground">{card.title}</h1>
-        <p className="mt-2 text-muted-foreground">{card.subtitle}</p>
-        <div className="mt-6 flex flex-col gap-3">
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            {card.cta}
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Powered by {productName}
-          </p>
-        </div>
-        <div className="mt-8 pt-6 border-t flex justify-center gap-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-muted/50 to-background p-6">
+      <ShareCard
+        data={{
+          title: card.title,
+          subtitle: card.subtitle,
+          shareType,
+          productName,
+        }}
+        className="mx-auto"
+      />
+      <div className="mt-8 flex flex-col items-center gap-4 max-w-md w-full">
+        <Link
+          href="/register"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover w-full transition-colors"
+        >
+          {card.cta}
+        </Link>
+        <p className="text-xs text-muted-foreground">Powered by {productName}</p>
+        <div className="flex justify-center gap-6 pt-4 border-t border-border/60 w-full">
           <a
             href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(card.subtitle)}&url=${encodeURIComponent(share_url)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Share on X
           </a>
@@ -89,7 +98,7 @@ export default function SharePage() {
             href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(share_url)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Share on LinkedIn
           </a>

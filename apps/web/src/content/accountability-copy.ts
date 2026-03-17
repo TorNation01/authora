@@ -78,6 +78,15 @@ export const FINISH_MODE_ACCOUNTABILITY_COPY = {
   suggestedNextStep: 'Suggested next step',
 } as const;
 
+// --- Daily prompt ---
+
+export const DAILY_PROMPT_COPY = {
+  heading: "Today's prompt",
+  subheading: "A gentle nudge to get you writing.",
+  startWriting: "Start writing",
+  optionalHint: "Optional. Ignore if you're already in the flow.",
+} as const;
+
 // --- Nudges (for reminders, dashboard, empty states) ---
 
 export const NUDGES_COPY = {

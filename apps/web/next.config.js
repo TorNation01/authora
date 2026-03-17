@@ -18,6 +18,7 @@ const nextConfig = {
     return [
       { source: '/health', destination: `${apiUrl}/health` },
       { source: '/health/ready', destination: `${apiUrl}/health/ready` },
+      { source: '/api/:path*', destination: `${apiUrl}/api/:path*` },
     ];
   },
 };

@@ -23,23 +23,44 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
+  /* Interaction - smooth transitions */
+  button, a, [role="button"] {
+    @apply transition-colors duration-200 ease-out;
+  }
 }
 
 @layer components {
-  /* Card variants */
+  /* Card variants - AUTHORA brand system */
+  .card-default {
+    @apply rounded-xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover,var(--shadow-card))];
+  }
   .card-sanctuary {
-    @apply rounded-xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-shadow hover:shadow-md;
+    @apply rounded-xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover,var(--shadow-card))];
   }
   .card-elevated {
     @apply rounded-xl border border-border/40 bg-card shadow-lg;
   }
   .card-soft {
-    @apply rounded-xl bg-muted/50 border border-transparent;
+    @apply rounded-xl bg-background-soft border border-border/40 shadow-sm;
+  }
+
+  /* Layout - clean sections, 8px grid rhythm */
+  .section-spacing {
+    @apply py-16 md:py-24;
+  }
+  .section-spacing-sm {
+    @apply py-12 md:py-16;
+  }
+  .section-spacing-lg {
+    @apply py-20 md:py-32;
+  }
+  .content-max {
+    @apply mx-auto max-w-[80rem] px-4 sm:px-6 lg:px-8;
   }
 
   /* Writing-focused prose */
   .prose-sanctuary {
-    @apply font-serif text-foreground leading-relaxed;
+    @apply font-sans text-foreground leading-relaxed;
   }
   .prose-sanctuary p {
     @apply mb-4 text-[1.0625rem];
@@ -65,7 +86,7 @@
 
 /* TipTap editor - writing sanctuary feel */
 .ProseMirror {
-  @apply outline-none min-h-[400px] px-6 py-8 font-serif text-[1.0625rem] leading-[1.75];
+  @apply outline-none min-h-[400px] px-6 py-8 font-sans text-[1.0625rem] leading-[1.75];
 }
 .ProseMirror p {
   @apply mb-5 leading-relaxed;
@@ -81,7 +102,7 @@
   content: attr(data-placeholder);
 }
 .ProseMirror mark {
-  @apply rounded px-0.5 bg-yellow-200 dark:bg-yellow-900/50;
+  @apply rounded px-0.5 bg-primary-soft;
 }
 .ProseMirror u {
   @apply underline-offset-2;
@@ -129,29 +150,38 @@
 .animation-delay-500 { animation-delay: 500ms; }
 
 /* ========== PUBLIC DESIGN SYSTEM - Component Styles ========== */
-/* Premium card - marketing/public */
-[data-theme="marketing"] .card-premium {
-  @apply rounded-xl border border-white/[0.08] bg-white/[0.02] transition-all duration-300;
-  box-shadow: var(--shadow-card-premium);
+/* Theme-aware: uses --shadow-card-premium in dark, --shadow-card in light */
+.card-premium {
+  @apply rounded-xl border border-border/60 transition-all duration-300;
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-card);
 }
-[data-theme="marketing"] .card-premium:hover {
-  @apply border-white/[0.12] bg-white/[0.04];
-  box-shadow: var(--shadow-card-hover);
-}
-
-/* Public form - textarea */
-[data-theme="marketing"] .input-public {
-  @apply flex min-h-[88px] w-full rounded-md border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground;
-  @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30;
-  @apply transition-colors duration-200 resize-y;
+.card-premium:hover {
+  box-shadow: var(--shadow-card-hover, var(--shadow-card));
 }
 
-/* Public header pattern */
-[data-theme="marketing"] .header-public {
-  @apply sticky top-0 z-50 w-full border-b border-white/[0.06] bg-background/95 backdrop-blur;
+.input-public {
+  @apply flex min-h-[88px] w-full rounded-md border px-4 py-3 text-sm transition-colors duration-200 resize-y;
+  border-color: hsl(var(--border));
+  background: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+.input-public::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+.input-public:focus {
+  @apply outline-none ring-2 ring-primary/50;
+  border-color: hsl(var(--primary) / 0.3);
 }
 
-/* Public footer pattern */
-[data-theme="marketing"] .footer-public {
-  @apply border-t border-white/[0.06] bg-muted/30;
+.header-public {
+  @apply sticky top-0 z-50 w-full border-b backdrop-blur;
+  border-color: hsl(var(--border));
+  background: hsl(var(--background) / 0.95);
+}
+
+.footer-public {
+  @apply border-t;
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
 }

@@ -1,6 +1,6 @@
 # Retention and Momentum System — Summary
 
-The AUTHORA retention system keeps users coming back and finishing their books through goals, streaks, reminders, Finish Mode, and progress visualization. This document summarizes the implemented features and confirms production readiness.
+The AUTHORA retention system keeps users coming back and finishing their books through goals, streaks, daily prompts, reminders, Finish Mode, and progress visualization. This document summarizes the implemented features and confirms production readiness.
 
 ---
 
@@ -38,7 +38,23 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 
 ---
 
-## 3. Reminders
+## 3. Daily Prompts
+
+**Implemented**:
+- **Daily writing prompts**: Date-seeded prompt shown on dashboard
+- **Template-aware**: When user has a project with a template, prompts prefer that genre (romance, thriller, memoir, etc.)
+- **Motivating tone**: Prompts are suggestive, not prescriptive; optional to use
+
+**Display**:
+- `DailyPromptCard` on dashboard above progress widget
+- Copy: "Today's prompt" with optional hint ("Ignore if you're already in the flow")
+
+**API**:
+- `GET /api/v1/accountability/daily-prompt?date=YYYY-MM-DD&project_id=...` returns `{ prompt, date, source }`
+
+---
+
+## 4. Reminders
 
 **Implemented**:
 - **Daily reminders**: Configurable times (e.g. 9:00, 14:00)
@@ -52,7 +68,7 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 
 ---
 
-## 4. Finish Mode
+## 5. Finish Mode
 
 **Implemented**:
 - **Focused completion mode**: Dedicated UI for finishing manuscripts
@@ -68,13 +84,13 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 
 ---
 
-## 5. Progress Visualization
+## 6. Progress Visualization
 
 **Implemented**:
 
 | Location | Widget | Data |
 |----------|--------|------|
-| **Dashboard** | `RetentionProgressWidget` | Today, This week, Streak, Consistency (from `/api/v1/accountability/overview`) |
+| **Dashboard** | `DailyPromptCard`, `RetentionProgressWidget` | Daily prompt, Today, This week, Streak, Consistency |
 | **Project page** | `ProjectProgressCard` | Total words, chapters done/total, % complete (from `/api/v1/projects/{id}/progress`) |
 | **Accountability page** | Today, This week, Consistency, Streak cards | Same overview |
 | **Finish Mode** | `FinishModePanel` | Chapters progress, milestones, next step |
@@ -85,7 +101,7 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 
 ---
 
-## 6. Progress Tracking Summary
+## 7. Progress Tracking Summary
 
 | Metric | Source | Display |
 |--------|--------|---------|
@@ -100,11 +116,12 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 
 ---
 
-## 7. Production Readiness
+## 8. Production Readiness
 
 **Production-ready**:
 - [x] Goals system with presets
 - [x] Streak system (non-gamified display)
+- [x] Daily prompts (date-seeded, template-aware)
 - [x] Reminders with flexible scheduling
 - [x] Finish Mode with milestone tracking
 - [x] Progress visualization (dashboard, project, accountability)
@@ -112,7 +129,7 @@ The AUTHORA retention system keeps users coming back and finishing their books t
 - [x] Error handling and graceful fallbacks (widgets return null on failure)
 
 **Integration**:
-- Dashboard: `RetentionProgressWidget` links to `/dashboard/accountability`
+- Dashboard: `DailyPromptCard` (optional prompt), `RetentionProgressWidget` links to `/dashboard/accountability`
 - Project page: `ProjectProgressCard` shows above books list
 - Accountability page: Settings, goals, streaks, reminders, recovery plans
 

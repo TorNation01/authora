@@ -25,6 +25,7 @@ import {
   BookOpen,
   RotateCcw,
 } from 'lucide-react';
+import { ShareTrigger } from '@/components/viral/ShareTrigger';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { HelpIcon, HowThisWorks } from '@/components/help';
@@ -508,6 +509,14 @@ export default function AccountabilityPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Streak</p>
+                {overview.current_streak > 0 && (
+                  <ShareTrigger
+                    shareType="milestone"
+                    payload={{ milestone: `${overview.current_streak} day streak` }}
+                    variant="ghost"
+                    size="icon"
+                  />
+                )}
               </div>
               <p className="text-2xl font-bold">{STREAK_COPY.daysOfWriting(overview.current_streak)}</p>
               <p className="text-xs text-muted-foreground">{STREAK_COPY.keepGoing}</p>

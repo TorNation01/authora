@@ -25,6 +25,7 @@ import { FeatureIntroCard } from '@/components/tutorial/FeatureIntroCard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getTooltip } from '@/content/tooltips';
 import { useTutorial } from '@/contexts/TutorialContext';
+import { FeatureGate } from '@/components/conversion/FeatureGate';
 
 export type SectionStatus = 'draft' | 'revising' | 'review' | 'done';
 
@@ -127,24 +128,31 @@ export function ManuscriptSidebar({
           />
         )}
         {suggestFinishMode && onEnterFinishMode && !shouldShowIntroCard('finish_mode_intro') && (
-          <button
-            type="button"
-            onClick={onEnterFinishMode}
-            className="flex items-center gap-1.5 w-full text-left text-sm font-medium text-primary rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
-          >
-            <Flag className="h-3.5 w-3.5" />
-            Enter Finish Mode — you&apos;re almost there
-          </button>
+          <FeatureGate feature="finish_mode" className="w-full">
+            <button
+              type="button"
+              onClick={onEnterFinishMode}
+              className="flex items-center gap-1.5 w-full text-left text-sm font-medium text-primary rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+            >
+              <Flag className="h-3.5 w-3.5" />
+              Enter Finish Mode — you&apos;re almost there
+            </button>
+          </FeatureGate>
         )}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link
-              href={`/dashboard/projects/${projectId}/books/${bookId}/ghostwriter`}
-              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            <FeatureGate
+              feature="ghostwriter"
+              className="flex items-center gap-1.5 text-sm w-full text-left"
             >
-              <Bot className="h-3.5 w-3.5" />
-              Ghostwriter
-            </Link>
+              <Link
+                href={`/dashboard/projects/${projectId}/books/${bookId}/ghostwriter`}
+                className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <Bot className="h-3.5 w-3.5" />
+                Ghostwriter
+              </Link>
+            </FeatureGate>
           </TooltipTrigger>
           <TooltipContent side="right">{getTooltip('ghostwriter_link') ?? 'Ghostwriter'}</TooltipContent>
         </Tooltip>
@@ -163,14 +171,16 @@ export function ManuscriptSidebar({
         {canEnterFinishMode && onEnterFinishMode && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onEnterFinishMode}
-                className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left"
-              >
-                <Flag className="h-3.5 w-3.5" />
-                Enter Finish Mode
-              </button>
+              <FeatureGate feature="finish_mode" className="w-full">
+                <button
+                  type="button"
+                  onClick={onEnterFinishMode}
+                  className="flex items-center gap-1.5 text-sm text-primary hover:underline w-full text-left"
+                >
+                  <Flag className="h-3.5 w-3.5" />
+                  Enter Finish Mode
+                </button>
+              </FeatureGate>
             </TooltipTrigger>
             <TooltipContent side="right">{getTooltip('finish_mode') ?? 'Enter Finish Mode'}</TooltipContent>
           </Tooltip>

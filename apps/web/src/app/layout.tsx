@@ -1,18 +1,14 @@
 import type { Metadata } from 'next';
-import { Crimson_Pro, Source_Sans_3 } from 'next/font/google';
+import Script from 'next/script';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ConfigProvider } from '@/contexts/ConfigProvider';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-const sourceSans = Source_Sans_3({
-  variable: '--font-source-sans',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-});
-
-const crimson = Crimson_Pro({
-  variable: '--font-crimson',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
 });
@@ -41,14 +37,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sourceSans.variable} ${crimson.variable}`} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans">
-        <ConfigProvider>
-          <TooltipProvider delayDuration={300}>
-            {children}
-            <Toaster />
-          </TooltipProvider>
-        </ConfigProvider>
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('authora_theme')||'light';document.documentElement.setAttribute('data-theme',t);})();`,
+          }}
+        />
+        <ThemeProvider>
+          <ConfigProvider>
+            <TooltipProvider delayDuration={300}>
+              {children}
+              <Toaster />
+            </TooltipProvider>
+          </ConfigProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

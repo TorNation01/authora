@@ -40,6 +40,7 @@ import {
 } from '@/content/framework-copy';
 import { TemplatePreviewCard } from '@/components/onboarding/TemplatePreviewCard';
 import { StarterTemplateSelector } from '@/components/onboarding/StarterTemplateSelector';
+import { useProjectCreateGuard, useLimitErrorHandler, isLimitError } from '@/hooks/use-conversion-triggers';
 
 type TemplateSummary = {
   id: string;
@@ -87,6 +88,8 @@ export default function NewProjectPage() {
   const searchParams = useSearchParams();
   const templateIdFromUrl = searchParams.get('templateId');
   const { toast } = useToast();
+  const projectCreateGuard = useProjectCreateGuard();
+  const handleLimitError = useLimitErrorHandler();
   const [mode, setMode] = useState<'starters' | 'quick' | 'wizard'>('starters');
   const [step, setStep] = useState(1);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
@@ -180,6 +183,8 @@ export default function NewProjectPage() {
   async function handleQuickCreate(e: React.FormEvent) {
     e.preventDefault();
     const name = projectName?.trim() || 'Untitled Project';
+    const canCreate = await projectCreateGuard();
+    if (!canCreate) return;
     setLoading(true);
     try {
       // Blank starter or no template: create minimal project via from-wizard
@@ -215,11 +220,14 @@ export default function NewProjectPage() {
       toast({ title: 'Project created' });
       router.push(`/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`);
     } catch (err) {
-      toast({
-        title: 'Failed to create project',
-        description: err instanceof Error ? err.message : 'Try again',
-        variant: 'destructive',
-      });
+      handleLimitError(err);
+      if (!isLimitError(err instanceof Error ? err.message : String(err))) {
+        toast({
+          title: 'Failed to create project',
+          description: err instanceof Error ? err.message : 'Try again',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -242,6 +250,8 @@ export default function NewProjectPage() {
       toast({ title: 'Project name is required', variant: 'destructive' });
       return;
     }
+    const canCreate = await projectCreateGuard();
+    if (!canCreate) return;
     const template = getSelectedTemplate();
     setLoading(true);
     try {
@@ -266,11 +276,14 @@ export default function NewProjectPage() {
       toast({ title: 'Project created' });
       router.push(`/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`);
     } catch (err) {
-      toast({
-        title: 'Failed to create project',
-        description: err instanceof Error ? err.message : 'Try again',
-        variant: 'destructive',
-      });
+      handleLimitError(err);
+      if (!isLimitError(err instanceof Error ? err.message : String(err))) {
+        toast({
+          title: 'Failed to create project',
+          description: err instanceof Error ? err.message : 'Try again',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }

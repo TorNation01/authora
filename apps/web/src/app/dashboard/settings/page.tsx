@@ -9,10 +9,18 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { api } from '@/lib/api';
 import { useConfig } from '@/contexts/ConfigProvider';
+import { useTheme } from '@/contexts/ThemeProvider';
 import { useToast } from '@/hooks/use-toast';
 import { createCustomerPortalSession } from '@/lib/billing';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
-import { Sparkles } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Sparkles, Sun, Moon } from 'lucide-react';
 
 interface User {
   id: string;
@@ -42,6 +50,7 @@ interface Book {
 export default function SettingsPage() {
   const { toast } = useToast();
   const config = useConfig();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -208,6 +217,40 @@ export default function SettingsPage() {
   return (
     <div className="p-6 lg:p-8 max-w-xl space-y-8">
       <PageHeader title="Settings" description="Your account and preferences" />
+
+      <Card variant="sanctuary">
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Choose light or dark theme. Light is the default.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <Label htmlFor="theme">Theme</Label>
+            <Select value={theme} onValueChange={(v) => setTheme(v as 'light' | 'dark')}>
+              <SelectTrigger id="theme" className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">
+                  <span className="flex items-center gap-2">
+                    <Sun className="h-4 w-4" />
+                    Light
+                  </span>
+                </SelectItem>
+                <SelectItem value="dark">
+                  <span className="flex items-center gap-2">
+                    <Moon className="h-4 w-4" />
+                    Dark
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Your preference is saved and applies across the app.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card variant="sanctuary">
         <CardHeader>

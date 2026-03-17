@@ -4,17 +4,28 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
-        soft: 'bg-primary/10 text-primary hover:bg-primary/15',
+        /* Primary - orange CTA */
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-[0.98] shadow-sm',
+        /* Secondary - subtle */
+        secondary:
+          'bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98] border border-border/60',
+        /* Text - no background */
+        ghost:
+          'text-foreground hover:bg-muted/60 hover:text-foreground active:scale-[0.98]',
+        link:
+          'text-primary underline-offset-4 hover:underline hover:text-primary-hover',
+        /* Legacy / semantic */
+        destructive:
+          'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]',
+        outline:
+          'border border-input bg-background hover:bg-muted/60 hover:text-foreground active:scale-[0.98]',
+        soft:
+          'bg-primary-soft text-primary hover:bg-primary-soft/80 active:scale-[0.98]',
       },
       size: {
         default: 'h-10 px-4 py-2',

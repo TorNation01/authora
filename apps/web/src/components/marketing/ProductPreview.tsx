@@ -14,6 +14,9 @@ import {
   FileDown,
   FileImage,
   BookOpen,
+  PenTool,
+  Archive,
+  Activity,
 } from 'lucide-react';
 
 const SAMPLE_CHAPTER = `The old lighthouse had stood empty for twenty years. Sarah climbed the worn stone steps, her hand trailing along the rusted railing. At the top, the view opened—endless ocean, a few fishing boats, and the distant outline of the mainland.
@@ -48,14 +51,26 @@ const EXPORT_FORMATS = [
 
 const ROTATE_INTERVAL_MS = 5000;
 
-type SectionId = 'dashboard' | 'notes' | 'journey' | 'accountability' | 'export' | 'ai-assist';
+type SectionId =
+  | 'dashboard'
+  | 'ai-assist'
+  | 'ghostwriter'
+  | 'notes'
+  | 'vault'
+  | 'journey'
+  | 'accountability'
+  | 'story-engines'
+  | 'export';
 
 const SECTIONS: { id: SectionId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'Writing studio', icon: LayoutDashboard },
   { id: 'ai-assist', label: 'AI assist', icon: Sparkles },
+  { id: 'ghostwriter', label: 'Ghostwriter', icon: PenTool },
   { id: 'notes', label: 'Notes', icon: StickyNote },
+  { id: 'vault', label: 'Vault', icon: Archive },
   { id: 'journey', label: 'Journey', icon: Map },
   { id: 'accountability', label: 'Accountability', icon: Target },
+  { id: 'story-engines', label: 'Story engines', icon: Activity },
   { id: 'export', label: 'Export', icon: FileText },
 ];
 
@@ -164,13 +179,22 @@ export function ProductPreview() {
                 <AIAssistPreview />
               </div>
               <div className="w-full min-w-full flex-shrink-0 flex flex-col">
+                <GhostwriterPreview />
+              </div>
+              <div className="w-full min-w-full flex-shrink-0 flex flex-col">
                 <NotesPreview />
+              </div>
+              <div className="w-full min-w-full flex-shrink-0 flex flex-col">
+                <VaultPreview />
               </div>
               <div className="w-full min-w-full flex-shrink-0 flex flex-col">
                 <JourneyPreview />
               </div>
               <div className="w-full min-w-full flex-shrink-0 flex flex-col">
                 <AccountabilityPreview />
+              </div>
+              <div className="w-full min-w-full flex-shrink-0 flex flex-col">
+                <StoryEnginesPreview />
               </div>
               <div className="w-full min-w-full flex-shrink-0 flex flex-col">
                 <ExportPreview />
@@ -294,6 +318,36 @@ function AIAssistPreview() {
   );
 }
 
+function GhostwriterPreview() {
+  return (
+    <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 p-4">
+        <div className="mb-3">
+          <h2 className="font-semibold text-foreground mb-1">Ghostwriter</h2>
+          <p className="text-sm text-muted-foreground">Generate draft from outline & chapter briefs</p>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-3 mb-3">
+          <p className="text-xs text-muted-foreground mb-1">Chapter 3</p>
+          <p className="text-sm text-foreground">Sarah arrives at the lighthouse. She sets up to write.</p>
+        </div>
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <PenTool className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary">AI draft ready</span>
+          </div>
+          <p className="font-serif text-[13px] leading-relaxed text-foreground italic">
+            The old lighthouse had stood empty for twenty years. Sarah climbed the worn stone steps…
+          </p>
+          <div className="mt-2 flex gap-2">
+            <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">Apply</span>
+            <span className="text-xs px-2 py-1 rounded bg-muted/60 text-muted-foreground">Regenerate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NotesPreview() {
   return (
     <div className="p-4 space-y-3">
@@ -317,6 +371,36 @@ function NotesPreview() {
       </div>
       <div className="rounded-lg border border-dashed border-border/60 p-4 text-center">
         <p className="text-xs text-muted-foreground">Quick capture • Research • Ideas • Quotes</p>
+      </div>
+    </div>
+  );
+}
+
+function VaultPreview() {
+  return (
+    <div className="p-4 space-y-3">
+      <div>
+        <h2 className="font-semibold text-foreground mb-1">Vault</h2>
+        <p className="text-sm text-muted-foreground">Characters, locations, research, timeline</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-border/60 bg-card/80 p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Archive className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground">Character</span>
+          </div>
+          <p className="text-sm text-foreground">Sarah — former journalist, 42</p>
+        </div>
+        <div className="rounded-lg border border-border/60 bg-card/80 p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Archive className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground">Location</span>
+          </div>
+          <p className="text-sm text-foreground">The lighthouse</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-dashed border-border/60 p-3">
+        <p className="text-xs text-muted-foreground">Research • Sources • Timeline • Themes</p>
       </div>
     </div>
   );
@@ -408,6 +492,36 @@ function AccountabilityPreview() {
       </div>
       <div className="rounded-lg border border-dashed border-border/60 p-3">
         <p className="text-xs text-muted-foreground">Reminders · Recovery plans · Milestones</p>
+      </div>
+    </div>
+  );
+}
+
+function StoryEnginesPreview() {
+  return (
+    <div className="p-4 space-y-3">
+      <div>
+        <h2 className="font-semibold text-foreground mb-1">Story engines</h2>
+        <p className="text-sm text-muted-foreground">Manuscript intelligence — gaps, filler, payoff</p>
+      </div>
+      <div className="space-y-2">
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Activity className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary">Story Integrity</span>
+          </div>
+          <p className="text-sm text-foreground">Plot gaps • Character arcs • Missing payoff</p>
+        </div>
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <Activity className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary">Story Density</span>
+          </div>
+          <p className="text-sm text-foreground">Repetition • Filler • Weak sections</p>
+        </div>
+      </div>
+      <div className="rounded-lg border border-dashed border-border/60 p-3">
+        <p className="text-xs text-muted-foreground">Know what to fix. Cut the filler. Strengthen what matters.</p>
       </div>
     </div>
   );

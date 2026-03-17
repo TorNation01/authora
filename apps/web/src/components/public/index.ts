@@ -1,6 +1,6 @@
 /**
  * AUTHORA Public Site Design System - Reusable Components
- * Use within [data-theme="marketing"] context for marketing, pricing, features, help pages
+ * Theme-aware: works with light (default) or dark theme for marketing, pricing, features, help pages
  */
 
 export { SectionHeader } from './SectionHeader';

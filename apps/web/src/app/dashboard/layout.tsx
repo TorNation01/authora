@@ -12,6 +12,7 @@ import { getMarketingBaseUrl } from '@/lib/config';
 import { UserProvider, type UserInfo } from '@/contexts/UserContext';
 import { HelpProvider } from '@/contexts/HelpContext';
 import { TutorialProvider } from '@/contexts/TutorialContext';
+import { UpgradeTriggerProvider } from '@/contexts/UpgradeTriggerContext';
 import { HelpCenter, Walkthrough } from '@/components/help';
 
 export default function DashboardLayout({
@@ -87,13 +88,15 @@ export default function DashboardLayout({
   return (
     <ErrorBoundary>
       <UserProvider user={user}>
-        <HelpProvider>
-          <TutorialProvider>
-            <AppShell onLogout={handleLogout}>{children}</AppShell>
-            <HelpCenter />
-            <Walkthrough />
-          </TutorialProvider>
-        </HelpProvider>
+        <UpgradeTriggerProvider>
+          <HelpProvider>
+            <TutorialProvider>
+              <AppShell onLogout={handleLogout}>{children}</AppShell>
+              <HelpCenter />
+              <Walkthrough />
+            </TutorialProvider>
+          </HelpProvider>
+        </UpgradeTriggerProvider>
       </UserProvider>
     </ErrorBoundary>
   );
