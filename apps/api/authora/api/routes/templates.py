@@ -16,6 +16,8 @@ from authora.services.billing_service import get_user_plan
 from authora.services.template_access_service import (
     _check_template_access,
     get_user_purchased_packs,
+    get_user_purchased_template_ids,
+    has_template_access,
 )
 
 router = APIRouter(prefix="/templates", tags=["templates"])
@@ -25,12 +27,23 @@ def _template_to_summary_with_access(
     t: ProjectTemplate,
     user_plan_slug: str,
     purchased_packs: set[str],
+    purchased_template_ids: set[uuid.UUID] | None = None,
+    *,
+    creator_name: str | None = None,
+    usage_count: int = 0,
+    rating_avg: float | None = None,
+    rating_count: int = 0,
 ) -> TemplateSummary:
     """Build TemplateSummary with can_use and required_action."""
     access_level = getattr(t, "access_level", None) or "free"
     pack_slug = getattr(t, "premium_pack_slug", None)
     can_use, required_action = _check_template_access(
-        access_level, pack_slug, user_plan_slug, purchased_packs
+        access_level,
+        pack_slug,
+        user_plan_slug,
+        purchased_packs,
+        purchased_template_ids=purchased_template_ids or set(),
+        template_id=t.id,
     )
     return TemplateSummary(
         id=t.id,
@@ -45,8 +58,14 @@ def _template_to_summary_with_access(
         is_featured=t.is_featured,
         access_level=access_level,
         premium_pack_slug=pack_slug,
+        price_cents=getattr(t, "price_cents", None),
+        is_paid=getattr(t, "is_paid", False),
         can_use=can_use,
         required_action=required_action,
+        creator_name=creator_name,
+        usage_count=usage_count,
+        rating_avg=rating_avg,
+        rating_count=rating_count,
     )
 
 
@@ -107,9 +126,12 @@ async def list_categories(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List template categories with top-level templates and their children. Includes access info."""
+    from authora.services.marketplace_service import get_creator_names, get_template_usage_counts
+
     plan = await get_user_plan(db, current_user.id)
     plan_slug = getattr(plan, "slug", "free") or "free"
     purchased = await get_user_purchased_packs(db, current_user.id)
+    purchased_templates = await get_user_purchased_template_ids(db, current_user.id)
 
     q = (
         select(ProjectTemplate)
@@ -118,6 +140,31 @@ async def list_categories(
     )
     result = await db.execute(q)
     parents = result.scalars().all()
+
+    all_templates = list(parents)
+    for p in parents:
+        cq = (
+            select(ProjectTemplate)
+            .where(ProjectTemplate.parent_id == p.id, ProjectTemplate.is_disabled.is_(False))
+            .order_by(ProjectTemplate.sort_order.asc())
+        )
+        cr = await db.execute(cq)
+        children = cr.scalars().all()
+        all_templates.extend(children)
+
+    usage_counts = await get_template_usage_counts(db)
+    creator_ids = {t.creator_id for t in all_templates if t.creator_id}
+    creator_names = await get_creator_names(db, creator_ids)
+
+    def _with_trust(t):
+        return _template_to_summary_with_access(
+            t,
+            plan_slug,
+            purchased,
+            purchased_templates,
+            creator_name=creator_names.get(t.creator_id) if t.creator_id else None,
+            usage_count=usage_counts.get(t.id, 0),
+        )
 
     out = []
     for p in parents:
@@ -132,8 +179,8 @@ async def list_categories(
             "category": p.category,
             "name": p.name,
             "slug": p.slug,
-            "template": _template_to_summary_with_access(p, plan_slug, purchased),
-            "children": [_template_to_summary_with_access(c, plan_slug, purchased) for c in children],
+            "template": _with_trust(p),
+            "children": [_with_trust(c) for c in children],
         })
     return out
 
@@ -154,13 +201,42 @@ async def list_all_templates(
     return [TemplateSummary.model_validate(t) for t in templates]
 
 
+@router.get("/trending")
+async def list_trending_templates(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = 7,
+    limit: int = 10,
+):
+    """List trending templates by recent activity (projects + purchases)."""
+    from authora.services.creator_growth_service import get_trending_templates
+
+    items = await get_trending_templates(db, days=days, limit=limit)
+    return items
+
+
+@router.get("/top-sellers")
+async def list_top_sellers(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 10,
+):
+    """List top-selling templates by purchase count."""
+    from authora.services.creator_growth_service import get_top_sellers
+
+    items = await get_top_sellers(db, limit=limit)
+    return items
+
+
 @router.get("/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: uuid.UUID,
     current_user: Annotated[dict, Depends(CurrentUser)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get template by ID with full details. Includes can_use and required_action."""
+    """Get template by ID with full details. Includes can_use, required_action, trust signals."""
+    from authora.services.marketplace_service import get_creator_names, get_template_usage_counts
+
     result = await db.execute(
         select(ProjectTemplate).where(ProjectTemplate.id == template_id)
     )
@@ -170,18 +246,70 @@ async def get_template(
     if template.is_disabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
-    plan = await get_user_plan(db, current_user.id)
-    plan_slug = getattr(plan, "slug", "free") or "free"
-    purchased = await get_user_purchased_packs(db, current_user.id)
-    can_use, required_action = _check_template_access(
-        getattr(template, "access_level", "free") or "free",
-        getattr(template, "premium_pack_slug", None),
-        plan_slug,
-        purchased,
-    )
+    can_use, required_action = await has_template_access(db, current_user.id, template)
+
+    usage_counts = await get_template_usage_counts(db)
+    creator_name = None
+    if template.creator_id:
+        creator_names = await get_creator_names(db, {template.creator_id})
+        creator_name = creator_names.get(template.creator_id)
 
     resp = TemplateResponse.model_validate(template)
-    return resp.model_copy(update={"can_use": can_use, "required_action": required_action})
+    return resp.model_copy(
+        update={
+            "can_use": can_use,
+            "required_action": required_action,
+            "creator_name": creator_name,
+            "usage_count": usage_counts.get(template.id, 0),
+        }
+    )
+
+
+@router.post("/{template_id}/view")
+async def record_template_view(
+    template_id: uuid.UUID,
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Record a template view (preview opened). Used for analytics."""
+    from authora.services.creator_growth_service import record_template_view as svc_record_view
+
+    result = await db.execute(
+        select(ProjectTemplate).where(ProjectTemplate.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if not template or template.is_disabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    await svc_record_view(db, template_id, current_user.id)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.get("/{template_id}/analytics")
+async def get_template_analytics(
+    template_id: uuid.UUID,
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get analytics for a template (views, conversions, earnings). Creator-only."""
+    from authora.services.creator_growth_service import get_template_analytics as svc_get_analytics
+    from authora.services.creator_service import is_approved_creator
+
+    if not await is_approved_creator(db, current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Creator access required")
+
+    result = await db.execute(
+        select(ProjectTemplate).where(ProjectTemplate.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    if not template or template.is_disabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    if template.creator_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your template")
+
+    analytics = await svc_get_analytics(db, template_id)
+    return analytics
 
 
 @router.get("/starters", response_model=list[dict])
@@ -208,6 +336,30 @@ async def list_starters(
             "template_id": slug_to_id.get(m["template_slug"]) if m.get("template_slug") else None,
         }
         for m in get_starter_metadata()
+    ]
+
+
+@router.get("/purchased", response_model=list[TemplateSummary])
+async def list_purchased_templates(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """List templates the user has purchased (creator templates). Saved to account, accessible anytime."""
+    from authora.models import TemplatePurchase
+
+    r = await db.execute(
+        select(ProjectTemplate)
+        .join(TemplatePurchase, TemplatePurchase.template_id == ProjectTemplate.id)
+        .where(
+            TemplatePurchase.user_id == current_user.id,
+            ProjectTemplate.is_disabled.is_(False),
+        )
+        .order_by(ProjectTemplate.name.asc())
+    )
+    templates = r.scalars().all()
+    return [
+        TemplateSummary.model_validate(t).model_copy(update={"can_use": True, "required_action": None})
+        for t in templates
     ]
 
 
@@ -244,13 +396,20 @@ async def list_marketplace_templates(
     category: str | None = Query(None, description="Filter by category"),
     featured: bool | None = Query(None, description="Only featured templates"),
     search: str | None = Query(None, description="Search by name or description"),
+    book_type: str | None = Query(None, description="Filter by book_type"),
+    genre: str | None = Query(None, description="Filter by genre"),
+    price_min: int | None = Query(None, description="Min price in cents"),
+    price_max: int | None = Query(None, description="Max price in cents"),
 ):
-    """Browse templates for marketplace. Supports category, featured, and search filters."""
+    """Browse templates for marketplace. Supports category, featured, search, and filters."""
     from sqlalchemy import or_
+
+    from authora.services.marketplace_service import get_creator_names, get_template_usage_counts
 
     plan = await get_user_plan(db, current_user.id)
     plan_slug = getattr(plan, "slug", "free") or "free"
     purchased = await get_user_purchased_packs(db, current_user.id)
+    purchased_templates = await get_user_purchased_template_ids(db, current_user.id)
 
     q = select(ProjectTemplate).where(ProjectTemplate.is_disabled.is_(False))
     if category:
@@ -265,12 +424,31 @@ async def list_marketplace_templates(
                 ProjectTemplate.description.ilike(pattern),
             )
         )
+    if book_type:
+        q = q.where(ProjectTemplate.book_type == book_type)
+    if genre:
+        q = q.where(ProjectTemplate.genre.ilike(f"%{genre}%"))
+    if price_min is not None:
+        q = q.where(ProjectTemplate.price_cents >= price_min)
+    if price_max is not None:
+        q = q.where(ProjectTemplate.price_cents <= price_max)
     q = q.order_by(ProjectTemplate.sort_order.asc(), ProjectTemplate.name.asc())
     result = await db.execute(q)
     templates = result.scalars().all()
 
+    usage_counts = await get_template_usage_counts(db)
+    creator_ids = {t.creator_id for t in templates if t.creator_id}
+    creator_names = await get_creator_names(db, creator_ids)
+
     return [
-        _template_to_summary_with_access(t, plan_slug, purchased)
+        _template_to_summary_with_access(
+            t,
+            plan_slug,
+            purchased,
+            purchased_templates,
+            creator_name=creator_names.get(t.creator_id) if t.creator_id else None,
+            usage_count=usage_counts.get(t.id, 0),
+        )
         for t in templates
     ]
 
@@ -281,7 +459,7 @@ async def get_template_by_slug(
     current_user: Annotated[dict, Depends(CurrentUser)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get template by slug."""
+    """Get template by slug with access info."""
     result = await db.execute(
         select(ProjectTemplate).where(ProjectTemplate.slug == slug)
     )
@@ -290,4 +468,6 @@ async def get_template_by_slug(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     if template.is_disabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return TemplateResponse.model_validate(template)
+    can_use, required_action = await has_template_access(db, current_user.id, template)
+    resp = TemplateResponse.model_validate(template)
+    return resp.model_copy(update={"can_use": can_use, "required_action": required_action})

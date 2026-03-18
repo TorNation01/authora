@@ -34,10 +34,18 @@ class TemplateResponse(BaseModel):
     is_disabled: bool
     access_level: str = "free"
     premium_pack_slug: str | None = None
+    price_cents: int | None = None
+    is_paid: bool = False
+    creator_id: str | None = None
     can_use: bool = True
     required_action: str | None = None
     created_at: datetime
     updated_at: datetime
+    # Marketplace trust signals (populated when needed)
+    creator_name: str | None = None
+    usage_count: int = 0
+    rating_avg: float | None = None
+    rating_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -57,8 +65,15 @@ class TemplateSummary(BaseModel):
     is_featured: bool
     access_level: str = "free"
     premium_pack_slug: str | None = None
+    price_cents: int | None = None
+    is_paid: bool = False
     can_use: bool = True
-    required_action: str | None = None  # "upgrade" | "purchase:{pack_slug}"
+    required_action: str | None = None  # "upgrade" | "purchase:{pack_slug}" | "purchase_template:{id}"
+    # Marketplace trust signals
+    creator_name: str | None = None
+    usage_count: int = 0
+    rating_avg: float | None = None  # Future: average rating 1-5
+    rating_count: int = 0  # Future: number of ratings
 
     model_config = {"from_attributes": True}
 

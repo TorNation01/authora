@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +15,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
+import { createTemplateCheckout } from '@/lib/billing';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List, Lock, CreditCard, Search, Star } from 'lucide-react';
+import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List, Lock, CreditCard, Search, Star, Users, Filter, TrendingUp, Award } from 'lucide-react';
 import Link from 'next/link';
 import { CATEGORY_DESCRIPTIONS } from '@/content/template-copy';
 
@@ -32,8 +33,14 @@ type TemplateSummary = {
   is_featured: boolean;
   access_level?: string;
   premium_pack_slug?: string | null;
+  price_cents?: number | null;
+  is_paid?: boolean;
   can_use?: boolean;
   required_action?: string | null;
+  creator_name?: string | null;
+  usage_count?: number;
+  rating_avg?: number | null;
+  rating_count?: number;
 };
 
 type TemplateCategory = {
@@ -64,10 +71,15 @@ type TemplateFull = TemplateSummary & {
   export_recommendations: string[] | null;
   chapter_skeletons: ChapterSkeleton[] | null;
   default_structure?: { planning_sections?: PlanningSection[] } | null;
+  creator_name?: string | null;
+  usage_count?: number;
+  rating_avg?: number | null;
+  rating_count?: number;
 };
 
 export default function TemplateMarketplacePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const user = useUser();
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
@@ -75,11 +87,24 @@ export default function TemplateMarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterBookType, setFilterBookType] = useState<string>('');
+  const [filterGenre, setFilterGenre] = useState<string>('');
+  const [filterPriceMin, setFilterPriceMin] = useState<string>('');
+  const [filterPriceMax, setFilterPriceMax] = useState<string>('');
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateFull | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [packs, setPacks] = useState<TemplatePack[]>([]);
+  const [purchasedTemplates, setPurchasedTemplates] = useState<TemplateSummary[]>([]);
+  const [purchasingTemplateId, setPurchasingTemplateId] = useState<string | null>(null);
+  const [featuredCreators, setFeaturedCreators] = useState<{ creator_id: string; display_name: string }[]>([]);
+  const [trendingTemplates, setTrendingTemplates] = useState<
+    { template_id: string; slug: string; name: string; creator_name: string | null; activity_count: number }[]
+  >([]);
+  const [topSellers, setTopSellers] = useState<
+    { template_id: string; slug: string; name: string; creator_name: string | null; sales: number; revenue_cents: number }[]
+  >([]);
 
   useEffect(() => {
     api<TemplateCategory[]>('/api/v1/templates/categories')
@@ -90,15 +115,22 @@ export default function TemplateMarketplacePage() {
 
   useEffect(() => {
     const params = new URLSearchParams();
+    const hasFilters = filterBookType || filterGenre || filterPriceMin || filterPriceMax;
     if (searchQuery.trim()) {
       params.set('search', searchQuery.trim());
-    } else {
+    } else if (!hasFilters) {
       params.set('featured', 'true');
     }
+    if (filterBookType) params.set('book_type', filterBookType);
+    if (filterGenre) params.set('genre', filterGenre);
+    const minCents = filterPriceMin ? Math.round(parseFloat(filterPriceMin) * 100) : null;
+    const maxCents = filterPriceMax ? Math.round(parseFloat(filterPriceMax) * 100) : null;
+    if (minCents != null && !isNaN(minCents)) params.set('price_min', String(minCents));
+    if (maxCents != null && !isNaN(maxCents)) params.set('price_max', String(maxCents));
     api<TemplateSummary[]>(`/api/v1/templates/marketplace?${params}`)
       .then(setMarketplaceTemplates)
       .catch(() => setMarketplaceTemplates([]));
-  }, [searchQuery]);
+  }, [searchQuery, filterBookType, filterGenre, filterPriceMin, filterPriceMax]);
 
   useEffect(() => {
     api<TemplatePack[]>('/api/v1/templates/packs')
@@ -107,13 +139,55 @@ export default function TemplateMarketplacePage() {
   }, []);
 
   useEffect(() => {
+    api<TemplateSummary[]>('/api/v1/templates/purchased')
+      .then(setPurchasedTemplates)
+      .catch(() => setPurchasedTemplates([]));
+  }, []);
+
+  useEffect(() => {
+    api<{ creator_id: string; display_name: string }[]>('/api/v1/growth/featured-creators')
+      .then(setFeaturedCreators)
+      .catch(() => setFeaturedCreators([]));
+  }, []);
+
+  useEffect(() => {
+    api<{ template_id: string; slug: string; name: string; creator_name: string | null; activity_count: number }[]>(
+      '/api/v1/templates/trending'
+    )
+      .then(setTrendingTemplates)
+      .catch(() => setTrendingTemplates([]));
+  }, []);
+
+  useEffect(() => {
+    api<
+      { template_id: string; slug: string; name: string; creator_name: string | null; sales: number; revenue_cents: number }[]
+    >('/api/v1/templates/top-sellers')
+      .then(setTopSellers)
+      .catch(() => setTopSellers([]));
+  }, []);
+
+  useEffect(() => {
+    const purchased = searchParams.get('template_purchased');
+    if (purchased === '1') {
+      toast({ title: 'Template purchased successfully' });
+      api<TemplateSummary[]>('/api/v1/templates/purchased')
+        .then(setPurchasedTemplates)
+        .catch(() => {});
+      router.replace('/dashboard/templates');
+    }
+  }, [searchParams, toast, router]);
+
+  useEffect(() => {
     if (!previewTemplateId) {
       setPreviewTemplate(null);
       return;
     }
     setPreviewLoading(true);
     api<TemplateFull>(`/api/v1/templates/${previewTemplateId}`)
-      .then(setPreviewTemplate)
+      .then((t) => {
+        setPreviewTemplate(t);
+        api(`/api/v1/templates/${previewTemplateId}/view`, { method: 'POST' }).catch(() => {});
+      })
       .catch(() => setPreviewTemplate(null))
       .finally(() => setPreviewLoading(false));
   }, [previewTemplateId]);
@@ -138,8 +212,31 @@ export default function TemplateMarketplacePage() {
         router.push(`/dashboard/billing?pack=${packSlug}`);
         return;
       }
+      if (template.required_action?.startsWith('purchase_template:')) {
+        setPreviewTemplateId(template.id);
+        return;
+      }
     }
     router.push(`/dashboard/projects/new?templateId=${template.id}`);
+  };
+
+  const handlePurchaseTemplate = async (templateId: string) => {
+    setPurchasingTemplateId(templateId);
+    try {
+      const result = await createTemplateCheckout(templateId, {
+        successUrl: `${window.location.origin}/dashboard/templates?template_purchased=1`,
+        cancelUrl: window.location.href,
+      });
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        toast({ title: 'Checkout not available', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Failed to start checkout', variant: 'destructive' });
+    } finally {
+      setPurchasingTemplateId(null);
+    }
   };
 
   async function handleDuplicateTemplate(templateId: string) {
@@ -170,15 +267,171 @@ export default function TemplateMarketplacePage() {
       />
 
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {featuredCreators.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Featured creators
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Creators trusted by our community.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {featuredCreators.map((c) => (
+                <Badge key={c.creator_id} variant="secondary" className="py-1.5 px-3">
+                  {c.display_name}
+                </Badge>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="grid gap-6 sm:grid-cols-2 mb-10">
+          {trendingTemplates.length > 0 && (
+            <section>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Trending this week
+              </h2>
+              <p className="text-sm text-muted-foreground mb-3">
+                Templates gaining momentum.
+              </p>
+              <div className="space-y-2">
+                {trendingTemplates.slice(0, 5).map((t) => (
+                  <Card
+                    key={t.template_id}
+                    variant="soft"
+                    className="cursor-pointer transition-all hover:shadow-md hover:border-primary/20"
+                    onClick={() => setPreviewTemplateId(t.template_id)}
+                  >
+                    <CardHeader className="py-3">
+                      <CardTitle className="font-serif text-sm">{t.name}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {t.creator_name && <span className="mr-2">{t.creator_name}</span>}
+                        {t.activity_count} {t.activity_count === 1 ? 'use' : 'uses'} this week
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+          {topSellers.length > 0 && (
+            <section>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                Top sellers
+              </h2>
+              <p className="text-sm text-muted-foreground mb-3">
+                Best-selling creator templates.
+              </p>
+              <div className="space-y-2">
+                {topSellers.slice(0, 5).map((t) => (
+                  <Card
+                    key={t.template_id}
+                    variant="soft"
+                    className="cursor-pointer transition-all hover:shadow-md hover:border-primary/20"
+                    onClick={() => setPreviewTemplateId(t.template_id)}
+                  >
+                    <CardHeader className="py-3">
+                      <CardTitle className="font-serif text-sm">{t.name}</CardTitle>
+                      <CardDescription className="text-xs">
+                        {t.creator_name && <span className="mr-2">{t.creator_name}</span>}
+                        {t.sales} {t.sales === 1 ? 'sale' : 'sales'}
+                        {t.revenue_cents > 0 && (
+                          <span className="ml-1">· ${(t.revenue_cents / 100).toFixed(0)}</span>
+                        )}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {purchasedTemplates.length > 0 && (
+          <section className="mb-10">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              My purchased templates
+            </h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              Templates you own. Accessible anytime.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {purchasedTemplates.map((t) => (
+                <TemplateLibraryCard
+                  key={t.id}
+                  template={{ ...t, can_use: true, required_action: null }}
+                  onPreview={() => setPreviewTemplateId(t.id)}
+                  onApply={() => handleApplyTemplate({ ...t, can_use: true })}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <select
+              value={filterBookType}
+              onChange={(e) => setFilterBookType(e.target.value)}
+              className="rounded border bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="">All types</option>
+              <option value="fiction">Fiction</option>
+              <option value="nonfiction">Nonfiction</option>
+              <option value="memoir">Memoir</option>
+              <option value="workbook">Workbook</option>
+              <option value="business">Business</option>
+            </select>
             <Input
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              placeholder="Genre"
+              value={filterGenre}
+              onChange={(e) => setFilterGenre(e.target.value)}
+              className="w-32"
             />
+            <Input
+              type="number"
+              placeholder="Min $"
+              value={filterPriceMin}
+              onChange={(e) => setFilterPriceMin(e.target.value)}
+              className="w-20"
+            />
+            <Input
+              type="number"
+              placeholder="Max $"
+              value={filterPriceMax}
+              onChange={(e) => setFilterPriceMax(e.target.value)}
+              className="w-20"
+            />
+            {(filterBookType || filterGenre || filterPriceMin || filterPriceMax) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterBookType('');
+                  setFilterGenre('');
+                  setFilterPriceMin('');
+                  setFilterPriceMax('');
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </div>
         </div>
 
@@ -328,11 +581,33 @@ export default function TemplateMarketplacePage() {
                         {[previewTemplate.book_type, previewTemplate.genre].filter(Boolean).join(' · ')}
                       </Badge>
                     )}
+                    {previewTemplate.is_paid && previewTemplate.price_cents != null && (
+                      <Badge variant="outline" className="text-xs">
+                        ${(previewTemplate.price_cents / 100).toFixed(2)}
+                      </Badge>
+                    )}
                     {previewTemplate.can_use === false && (
                       <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
                         <Lock className="h-3 w-3 mr-0.5" />
                         Premium
                       </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-2 text-xs text-muted-foreground">
+                    {previewTemplate.creator_name && (
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {previewTemplate.creator_name}
+                      </span>
+                    )}
+                    {(previewTemplate.usage_count ?? 0) > 0 && (
+                      <span>{(previewTemplate.usage_count ?? 0)} projects created</span>
+                    )}
+                    {previewTemplate.rating_avg != null && (previewTemplate.rating_count ?? 0) > 0 && (
+                      <span className="flex items-center gap-0.5">
+                        <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                        {previewTemplate.rating_avg.toFixed(1)} ({previewTemplate.rating_count} ratings)
+                      </span>
                     )}
                   </div>
                 </div>
@@ -413,7 +688,9 @@ export default function TemplateMarketplacePage() {
                   <p className="font-medium text-amber-700 dark:text-amber-400">
                     {previewTemplate.required_action === 'upgrade'
                       ? 'Upgrade to Pro or Studio to unlock this template.'
-                      : 'Purchase the template pack to unlock this template.'}
+                      : previewTemplate.required_action?.startsWith('purchase_template:')
+                        ? `Purchase this creator template for $${((previewTemplate.price_cents ?? 0) / 100).toFixed(2)}.`
+                        : 'Purchase the template pack to unlock this template.'}
                   </p>
                   <p className="text-muted-foreground mt-1 text-xs">
                     {previewTemplate.required_action === 'upgrade'
@@ -423,22 +700,32 @@ export default function TemplateMarketplacePage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2 pt-4">
-                <Button
-                  onClick={() => handleApplyTemplate(previewTemplate)}
-                  disabled={previewTemplate.can_use === false}
-                >
-                  {previewTemplate.can_use === false ? (
-                    <>
-                      <Lock className="h-4 w-4 mr-2" />
-                      {previewTemplate.required_action === 'upgrade' ? 'Upgrade to unlock' : 'Purchase to unlock'}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Use this template
-                    </>
-                  )}
-                </Button>
+                {previewTemplate.can_use ? (
+                  <Button onClick={() => handleApplyTemplate(previewTemplate)}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Use this template
+                  </Button>
+                ) : previewTemplate.required_action?.startsWith('purchase_template:') ? (
+                  <Button
+                    onClick={() => handlePurchaseTemplate(previewTemplate.id)}
+                    disabled={purchasingTemplateId === previewTemplate.id}
+                  >
+                    {purchasingTemplateId === previewTemplate.id ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Buy for ${((previewTemplate.price_cents ?? 0) / 100).toFixed(2)}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleApplyTemplate(previewTemplate)}
+                    disabled
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    {previewTemplate.required_action === 'upgrade' ? 'Upgrade to unlock' : 'Purchase to unlock'}
+                  </Button>
+                )}
                 {previewTemplate.can_use === false && previewTemplate.required_action?.startsWith('purchase:') && (
                   <Button variant="outline" asChild>
                     <Link href="/dashboard/billing">
@@ -493,6 +780,10 @@ function TemplateLibraryCard({
   isChild?: boolean;
 }) {
   const isLocked = template.can_use === false;
+  const usageCount = template.usage_count ?? 0;
+  const priceDisplay = template.is_paid && template.price_cents != null
+    ? `$${(template.price_cents / 100).toFixed(2)}`
+    : null;
   return (
     <Card
       variant="soft"
@@ -509,6 +800,26 @@ function TemplateLibraryCard({
               {template.description && (
                 <CardDescription className="text-sm mt-0.5 line-clamp-2">{template.description}</CardDescription>
               )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5 text-xs text-muted-foreground">
+                {template.creator_name && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {template.creator_name}
+                  </span>
+                )}
+                {usageCount > 0 && (
+                  <span>{usageCount} {usageCount === 1 ? 'project' : 'projects'} created</span>
+                )}
+                {priceDisplay && (
+                  <span className="font-medium text-foreground">{priceDisplay}</span>
+                )}
+                {template.rating_avg != null && template.rating_count != null && template.rating_count > 0 && (
+                  <span className="flex items-center gap-0.5">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    {template.rating_avg.toFixed(1)} ({template.rating_count})
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -527,6 +838,11 @@ function TemplateLibraryCard({
           {template.is_featured && (
             <Badge variant="default" className="text-xs">
               Featured
+            </Badge>
+          )}
+          {priceDisplay && (
+            <Badge variant="outline" className="text-xs">
+              {priceDisplay}
             </Badge>
           )}
           {isLocked && (

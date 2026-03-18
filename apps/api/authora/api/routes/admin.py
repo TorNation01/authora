@@ -15,6 +15,8 @@ from authora.models import (
     AuditLog,
     Book,
     Chapter,
+    CreatorProfile,
+    TemplatePurchase,
     DensityIssue,
     DensityScan,
     ExportJob,
@@ -30,6 +32,7 @@ from authora.models import (
     SetupState,
     TemplatePack,
     TemplatePackPurchase,
+    TemplateSubmission,
     UsageRecord,
     User,
     WritingFramework,
@@ -1237,6 +1240,418 @@ async def admin_apply_recommended_model_roles(
     saved = await save_ai_model_role_overrides(db, effective)
     await db.commit()
     return {"ok": True, "mappings": saved, "tier": profile.tier}
+
+
+# --- Creator management ---
+
+
+@router.get("/creators")
+async def admin_list_creators(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = Query(None, alias="status"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List creator applications with user email."""
+    from authora.services.creator_service import list_creators_admin
+
+    rows = await list_creators_admin(
+        db, status=status_filter, limit=limit, offset=offset
+    )
+    return [
+        {
+            "id": str(p.id),
+            "user_id": str(p.user_id),
+            "email": email,
+            "status": p.status,
+            "is_featured": getattr(p, "is_featured", False),
+            "application_note": p.application_note,
+            "applied_at": p.applied_at.isoformat() if p.applied_at else None,
+            "approved_at": p.approved_at.isoformat() if p.approved_at else None,
+            "rejected_at": p.rejected_at.isoformat() if p.rejected_at else None,
+            "rejection_reason": p.rejection_reason,
+        }
+        for p, email in rows
+    ]
+
+
+class SetCreatorFeaturedRequest(BaseModel):
+    is_featured: bool
+
+
+@router.patch("/creators/{profile_id}/featured")
+async def admin_set_creator_featured(
+    profile_id: uuid.UUID,
+    data: SetCreatorFeaturedRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Set or unset featured status for a creator."""
+    profile = await db.get(CreatorProfile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Creator not found")
+    profile.is_featured = data.is_featured
+    await db.commit()
+    return {"id": str(profile.id), "is_featured": profile.is_featured}
+
+
+class RejectCreatorRequest(BaseModel):
+    rejection_reason: str | None = None
+
+
+@router.post("/creators/{profile_id}/approve")
+async def admin_approve_creator(
+    profile_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Approve creator application."""
+    from authora.services.creator_service import approve_creator
+
+    try:
+        profile = await approve_creator(db, profile_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(profile.id), "status": profile.status}
+
+
+@router.post("/creators/{profile_id}/reject")
+async def admin_reject_creator(
+    profile_id: uuid.UUID,
+    data: RejectCreatorRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reject creator application."""
+    from authora.services.creator_service import reject_creator
+
+    try:
+        profile = await reject_creator(
+            db, profile_id, rejection_reason=data.rejection_reason
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(profile.id), "status": profile.status}
+
+
+# --- Template submission management ---
+
+
+@router.get("/template-submissions")
+async def admin_list_template_submissions(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = Query(None, alias="status"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List template submissions for review."""
+    from authora.services.template_submission_service import list_submissions_admin
+
+    rows = await list_submissions_admin(
+        db, status=status_filter, limit=limit, offset=offset
+    )
+    return [
+        {
+            "id": str(s.id),
+            "creator_id": str(s.creator_id),
+            "creator_email": email,
+            "slug": s.slug,
+            "name": s.name,
+            "description": s.description,
+            "category": s.category,
+            "price_cents": s.price_cents,
+            "status": s.status,
+            "payload": s.payload,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "reviewed_at": s.reviewed_at.isoformat() if s.reviewed_at else None,
+            "rejected_reason": s.rejected_reason,
+            "change_request_reason": getattr(s, "change_request_reason", None),
+        }
+        for s, email in rows
+    ]
+
+
+class RejectSubmissionRequest(BaseModel):
+    rejection_reason: str | None = None
+
+
+@router.post("/template-submissions/{submission_id}/approve")
+async def admin_approve_submission(
+    submission_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Approve submission and create ProjectTemplate."""
+    from authora.services.template_submission_service import approve_submission
+
+    try:
+        template = await approve_submission(db, submission_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(template.id), "slug": template.slug, "name": template.name}
+
+
+@router.post("/template-submissions/{submission_id}/reject")
+async def admin_reject_submission(
+    submission_id: uuid.UUID,
+    data: RejectSubmissionRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reject template submission."""
+    from authora.services.template_submission_service import reject_submission
+
+    try:
+        sub = await reject_submission(
+            db, submission_id, rejection_reason=data.rejection_reason
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(sub.id), "status": sub.status}
+
+
+class RequestChangesSubmissionRequest(BaseModel):
+    change_request_reason: str = Field(..., min_length=1)
+
+
+@router.post("/template-submissions/{submission_id}/request-changes")
+async def admin_request_changes_submission(
+    submission_id: uuid.UUID,
+    data: RequestChangesSubmissionRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Request changes. Creator can edit and resubmit."""
+    from authora.services.template_submission_service import request_changes
+
+    try:
+        sub = await request_changes(
+            db,
+            submission_id,
+            change_request_reason=data.change_request_reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(sub.id), "status": sub.status}
+
+
+@router.get("/template-sales")
+async def admin_template_sales(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Sales per template: count and revenue."""
+    from sqlalchemy import func as sql_func
+
+    r = await db.execute(
+        select(
+            TemplatePurchase.template_id,
+            sql_func.count(TemplatePurchase.id).label("sales"),
+            sql_func.coalesce(sql_func.sum(TemplatePurchase.amount_cents), 0).label("revenue_cents"),
+        )
+        .group_by(TemplatePurchase.template_id)
+    )
+    rows = r.all()
+    template_ids = [tid for tid, _, _ in rows]
+    template_map = {}
+    if template_ids:
+        tr = await db.execute(
+            select(ProjectTemplate.id, ProjectTemplate.slug, ProjectTemplate.name).where(
+                ProjectTemplate.id.in_(template_ids)
+            )
+        )
+        template_map = {str(t.id): {"slug": t.slug, "name": t.name} for t in tr.all()}
+    return [
+        {
+            "template_id": str(tid),
+            "slug": template_map.get(str(tid), {}).get("slug"),
+            "name": template_map.get(str(tid), {}).get("name"),
+            "sales": cnt,
+            "revenue_cents": rev,
+        }
+        for tid, cnt, rev in rows
+    ]
+
+
+@router.get("/creator-revenue")
+async def admin_creator_revenue(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Revenue per creator: sum of template sales."""
+    from sqlalchemy import func as sql_func
+
+    r = await db.execute(
+        select(
+            ProjectTemplate.creator_id,
+            sql_func.count(TemplatePurchase.id).label("sales"),
+            sql_func.coalesce(sql_func.sum(TemplatePurchase.amount_cents), 0).label("revenue_cents"),
+        )
+        .join(TemplatePurchase, TemplatePurchase.template_id == ProjectTemplate.id)
+        .where(ProjectTemplate.creator_id.isnot(None))
+        .group_by(ProjectTemplate.creator_id)
+    )
+    rows = r.all()
+    creator_ids = [cid for cid, _, _ in rows]
+    creator_map = {}
+    if creator_ids:
+        cr = await db.execute(
+            select(User.id, User.email).where(User.id.in_(creator_ids))
+        )
+        creator_map = {str(u.id): u.email for u in cr.scalars().all()}
+    return [
+        {
+            "creator_id": str(cid),
+            "email": creator_map.get(str(cid)),
+            "sales": cnt,
+            "revenue_cents": rev,
+        }
+        for cid, cnt, rev in rows
+    ]
+
+
+# --- Creator payouts (admin) ---
+
+
+@router.get("/creator-payouts")
+async def admin_list_creator_payouts(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status_filter: str | None = Query(None, alias="status"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """List creator payout requests with creator email."""
+    from authora.services.creator_payout_service import list_creator_payouts_admin
+
+    rows = await list_creator_payouts_admin(
+        db, status=status_filter, limit=limit, offset=offset
+    )
+    return [
+        {
+            "id": str(p.id),
+            "creator_id": str(p.creator_id),
+            "creator_email": email,
+            "amount_cents": p.amount_cents,
+            "status": p.status,
+            "payment_method": p.payment_method,
+            "requested_at": p.requested_at.isoformat() if p.requested_at else None,
+            "approved_at": p.approved_at.isoformat() if p.approved_at else None,
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+            "rejected_at": p.rejected_at.isoformat() if p.rejected_at else None,
+            "rejection_reason": p.rejection_reason,
+        }
+        for p, email in rows
+    ]
+
+
+@router.post("/creator-payouts/{payout_id}/approve")
+async def admin_approve_payout(
+    payout_id: uuid.UUID,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Approve payout (ready for payment)."""
+    from authora.services.creator_payout_service import approve_payout
+
+    try:
+        payout = await approve_payout(db, payout_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(payout.id), "status": payout.status}
+
+
+class RejectPayoutRequest(BaseModel):
+    rejection_reason: str | None = None
+
+
+@router.post("/creator-payouts/{payout_id}/reject")
+async def admin_reject_payout(
+    payout_id: uuid.UUID,
+    data: RejectPayoutRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Reject payout request."""
+    from authora.services.creator_payout_service import reject_payout
+
+    try:
+        payout = await reject_payout(
+            db, payout_id, rejection_reason=data.rejection_reason
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(payout.id), "status": payout.status}
+
+
+class MarkPayoutPaidRequest(BaseModel):
+    stripe_payout_id: str | None = None
+    payment_method: str = "manual"
+    payment_details: dict[str, Any] | None = None
+
+
+@router.post("/creator-payouts/{payout_id}/mark-paid")
+async def admin_mark_payout_paid(
+    payout_id: uuid.UUID,
+    data: MarkPayoutPaidRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Mark payout as paid. Allocates earnings and records payment method."""
+    from authora.services.creator_payout_service import mark_payout_paid
+
+    try:
+        payout = await mark_payout_paid(
+            db,
+            payout_id,
+            stripe_payout_id=data.stripe_payout_id,
+            payment_method=data.payment_method,
+            payment_details=data.payment_details,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await db.commit()
+    return {"id": str(payout.id), "status": payout.status}
+
+
+class AdjustBalanceRequest(BaseModel):
+    amount_cents: int = Field(..., description="Positive=credit, negative=debit")
+    reason: str | None = None
+
+
+@router.post("/creator-payouts/adjust-balance/{creator_id}")
+async def admin_adjust_creator_balance(
+    creator_id: uuid.UUID,
+    data: AdjustBalanceRequest,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Adjust creator balance (credit or debit)."""
+    from authora.services.creator_payout_service import adjust_creator_balance
+
+    adj = await adjust_creator_balance(
+        db,
+        creator_id,
+        data.amount_cents,
+        reason=data.reason,
+        admin_user_id=current_user.id,
+    )
+    await db.commit()
+    return {
+        "id": str(adj.id),
+        "creator_id": str(adj.creator_id),
+        "amount_cents": adj.amount_cents,
+        "reason": adj.reason,
+    }
 
 
 # --- Project template management ---

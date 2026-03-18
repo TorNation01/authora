@@ -16,6 +16,15 @@ if TYPE_CHECKING:
     from authora.models.user import User
 
 
+CREATOR_STATUS_PENDING = "pending"
+CREATOR_STATUS_APPROVED = "approved"
+CREATOR_STATUS_REJECTED = "rejected"
+SUBMISSION_STATUS_PENDING = "pending"
+SUBMISSION_STATUS_APPROVED = "approved"
+SUBMISSION_STATUS_REJECTED = "rejected"
+SUBMISSION_STATUS_CHANGES_REQUESTED = "changes_requested"
+
+
 class TemplateRating(Base):
     """User rating for a template (optional future feature)."""
 
@@ -34,7 +43,7 @@ class TemplateRating(Base):
 
 
 class TemplateSubmission(Base):
-    """Creator submission for template approval (future)."""
+    """Creator submission for template approval."""
 
     __tablename__ = "template_submissions"
 
@@ -46,7 +55,17 @@ class TemplateSubmission(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=SUBMISSION_STATUS_PENDING)
     rejected_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    change_request_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_templates.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    approved_template: Mapped["ProjectTemplate | None"] = relationship(
+        "ProjectTemplate", foreign_keys=[approved_template_id]
+    )

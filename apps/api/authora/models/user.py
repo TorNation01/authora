@@ -12,6 +12,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.affiliate import AffiliateProfile
+    from authora.models.creator_profile import CreatorProfile
     from authora.models.ai_action_log import AIActionLog
     from authora.models.growth import Referral, ShareLink
     from authora.models.ai_revision import AIRevision
@@ -74,6 +75,9 @@ class User(Base):
     )
     affiliate_profile: Mapped["AffiliateProfile | None"] = relationship(
         "AffiliateProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    creator_profile: Mapped["CreatorProfile | None"] = relationship(
+        "CreatorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
 

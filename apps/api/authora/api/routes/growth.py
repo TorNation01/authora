@@ -1,4 +1,4 @@
-"""Growth API: viral share, content generation, referrals, SEO."""
+"""Growth API: viral share, content generation, referrals, SEO, creator growth."""
 
 from datetime import datetime, timezone
 from typing import Annotated, Any
@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authora.api.dependencies import AdminUser, CurrentUser
 from authora.config import get_settings
 from authora.database import get_db
+from authora.services.creator_growth_service import (
+    get_featured_creators,
+)
 from authora.services.growth_service import (
     create_share_link,
     generate_share_content,
@@ -157,6 +160,19 @@ async def get_seo_page_route(
         "content": page.content,
         "internal_links": page.internal_links or [],
     }
+
+
+# --- Creator growth (public) ---
+
+
+@router.get("/featured-creators")
+async def list_featured_creators(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(10, ge=1, le=50),
+):
+    """List featured creators. Public."""
+    creators = await get_featured_creators(db, limit=limit)
+    return creators
 
 
 # --- Admin ---

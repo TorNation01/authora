@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
-from authora.models import EntitlementAuditLog, EntitlementGrant, Plan, PromoCode, TemplatePack, TemplatePackPurchase, User
+from authora.models import EntitlementAuditLog, EntitlementGrant, Plan, ProjectTemplate, PromoCode, TemplatePack, TemplatePackPurchase, TemplatePurchase, User
 from authora.config import get_settings
 from authora.services.billing_service import (
     _period_str,
@@ -763,6 +763,58 @@ class TemplatePackCheckoutRequest(BaseModel):
     pack_slug: str
     success_url: str | None = None
     cancel_url: str | None = None
+
+
+class TemplateCheckoutRequest(BaseModel):
+    template_id: uuid.UUID
+    success_url: str | None = None
+    cancel_url: str | None = None
+
+
+@router.post("/checkout/template")
+async def create_template_checkout(
+    data: TemplateCheckoutRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create Stripe Checkout session for a single creator template (one-time purchase)."""
+    from authora.services.stripe_service import create_template_checkout_session
+
+    r = await db.execute(
+        select(ProjectTemplate).where(
+            ProjectTemplate.id == data.template_id,
+            ProjectTemplate.is_disabled.is_(False),
+            ProjectTemplate.is_paid.is_(True),
+        )
+    )
+    template = r.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    if not template.price_cents or template.price_cents <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Template is not for sale")
+
+    r2 = await db.execute(
+        select(TemplatePurchase).where(
+            TemplatePurchase.user_id == current_user.id,
+            TemplatePurchase.template_id == data.template_id,
+        )
+    )
+    if r2.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already own this template")
+
+    result = await create_template_checkout_session(
+        db,
+        current_user.id,
+        data.template_id,
+        success_url=data.success_url,
+        cancel_url=data.cancel_url,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
+        )
+    return result
 
 
 class CustomerPortalRequest(BaseModel):

@@ -59,6 +59,8 @@ from authora.models.ghostwriter import ChapterBrief, GhostwriterWorkspace
 from authora.models.journey import JourneyTask, UserJourney
 from authora.models.note import Note, NoteAttachment
 from authora.models.organization import OrgMember, OrgSubscription, Organization
+from authora.models.creator_profile import CreatorProfile
+from authora.models.creator_payout import CreatorBalanceAdjustment, CreatorEarning, CreatorPayout
 from authora.models.affiliate import (
     AffiliateAttribution,
     AffiliateClick,
@@ -106,6 +108,7 @@ from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
 from authora.models.project_template import ProjectTemplate
 from authora.models.template_pack import TemplatePack, TemplatePackPurchase
+from authora.models.template_purchase import TemplatePurchase
 from authora.models.template_marketplace import TemplateRating, TemplateSubmission
 from authora.models.writing_framework import WritingFramework
 from authora.models.subscription import Subscription
@@ -218,6 +221,7 @@ __all__ = [
     "ProjectTemplate",
     "TemplatePack",
     "TemplatePackPurchase",
+    "TemplatePurchase",
     "TemplateRating",
     "TemplateSubmission",
     "WritingFramework",
@@ -266,6 +270,10 @@ __all__ = [
     "Referral",
     "GrowthSetting",
     "SEOPage",
+    "CreatorProfile",
+    "CreatorEarning",
+    "CreatorPayout",
+    "CreatorBalanceAdjustment",
     "AffiliateProfile",
     "AffiliateClick",
     "AffiliateAttribution",

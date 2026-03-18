@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, admin, affiliates, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, growth, integrity, journey, leads, nonfiction, notes, organizations, projects, rag, reference, revision_passes, setup, templates, vault
+from authora.api.routes import accountability, admin, affiliates, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, creators, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, growth, integrity, journey, leads, nonfiction, notes, organizations, projects, rag, reference, revision_passes, setup, templates, vault
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
@@ -147,6 +147,7 @@ app.include_router(config.router, prefix="/api/v1")
 app.include_router(organizations.router, prefix="/api/v1")
 app.include_router(growth.router, prefix="/api/v1")
 app.include_router(affiliates.router, prefix="/api/v1")
+app.include_router(creators.router, prefix="/api/v1")
 app.include_router(community.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
