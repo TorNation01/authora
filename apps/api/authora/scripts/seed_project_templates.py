@@ -37,6 +37,8 @@ async def seed_project_templates() -> None:
             data = {
                 "category": defn["category"],
                 "name": defn["name"],
+                "access_level": defn.get("access_level", "free"),
+                "premium_pack_slug": defn.get("premium_pack_slug"),
                 "description": defn.get("description"),
                 "who_it_is_for": defn.get("who_it_is_for"),
                 "expected_outcome": defn.get("expected_outcome"),

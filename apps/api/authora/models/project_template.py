@@ -44,6 +44,9 @@ class ProjectTemplate(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_featured: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_disabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Premium template access: free | pro | studio | premium_pack
+    access_level: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    premium_pack_slug: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Marketplace future-ready: paid templates, creator attribution
     price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_paid: Mapped[bool] = mapped_column(default=False, nullable=False)

@@ -28,6 +28,8 @@ from authora.models import (
     Reminder,
     Setting,
     SetupState,
+    TemplatePack,
+    TemplatePackPurchase,
     UsageRecord,
     User,
     WritingFramework,
@@ -1267,6 +1269,11 @@ async def admin_list_templates(
                 "sort_order": t.sort_order,
                 "is_featured": t.is_featured,
                 "is_disabled": t.is_disabled,
+                "access_level": getattr(t, "access_level", "free") or "free",
+                "premium_pack_slug": getattr(t, "premium_pack_slug", None),
+                "price_cents": getattr(t, "price_cents", None),
+                "is_paid": getattr(t, "is_paid", False),
+                "creator_id": str(t.creator_id) if getattr(t, "creator_id", None) else None,
             }
             for t in templates
         ],
@@ -1287,8 +1294,17 @@ class AdminTemplateUpdate(BaseModel):
     sort_order: int | None = None
     is_featured: bool | None = None
     is_disabled: bool | None = None
+    access_level: str | None = None
+    premium_pack_slug: str | None = None
+    price_cents: int | None = None
+    is_paid: bool | None = None
+    creator_id: uuid.UUID | None = None
     default_structure: dict | None = None
     default_milestones: list | None = None
+    default_planning_prompts: dict | None = None
+    default_accountability: dict | None = None
+    ai_prompts: dict | None = None
+    export_recommendations: list | None = None
     setup_questions: list | None = None
     chapter_skeletons: list | None = None
 
@@ -1335,6 +1351,101 @@ async def admin_update_template(
         t.setup_questions = data.setup_questions
     if data.chapter_skeletons is not None:
         t.chapter_skeletons = data.chapter_skeletons
+    if data.access_level is not None:
+        t.access_level = data.access_level
+    if data.premium_pack_slug is not None:
+        t.premium_pack_slug = data.premium_pack_slug
+    if data.price_cents is not None:
+        t.price_cents = data.price_cents
+    if data.is_paid is not None:
+        t.is_paid = data.is_paid
+    if data.creator_id is not None:
+        t.creator_id = data.creator_id
+    if data.default_planning_prompts is not None:
+        t.default_planning_prompts = data.default_planning_prompts
+    if data.default_accountability is not None:
+        t.default_accountability = data.default_accountability
+    if data.ai_prompts is not None:
+        t.ai_prompts = data.ai_prompts
+    if data.export_recommendations is not None:
+        t.export_recommendations = data.export_recommendations
+    await db.flush()
+    await db.refresh(t)
+    return {"id": str(t.id), "slug": t.slug, "name": t.name}
+
+
+class AdminTemplateCreate(BaseModel):
+    """Create template (admin)."""
+
+    slug: str
+    category: str
+    parent_id: uuid.UUID | None = None
+    name: str
+    description: str | None = None
+    who_it_is_for: str | None = None
+    expected_outcome: str | None = None
+    suggested_workflow: str | None = None
+    book_type: str | None = None
+    genre: str | None = None
+    structure_framework: str | None = None
+    access_level: str = "free"
+    premium_pack_slug: str | None = None
+    price_cents: int | None = None
+    is_paid: bool = False
+    creator_id: uuid.UUID | None = None
+    default_structure: dict | None = None
+    default_milestones: list | None = None
+    default_planning_prompts: dict | None = None
+    default_accountability: dict | None = None
+    ai_prompts: dict | None = None
+    export_recommendations: list | None = None
+    setup_questions: list | None = None
+    chapter_skeletons: list | None = None
+    sort_order: int = 0
+    is_featured: bool = False
+    is_disabled: bool = False
+
+
+@router.post("/templates")
+async def admin_create_template(
+    data: AdminTemplateCreate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create template (admin)."""
+    existing = (await db.execute(select(ProjectTemplate).where(ProjectTemplate.slug == data.slug))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists")
+    t = ProjectTemplate(
+        slug=data.slug,
+        category=data.category,
+        parent_id=data.parent_id,
+        name=data.name,
+        description=data.description,
+        who_it_is_for=data.who_it_is_for,
+        expected_outcome=data.expected_outcome,
+        suggested_workflow=data.suggested_workflow,
+        book_type=data.book_type,
+        genre=data.genre,
+        structure_framework=data.structure_framework,
+        access_level=data.access_level,
+        premium_pack_slug=data.premium_pack_slug,
+        price_cents=data.price_cents,
+        is_paid=data.is_paid,
+        creator_id=data.creator_id,
+        default_structure=data.default_structure,
+        default_milestones=data.default_milestones,
+        default_planning_prompts=data.default_planning_prompts,
+        default_accountability=data.default_accountability,
+        ai_prompts=data.ai_prompts,
+        export_recommendations=data.export_recommendations,
+        setup_questions=data.setup_questions,
+        chapter_skeletons=data.chapter_skeletons,
+        sort_order=data.sort_order,
+        is_featured=data.is_featured,
+        is_disabled=data.is_disabled,
+    )
+    db.add(t)
     await db.flush()
     await db.refresh(t)
     return {"id": str(t.id), "slug": t.slug, "name": t.name}
@@ -1367,6 +1478,8 @@ async def admin_duplicate_template(
         book_type=src.book_type,
         genre=src.genre,
         structure_framework=src.structure_framework,
+        access_level=getattr(src, "access_level", "free") or "free",
+        premium_pack_slug=None,
         default_structure=src.default_structure,
         default_milestones=src.default_milestones,
         default_planning_prompts=src.default_planning_prompts,
@@ -1479,6 +1592,157 @@ async def admin_template_usage(
             by_template[key] = {"projects": 0, "books": 0}
         by_template[key]["books"] = cnt
     return {"by_template": by_template}
+
+
+# --- Template pack management ---
+
+
+@router.get("/template-packs")
+async def admin_list_template_packs(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_inactive: bool = Query(False),
+):
+    """List all template packs (admin)."""
+    q = select(TemplatePack).order_by(TemplatePack.sort_order.asc(), TemplatePack.name.asc())
+    if not include_inactive:
+        q = q.where(TemplatePack.is_active.is_(True))
+    result = await db.execute(q)
+    packs = result.scalars().all()
+    return {
+        "packs": [
+            {
+                "id": str(p.id),
+                "slug": p.slug,
+                "name": p.name,
+                "description": p.description,
+                "price_cents": p.price_cents,
+                "stripe_price_id": p.stripe_price_id,
+                "template_slugs": p.template_slugs or [],
+                "sort_order": p.sort_order,
+                "is_active": p.is_active,
+                "is_featured": getattr(p, "is_featured", False),
+                "creator_id": str(p.creator_id) if getattr(p, "creator_id", None) else None,
+                "revenue_share_pct": float(p.revenue_share_pct) if getattr(p, "revenue_share_pct", None) else None,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in packs
+        ],
+    }
+
+
+class AdminTemplatePackCreate(BaseModel):
+    slug: str
+    name: str
+    description: str | None = None
+    price_cents: int = 0
+    stripe_price_id: str | None = None
+    template_slugs: list[str] = Field(default_factory=list)
+    sort_order: int = 0
+    is_active: bool = True
+    is_featured: bool = False
+    creator_id: uuid.UUID | None = None
+    revenue_share_pct: float | None = None
+
+
+class AdminTemplatePackUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price_cents: int | None = None
+    stripe_price_id: str | None = None
+    template_slugs: list[str] | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+    is_featured: bool | None = None
+    creator_id: uuid.UUID | None = None
+    revenue_share_pct: float | None = None
+
+
+@router.post("/template-packs")
+async def admin_create_template_pack(
+    data: AdminTemplatePackCreate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create template pack (admin)."""
+    existing = (await db.execute(select(TemplatePack).where(TemplatePack.slug == data.slug))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Slug already exists")
+    from decimal import Decimal
+
+    p = TemplatePack(
+        slug=data.slug,
+        name=data.name,
+        description=data.description,
+        price_cents=data.price_cents,
+        stripe_price_id=data.stripe_price_id,
+        template_slugs=data.template_slugs,
+        sort_order=data.sort_order,
+        is_active=data.is_active,
+        is_featured=data.is_featured,
+        creator_id=data.creator_id,
+        revenue_share_pct=Decimal(str(data.revenue_share_pct)) if data.revenue_share_pct is not None else None,
+    )
+    db.add(p)
+    await db.flush()
+    await db.refresh(p)
+    return {"id": str(p.id), "slug": p.slug, "name": p.name}
+
+
+@router.patch("/template-packs/{pack_id}")
+async def admin_update_template_pack(
+    pack_id: uuid.UUID,
+    data: AdminTemplatePackUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update template pack (admin)."""
+    result = await db.execute(select(TemplatePack).where(TemplatePack.id == pack_id))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template pack not found")
+    if data.name is not None:
+        p.name = data.name
+    if data.description is not None:
+        p.description = data.description
+    if data.price_cents is not None:
+        p.price_cents = data.price_cents
+    if data.stripe_price_id is not None:
+        p.stripe_price_id = data.stripe_price_id
+    if data.template_slugs is not None:
+        p.template_slugs = data.template_slugs
+    if data.sort_order is not None:
+        p.sort_order = data.sort_order
+    if data.is_active is not None:
+        p.is_active = data.is_active
+    if data.is_featured is not None and hasattr(p, "is_featured"):
+        p.is_featured = data.is_featured
+    if data.creator_id is not None and hasattr(p, "creator_id"):
+        p.creator_id = data.creator_id
+    if data.revenue_share_pct is not None and hasattr(p, "revenue_share_pct"):
+        from decimal import Decimal
+
+        p.revenue_share_pct = Decimal(str(data.revenue_share_pct))
+    await db.flush()
+    await db.refresh(p)
+    return {"id": str(p.id), "slug": p.slug, "name": p.name}
+
+
+@router.get("/template-packs/analytics")
+async def admin_template_pack_analytics(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Template pack purchase analytics."""
+    from sqlalchemy import func as sql_func
+
+    q = (
+        select(TemplatePackPurchase.pack_slug, sql_func.count(TemplatePackPurchase.id).label("purchases"))
+        .group_by(TemplatePackPurchase.pack_slug)
+    )
+    result = await db.execute(q)
+    by_pack = {row.pack_slug: row.purchases for row in result.all()}
+    return {"by_pack": by_pack}
 
 
 # --- Writing framework management ---

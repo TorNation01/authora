@@ -17,11 +17,22 @@ import { useToast } from '@/hooks/use-toast';
 import {
   getBillingStatus,
   createCustomerPortalSession,
+  createTemplatePackCheckout,
   clearBillingCache,
   type BillingStatus,
 } from '@/lib/billing';
 import { UsageDisplay } from '@/components/billing/UsageDisplay';
-import { CreditCard, Calendar, Zap, ArrowUpRight, FileText, Receipt } from 'lucide-react';
+import { api } from '@/lib/api';
+import { CreditCard, Calendar, Zap, ArrowUpRight, FileText, Receipt, BookOpen, Loader2 } from 'lucide-react';
+
+type TemplatePack = {
+  slug: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  template_slugs: string[];
+  purchased: boolean;
+};
 
 export default function BillingPage() {
   const { toast } = useToast();
@@ -29,6 +40,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [packs, setPacks] = useState<TemplatePack[]>([]);
+  const [purchasingSlug, setPurchasingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     const success = searchParams.get('success');
@@ -48,6 +61,40 @@ export default function BillingPage() {
       .then(setStatus)
       .finally(() => setLoading(false));
   }, [searchParams]);
+
+  useEffect(() => {
+    api<TemplatePack[]>('/api/v1/templates/packs')
+      .then(setPacks)
+      .catch(() => setPacks([]));
+  }, []);
+
+  const handlePurchasePack = async (packSlug: string) => {
+    setPurchasingSlug(packSlug);
+    try {
+      const result = await createTemplatePackCheckout(packSlug, {
+        successUrl: `${window.location.origin}/dashboard/billing?pack_purchased=1`,
+        cancelUrl: window.location.href,
+      });
+      if (result?.url) {
+        window.location.href = result.url;
+      } else {
+        toast({ title: 'Checkout not available', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Failed to start checkout', variant: 'destructive' });
+    } finally {
+      setPurchasingSlug(null);
+    }
+  };
+
+  useEffect(() => {
+    const purchased = searchParams.get('pack_purchased');
+    if (purchased === '1') {
+      clearBillingCache();
+      toast({ title: 'Template pack purchased successfully' });
+      api<TemplatePack[]>('/api/v1/templates/packs').then(setPacks).catch(() => {});
+    }
+  }, [searchParams, toast]);
 
   const handleManageBilling = async () => {
     const result = await createCustomerPortalSession(window.location.href);
@@ -194,6 +241,65 @@ export default function BillingPage() {
           <CardContent>
             <Button variant="outline" onClick={handleManageBilling}>
               Open billing portal
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {packs.length > 0 && (
+        <Card variant="soft">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Template packs
+            </CardTitle>
+            <CardDescription>
+              One-time purchases. Unlock premium templates forever.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {packs.map((pack) => (
+              <div
+                key={pack.slug}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <div>
+                  <p className="font-medium">{pack.name}</p>
+                  {pack.description && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{pack.description}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {pack.template_slugs.length} templates
+                  </p>
+                </div>
+                <div className="shrink-0 ml-4">
+                  {pack.purchased ? (
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      Owned
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        ${(pack.price_cents / 100).toFixed(0)}
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => handlePurchasePack(pack.slug)}
+                        disabled={purchasingSlug === pack.slug}
+                      >
+                        {purchasingSlug === pack.slug ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Purchase'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            <Button asChild variant="outline" size="sm" className="mt-2">
+              <Link href="/dashboard/templates">Browse templates</Link>
             </Button>
           </CardContent>
         </Card>

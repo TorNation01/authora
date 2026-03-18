@@ -32,6 +32,10 @@ class TemplateResponse(BaseModel):
     sort_order: int
     is_featured: bool
     is_disabled: bool
+    access_level: str = "free"
+    premium_pack_slug: str | None = None
+    can_use: bool = True
+    required_action: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -51,6 +55,10 @@ class TemplateSummary(BaseModel):
     genre: str | None
     sort_order: int
     is_featured: bool
+    access_level: str = "free"
+    premium_pack_slug: str | None = None
+    can_use: bool = True
+    required_action: str | None = None  # "upgrade" | "purchase:{pack_slug}"
 
     model_config = {"from_attributes": True}
 

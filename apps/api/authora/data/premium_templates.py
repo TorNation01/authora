@@ -38,6 +38,7 @@ def get_premium_overrides() -> dict[str, dict[str, Any]]:
 def _romance_premium() -> dict[str, Any]:
     return {
         "is_featured": True,
+        "access_level": "pro",
         "description": "A complete romance novel template with meet-cute, tension, and happily-ever-after. Built on proven romance beats.",
         "who_it_is_for": "Romance writers who want structure that delivers the emotional payoff readers expect.",
         "expected_outcome": "A romance novel that hits every beat and keeps readers turning pages.",
@@ -140,6 +141,7 @@ def _romance_premium() -> dict[str, Any]:
 
 def _fantasy_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Epic or contemporary fantasy with worldbuilding, magic systems, and character arcs. Built for immersive storytelling.",
         "who_it_is_for": "Fantasy writers who want to balance worldbuilding with plot and character.",
@@ -240,6 +242,7 @@ def _fantasy_premium() -> dict[str, Any]:
 
 def _thriller_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Suspense-driven thriller or mystery with clues, twists, and pacing that keeps readers guessing.",
         "who_it_is_for": "Thriller and mystery writers who want structure that delivers tension and payoff.",
@@ -339,6 +342,7 @@ def _thriller_premium() -> dict[str, Any]:
 
 def _scifi_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Science fiction with speculative technology, worldbuilding, and ideas that drive the plot.",
         "who_it_is_for": "Sci-fi writers who want to balance big ideas with character and plot.",
@@ -434,6 +438,7 @@ def _scifi_premium() -> dict[str, Any]:
 
 def _memoir_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Personal memoir with emotional arc, timeline, and reflection. Structured for readers who want meaning, not just events.",
         "who_it_is_for": "Writers sharing their life story with meaning and structure.",
@@ -524,6 +529,7 @@ def _memoir_premium() -> dict[str, Any]:
 
 def _selfhelp_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Transformational self-help book that takes readers from problem to solution. Built for impact and reader transformation.",
         "who_it_is_for": "Coaches, experts, and thought leaders who want to help readers change their lives.",
@@ -618,6 +624,7 @@ def _selfhelp_premium() -> dict[str, Any]:
 
 def _business_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Business or authority book that establishes expertise and delivers actionable insights. Built for professionals and thought leaders.",
         "who_it_is_for": "Executives, consultants, and experts who want to position themselves as authorities.",
@@ -709,6 +716,7 @@ def _business_premium() -> dict[str, Any]:
 
 def _workbook_premium() -> dict[str, Any]:
     return {
+        "access_level": "pro",
         "is_featured": True,
         "description": "Interactive workbook with chapters, exercises, prompts, and worksheets. Designed for readers who learn by doing.",
         "who_it_is_for": "Coaches, educators, and facilitators creating hands-on learning experiences.",

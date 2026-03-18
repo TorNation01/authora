@@ -109,6 +109,27 @@ async def create_project_from_wizard(
         record_project_wizard_completed,
     )
     from authora.services.project_wizard import create_project_from_wizard
+    from authora.services.template_access_service import has_template_access
+
+    if data.template_id:
+        tpl = await db.get(ProjectTemplate, data.template_id)
+        if tpl and not tpl.is_disabled:
+            can_use, required_action = await has_template_access(db, current_user.id, tpl)
+            if not can_use:
+                if required_action == "upgrade":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="This template requires a Pro or Studio plan. Upgrade to unlock.",
+                    )
+                if required_action and required_action.startswith("purchase:"):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="This template is part of a premium pack. Purchase the pack to unlock.",
+                    )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have access to this template.",
+                )
 
     try:
         project, book = await create_project_from_wizard(

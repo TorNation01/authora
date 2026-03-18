@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
-from authora.models import EntitlementAuditLog, EntitlementGrant, Plan, PromoCode, User
+from authora.models import EntitlementAuditLog, EntitlementGrant, Plan, PromoCode, TemplatePack, TemplatePackPurchase, User
 from authora.config import get_settings
 from authora.services.billing_service import (
     _period_str,
@@ -689,6 +689,50 @@ class CheckoutCreateRequest(BaseModel):
     promo_code: str | None = None
 
 
+@router.post("/checkout/template-pack")
+async def create_template_pack_checkout(
+    data: TemplatePackCheckoutRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Create Stripe Checkout session for a template pack (one-time purchase)."""
+    from authora.services.stripe_service import create_template_pack_checkout_session
+
+    r = await db.execute(select(TemplatePack).where(TemplatePack.slug == data.pack_slug, TemplatePack.is_active.is_(True)))
+    pack = r.scalar_one_or_none()
+    if not pack:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template pack not found")
+
+    r2 = await db.execute(
+        select(TemplatePackPurchase).where(
+            TemplatePackPurchase.user_id == current_user.id,
+            TemplatePackPurchase.pack_slug == data.pack_slug,
+        )
+    )
+    if r2.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already own this pack")
+
+    if not pack.stripe_price_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Template pack purchase not configured. Contact support.",
+        )
+
+    result = await create_template_pack_checkout_session(
+        db,
+        current_user.id,
+        data.pack_slug,
+        success_url=data.success_url,
+        cancel_url=data.cancel_url,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
+        )
+    return result
+
+
 @router.post("/checkout/create")
 async def create_checkout(
     data: CheckoutCreateRequest,
@@ -713,6 +757,12 @@ async def create_checkout(
             detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
         )
     return result
+
+
+class TemplatePackCheckoutRequest(BaseModel):
+    pack_slug: str
+    success_url: str | None = None
+    cancel_url: str | None = None
 
 
 class CustomerPortalRequest(BaseModel):

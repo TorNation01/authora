@@ -12,8 +12,42 @@ from authora.database import get_db
 from authora.data.premium_templates import PREMIUM_LAUNCH_SLUGS
 from authora.models import ProjectTemplate
 from authora.schemas.template import TemplateResponse, TemplateSummary
+from authora.services.billing_service import get_user_plan
+from authora.services.template_access_service import (
+    _check_template_access,
+    get_user_purchased_packs,
+)
 
 router = APIRouter(prefix="/templates", tags=["templates"])
+
+
+def _template_to_summary_with_access(
+    t: ProjectTemplate,
+    user_plan_slug: str,
+    purchased_packs: set[str],
+) -> TemplateSummary:
+    """Build TemplateSummary with can_use and required_action."""
+    access_level = getattr(t, "access_level", None) or "free"
+    pack_slug = getattr(t, "premium_pack_slug", None)
+    can_use, required_action = _check_template_access(
+        access_level, pack_slug, user_plan_slug, purchased_packs
+    )
+    return TemplateSummary(
+        id=t.id,
+        slug=t.slug,
+        category=t.category,
+        parent_id=t.parent_id,
+        name=t.name,
+        description=t.description,
+        book_type=t.book_type,
+        genre=t.genre,
+        sort_order=t.sort_order,
+        is_featured=t.is_featured,
+        access_level=access_level,
+        premium_pack_slug=pack_slug,
+        can_use=can_use,
+        required_action=required_action,
+    )
 
 
 @router.get("", response_model=list[TemplateSummary])
@@ -72,8 +106,11 @@ async def list_categories(
     current_user: Annotated[dict, Depends(CurrentUser)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """List template categories with top-level templates and their children."""
-    # Top-level only
+    """List template categories with top-level templates and their children. Includes access info."""
+    plan = await get_user_plan(db, current_user.id)
+    plan_slug = getattr(plan, "slug", "free") or "free"
+    purchased = await get_user_purchased_packs(db, current_user.id)
+
     q = (
         select(ProjectTemplate)
         .where(ProjectTemplate.parent_id.is_(None), ProjectTemplate.is_disabled.is_(False))
@@ -82,7 +119,6 @@ async def list_categories(
     result = await db.execute(q)
     parents = result.scalars().all()
 
-    # Children for each parent
     out = []
     for p in parents:
         cq = (
@@ -96,8 +132,8 @@ async def list_categories(
             "category": p.category,
             "name": p.name,
             "slug": p.slug,
-            "template": TemplateSummary.model_validate(p),
-            "children": [TemplateSummary.model_validate(c) for c in children],
+            "template": _template_to_summary_with_access(p, plan_slug, purchased),
+            "children": [_template_to_summary_with_access(c, plan_slug, purchased) for c in children],
         })
     return out
 
@@ -124,7 +160,7 @@ async def get_template(
     current_user: Annotated[dict, Depends(CurrentUser)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get template by ID with full details."""
+    """Get template by ID with full details. Includes can_use and required_action."""
     result = await db.execute(
         select(ProjectTemplate).where(ProjectTemplate.id == template_id)
     )
@@ -133,7 +169,19 @@ async def get_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     if template.is_disabled:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return TemplateResponse.model_validate(template)
+
+    plan = await get_user_plan(db, current_user.id)
+    plan_slug = getattr(plan, "slug", "free") or "free"
+    purchased = await get_user_purchased_packs(db, current_user.id)
+    can_use, required_action = _check_template_access(
+        getattr(template, "access_level", "free") or "free",
+        getattr(template, "premium_pack_slug", None),
+        plan_slug,
+        purchased,
+    )
+
+    resp = TemplateResponse.model_validate(template)
+    return resp.model_copy(update={"can_use": can_use, "required_action": required_action})
 
 
 @router.get("/starters", response_model=list[dict])
@@ -160,6 +208,70 @@ async def list_starters(
             "template_id": slug_to_id.get(m["template_slug"]) if m.get("template_slug") else None,
         }
         for m in get_starter_metadata()
+    ]
+
+
+@router.get("/packs", response_model=list[dict])
+async def list_template_packs(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """List available template packs for purchase."""
+    from authora.models import TemplatePack
+
+    q = select(TemplatePack).where(TemplatePack.is_active.is_(True)).order_by(TemplatePack.sort_order.asc())
+    result = await db.execute(q)
+    packs = result.scalars().all()
+    purchased = await get_user_purchased_packs(db, current_user.id)
+
+    return [
+        {
+            "slug": p.slug,
+            "name": p.name,
+            "description": p.description,
+            "price_cents": p.price_cents,
+            "template_slugs": p.template_slugs or [],
+            "purchased": p.slug in purchased,
+        }
+        for p in packs
+    ]
+
+
+@router.get("/marketplace", response_model=list[TemplateSummary])
+async def list_marketplace_templates(
+    current_user: Annotated[dict, Depends(CurrentUser)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    category: str | None = Query(None, description="Filter by category"),
+    featured: bool | None = Query(None, description="Only featured templates"),
+    search: str | None = Query(None, description="Search by name or description"),
+):
+    """Browse templates for marketplace. Supports category, featured, and search filters."""
+    from sqlalchemy import or_
+
+    plan = await get_user_plan(db, current_user.id)
+    plan_slug = getattr(plan, "slug", "free") or "free"
+    purchased = await get_user_purchased_packs(db, current_user.id)
+
+    q = select(ProjectTemplate).where(ProjectTemplate.is_disabled.is_(False))
+    if category:
+        q = q.where(ProjectTemplate.category == category)
+    if featured is True:
+        q = q.where(ProjectTemplate.is_featured.is_(True))
+    if search:
+        pattern = f"%{search}%"
+        q = q.where(
+            or_(
+                ProjectTemplate.name.ilike(pattern),
+                ProjectTemplate.description.ilike(pattern),
+            )
+        )
+    q = q.order_by(ProjectTemplate.sort_order.asc(), ProjectTemplate.name.asc())
+    result = await db.execute(q)
+    templates = result.scalars().all()
+
+    return [
+        _template_to_summary_with_access(t, plan_slug, purchased)
+        for t in templates
     ]
 
 

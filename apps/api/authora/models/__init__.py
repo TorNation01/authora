@@ -105,6 +105,8 @@ from authora.models.feature_flag import FeatureFlag
 from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
 from authora.models.project_template import ProjectTemplate
+from authora.models.template_pack import TemplatePack, TemplatePackPurchase
+from authora.models.template_marketplace import TemplateRating, TemplateSubmission
 from authora.models.writing_framework import WritingFramework
 from authora.models.subscription import Subscription
 from authora.models.stripe_webhook_event import StripeWebhookEvent
@@ -214,6 +216,10 @@ __all__ = [
     "SetupState",
     "Plan",
     "ProjectTemplate",
+    "TemplatePack",
+    "TemplatePackPurchase",
+    "TemplateRating",
+    "TemplateSubmission",
     "WritingFramework",
     "Subscription",
     "StripeWebhookEvent",

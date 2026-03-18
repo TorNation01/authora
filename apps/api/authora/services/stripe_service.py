@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.config import get_settings
-from authora.models import Plan, StripeWebhookEvent, Subscription, User
+from authora.models import Plan, StripeWebhookEvent, Subscription, TemplatePack, TemplatePackPurchase, User
 
 
 def _stripe_available() -> bool:
@@ -105,6 +105,66 @@ async def create_checkout_session(
 
     if promo_code and mode == "subscription":
         params["discounts"] = [{"promotion_code": promo_code}]
+
+    session = stripe.checkout.Session.create(**params)
+    return {"url": session.url, "session_id": session.id}
+
+
+async def create_template_pack_checkout_session(
+    db: AsyncSession,
+    user_id: UUID,
+    pack_slug: str,
+    *,
+    success_url: str | None = None,
+    cancel_url: str | None = None,
+) -> dict | None:
+    """
+    Create Stripe Checkout Session for template pack (one-time payment).
+    Returns { "url": "...", "session_id": "..." } or None.
+    """
+    if not _stripe_available():
+        return None
+
+    stripe.api_key = get_settings().stripe_secret_key
+    s = get_settings()
+
+    r = await db.execute(
+        select(TemplatePack).where(TemplatePack.slug == pack_slug, TemplatePack.is_active.is_(True))
+    )
+    pack = r.scalar_one_or_none()
+    if not pack or not pack.stripe_price_id:
+        return None
+
+    r2 = await db.execute(select(User).where(User.id == user_id))
+    user = r2.scalar_one_or_none()
+    if not user:
+        return None
+
+    success = success_url or s.stripe_success_url
+    cancel = cancel_url or s.stripe_cancel_url
+
+    params = {
+        "mode": "payment",
+        "line_items": [{"price": pack.stripe_price_id, "quantity": 1}],
+        "success_url": success,
+        "cancel_url": cancel,
+        "metadata": {
+            "user_id": str(user_id),
+            "pack_slug": pack_slug,
+        },
+    }
+
+    r3 = await db.execute(
+        select(Subscription)
+        .where(Subscription.user_id == user_id, Subscription.stripe_customer_id.isnot(None))
+        .order_by(Subscription.created_at.desc())
+        .limit(1)
+    )
+    sub = r3.scalar_one_or_none()
+    if sub and sub.stripe_customer_id:
+        params["customer"] = sub.stripe_customer_id
+    else:
+        params["customer_email"] = user.email
 
     session = stripe.checkout.Session.create(**params)
     return {"url": session.url, "session_id": session.id}
@@ -225,19 +285,41 @@ async def handle_webhook(db: AsyncSession, payload: bytes, sig_header: str) -> d
 
 
 async def _handle_checkout_completed(db: AsyncSession, event: dict) -> None:
-    """Create or update subscription from checkout.session.completed."""
+    """Create or update subscription, or record template pack purchase, from checkout.session.completed."""
     session = event.get("data", {}).get("object", {})
     metadata = session.get("metadata", {}) or {}
     user_id_str = metadata.get("user_id")
     plan_slug = metadata.get("plan_slug")
+    pack_slug = metadata.get("pack_slug")
     billing_interval = metadata.get("billing_interval", "monthly")
 
-    if not user_id_str or not plan_slug:
+    if not user_id_str:
         return
 
     try:
         user_id = UUID(user_id_str)
     except (ValueError, TypeError):
+        return
+
+    # Template pack purchase (one-time)
+    if pack_slug:
+        r_existing = await db.execute(
+            select(TemplatePackPurchase).where(
+                TemplatePackPurchase.user_id == user_id,
+                TemplatePackPurchase.pack_slug == pack_slug,
+            )
+        )
+        if r_existing.scalar_one_or_none():
+            return  # Already purchased
+        purchase = TemplatePackPurchase(
+            user_id=user_id,
+            pack_slug=pack_slug,
+            stripe_session_id=session.get("id"),
+        )
+        db.add(purchase)
+        return
+
+    if not plan_slug:
         return
 
     r = await db.execute(select(Plan).where(Plan.slug == plan_slug))

@@ -56,11 +56,13 @@ async def seed():
 
     await engine.dispose()
 
-    # Run template and framework seeds (they use their own sessions)
+    # Run template, packs, and framework seeds (they use their own sessions)
     from authora.scripts.seed_project_templates import seed_project_templates
+    from authora.scripts.seed_template_packs import seed_template_packs
     from authora.scripts.seed_writing_frameworks import seed_writing_frameworks
 
     await seed_project_templates()
+    await seed_template_packs()
     await seed_writing_frameworks()
 
 

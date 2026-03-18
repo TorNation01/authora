@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,8 @@ import {
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List } from 'lucide-react';
+import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List, Lock, CreditCard, Search, Star } from 'lucide-react';
+import Link from 'next/link';
 import { CATEGORY_DESCRIPTIONS } from '@/content/template-copy';
 
 type TemplateSummary = {
@@ -28,6 +30,10 @@ type TemplateSummary = {
   genre: string | null;
   category: string;
   is_featured: boolean;
+  access_level?: string;
+  premium_pack_slug?: string | null;
+  can_use?: boolean;
+  required_action?: string | null;
 };
 
 type TemplateCategory = {
@@ -40,6 +46,15 @@ type TemplateCategory = {
 
 type ChapterSkeleton = { title?: string; summary?: string };
 type PlanningSection = { id?: string; title?: string; guidance?: string };
+
+type TemplatePack = {
+  slug: string;
+  name: string;
+  description: string | null;
+  price_cents: number;
+  template_slugs: string[];
+  purchased: boolean;
+};
 
 type TemplateFull = TemplateSummary & {
   who_it_is_for: string | null;
@@ -56,18 +71,39 @@ export default function TemplateMarketplacePage() {
   const { toast } = useToast();
   const user = useUser();
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
+  const [marketplaceTemplates, setMarketplaceTemplates] = useState<TemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateFull | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [packs, setPacks] = useState<TemplatePack[]>([]);
 
   useEffect(() => {
     api<TemplateCategory[]>('/api/v1/templates/categories')
       .then(setCategories)
       .catch(() => setCategories([]))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) {
+      params.set('search', searchQuery.trim());
+    } else {
+      params.set('featured', 'true');
+    }
+    api<TemplateSummary[]>(`/api/v1/templates/marketplace?${params}`)
+      .then(setMarketplaceTemplates)
+      .catch(() => setMarketplaceTemplates([]));
+  }, [searchQuery]);
+
+  useEffect(() => {
+    api<TemplatePack[]>('/api/v1/templates/packs')
+      .then(setPacks)
+      .catch(() => setPacks([]));
   }, []);
 
   useEffect(() => {
@@ -86,8 +122,24 @@ export default function TemplateMarketplacePage() {
     ? categories.filter((c) => c.category === activeCategory)
     : categories;
 
-  const handleApplyTemplate = (templateId: string) => {
-    router.push(`/dashboard/projects/new?templateId=${templateId}`);
+  const featuredTemplates = !searchQuery.trim()
+    ? marketplaceTemplates.filter((t) => t.is_featured)
+    : [];
+  const searchResults = searchQuery.trim() ? marketplaceTemplates : null;
+
+  const handleApplyTemplate = (template: TemplateSummary) => {
+    if (template.can_use === false) {
+      if (template.required_action === 'upgrade') {
+        router.push('/pricing');
+        return;
+      }
+      if (template.required_action?.startsWith('purchase:')) {
+        const packSlug = template.required_action.replace('purchase:', '');
+        router.push(`/dashboard/billing?pack=${packSlug}`);
+        return;
+      }
+    }
+    router.push(`/dashboard/projects/new?templateId=${template.id}`);
   };
 
   async function handleDuplicateTemplate(templateId: string) {
@@ -118,6 +170,60 @@ export default function TemplateMarketplacePage() {
       />
 
       <div className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+
+        {searchResults !== null && searchQuery.trim() && (
+          <section className="mb-10">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" />
+              Search results ({searchResults.length})
+            </h2>
+            <div className="space-y-3">
+              {searchResults.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No templates match your search.</p>
+              ) : (
+                searchResults.map((t) => (
+                  <TemplateLibraryCard
+                    key={t.id}
+                    template={t}
+                    onPreview={() => setPreviewTemplateId(t.id)}
+                    onApply={() => handleApplyTemplate(t)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {featuredTemplates.length > 0 && !searchQuery.trim() && (
+          <section className="mb-10">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              Featured templates
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredTemplates.slice(0, 6).map((t) => (
+                <TemplateLibraryCard
+                  key={t.id}
+                  template={t}
+                  onPreview={() => setPreviewTemplateId(t.id)}
+                  onApply={() => handleApplyTemplate(t)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -174,7 +280,7 @@ export default function TemplateMarketplacePage() {
                       <TemplateLibraryCard
                         template={cat.template}
                         onPreview={() => setPreviewTemplateId(cat.template.id)}
-                        onApply={() => handleApplyTemplate(cat.template.id)}
+                        onApply={() => handleApplyTemplate(cat.template)}
                       />
                       {/* Child templates */}
                       {cat.children.map((child) => (
@@ -182,7 +288,7 @@ export default function TemplateMarketplacePage() {
                           key={child.id}
                           template={child}
                           onPreview={() => setPreviewTemplateId(child.id)}
-                          onApply={() => handleApplyTemplate(child.id)}
+                          onApply={() => handleApplyTemplate(child)}
                           isChild
                         />
                       ))}
@@ -216,11 +322,19 @@ export default function TemplateMarketplacePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{previewTemplate.name}</h3>
-                  {(previewTemplate.book_type || previewTemplate.genre) && (
-                    <Badge variant="soft" className="mt-1 text-xs">
-                      {[previewTemplate.book_type, previewTemplate.genre].filter(Boolean).join(' · ')}
-                    </Badge>
-                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {(previewTemplate.book_type || previewTemplate.genre) && (
+                      <Badge variant="soft" className="text-xs">
+                        {[previewTemplate.book_type, previewTemplate.genre].filter(Boolean).join(' · ')}
+                      </Badge>
+                    )}
+                    {previewTemplate.can_use === false && (
+                      <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
+                        <Lock className="h-3 w-3 mr-0.5" />
+                        Premium
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               {previewTemplate.description && (
@@ -294,11 +408,53 @@ export default function TemplateMarketplacePage() {
                   )}
                 </div>
               )}
+              {previewTemplate.can_use === false && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                  <p className="font-medium text-amber-700 dark:text-amber-400">
+                    {previewTemplate.required_action === 'upgrade'
+                      ? 'Upgrade to Pro or Studio to unlock this template.'
+                      : 'Purchase the template pack to unlock this template.'}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {previewTemplate.required_action === 'upgrade'
+                      ? 'Pro and Studio plans include access to premium templates.'
+                      : 'One-time purchase. Yours forever.'}
+                  </p>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 pt-4">
-                <Button onClick={() => handleApplyTemplate(previewTemplate.id)}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Use this template
+                <Button
+                  onClick={() => handleApplyTemplate(previewTemplate)}
+                  disabled={previewTemplate.can_use === false}
+                >
+                  {previewTemplate.can_use === false ? (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      {previewTemplate.required_action === 'upgrade' ? 'Upgrade to unlock' : 'Purchase to unlock'}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Use this template
+                    </>
+                  )}
                 </Button>
+                {previewTemplate.can_use === false && previewTemplate.required_action?.startsWith('purchase:') && (
+                  <Button variant="outline" asChild>
+                    <Link href="/dashboard/billing">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      View packs
+                    </Link>
+                  </Button>
+                )}
+                {previewTemplate.can_use === false && previewTemplate.required_action === 'upgrade' && (
+                  <Button variant="outline" asChild>
+                    <Link href="/pricing">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      View plans
+                    </Link>
+                  </Button>
+                )}
                 {user?.is_admin && (
                   <Button
                     variant="outline"
@@ -336,10 +492,11 @@ function TemplateLibraryCard({
   onApply: () => void;
   isChild?: boolean;
 }) {
+  const isLocked = template.can_use === false;
   return (
     <Card
       variant="soft"
-      className={`group transition-all hover:shadow-md hover:border-primary/20 ${isChild ? 'ml-4 border-l-2 border-l-primary/30' : ''}`}
+      className={`group transition-all hover:shadow-md hover:border-primary/20 ${isChild ? 'ml-4 border-l-2 border-l-primary/30' : ''} ${isLocked ? 'opacity-95' : ''}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
@@ -372,12 +529,25 @@ function TemplateLibraryCard({
               Featured
             </Badge>
           )}
+          {isLocked && (
+            <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
+              <Lock className="h-3 w-3 mr-0.5" />
+              Premium
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex gap-2">
-          <Button size="sm" onClick={onApply}>
-            Use template
+          <Button size="sm" onClick={() => onApply()} variant={isLocked ? 'outline' : 'default'}>
+            {isLocked ? (
+              <>
+                <Lock className="h-3.5 w-3.5 mr-1.5" />
+                {template.required_action === 'upgrade' ? 'Upgrade' : 'Purchase'}
+              </>
+            ) : (
+              'Use template'
+            )}
           </Button>
           <Button variant="outline" size="sm" onClick={onPreview}>
             Preview

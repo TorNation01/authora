@@ -25,6 +25,8 @@ import {
   Ticket,
   Compass,
   TrendingUp,
+  BookOpen,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +50,8 @@ const adminNav = [
   { href: '/dashboard/admin/content', label: 'Content templates', icon: FileText },
   { href: '/dashboard/admin/onboarding', label: 'Onboarding', icon: Compass },
   { href: '/dashboard/admin/activation', label: 'Activation', icon: TrendingUp },
+  { href: '/dashboard/admin/templates', label: 'Templates', icon: BookOpen },
+  { href: '/dashboard/admin/template-packs', label: 'Template packs', icon: Package },
   { href: '/dashboard/admin/encouragement', label: 'Encouragement messages', icon: MessageSquare },
   { href: '/dashboard/admin/accountability-rules', label: 'Accountability rules', icon: Target },
   { href: '/dashboard/admin/gamification', label: 'Gamification', icon: Trophy },

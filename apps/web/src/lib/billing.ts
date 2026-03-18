@@ -123,6 +123,25 @@ export async function createCheckoutSession(
   }
 }
 
+export async function createTemplatePackCheckout(
+  packSlug: string,
+  options?: { successUrl?: string; cancelUrl?: string }
+): Promise<{ url: string; session_id: string } | null> {
+  try {
+    const data = await api<{ url: string; session_id: string }>('/api/v1/billing/checkout/template-pack', {
+      method: 'POST',
+      body: JSON.stringify({
+        pack_slug: packSlug,
+        success_url: options?.successUrl ?? null,
+        cancel_url: options?.cancelUrl ?? null,
+      }),
+    });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export async function createCustomerPortalSession(returnUrl?: string): Promise<{ url: string } | null> {
   try {
     const data = await api<{ url: string }>('/api/v1/billing/customer-portal', {
