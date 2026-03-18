@@ -53,6 +53,7 @@ class ProjectResponse(BaseModel):
     user_id: UUID
     name: str
     guidance_mode: str
+    template_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None

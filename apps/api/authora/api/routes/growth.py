@@ -66,6 +66,11 @@ async def create_share(
     link = await create_share_link(
         db, current_user.id, data.share_type, payload, expires_days=data.expires_days
     )
+    from authora.services.network_effect_service import record_share_completed
+
+    await record_share_completed(
+        db, current_user.id, data.share_type, share_link_id=link.id
+    )
     await db.commit()
 
     settings = get_settings()
@@ -162,6 +167,35 @@ async def get_seo_page_route(
     }
 
 
+# --- Network effects ---
+
+
+@router.get("/share-triggers")
+async def get_share_triggers(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+):
+    """Get suggested share moments for the current user."""
+    from authora.services.network_effect_service import get_share_trigger_suggestions
+
+    suggestions = await get_share_trigger_suggestions(db, current_user.id)
+    return {"suggestions": suggestions}
+
+
+@router.post("/share-triggers/{trigger_type}/shown")
+async def record_share_trigger_shown(
+    trigger_type: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+):
+    """Record that a share trigger was shown (to avoid repeat prompts)."""
+    from authora.services.network_effect_service import record_share_trigger_shown
+
+    await record_share_trigger_shown(db, current_user.id, trigger_type)
+    await db.commit()
+    return {"ok": True}
+
+
 # --- Creator growth (public) ---
 
 
@@ -173,6 +207,33 @@ async def list_featured_creators(
     """List featured creators. Public."""
     creators = await get_featured_creators(db, limit=limit)
     return creators
+
+
+# --- Network metrics (admin) ---
+
+
+@router.get("/admin/network-metrics")
+async def admin_network_metrics(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: AdminUser,
+    days: int = Query(30, ge=7, le=365),
+):
+    """Admin: network effect metrics - templates driving usage, creators driving signups, features driving retention."""
+    from authora.services.network_effect_service import (
+        get_creators_driving_signups,
+        get_features_driving_retention,
+        get_templates_driving_usage,
+    )
+
+    templates = await get_templates_driving_usage(db, days=days, limit=20)
+    creators = await get_creators_driving_signups(db, days=days, limit=20)
+    retention = await get_features_driving_retention(db, days=days)
+    return {
+        "period_days": days,
+        "templates_driving_usage": templates,
+        "creators_driving_signups": creators,
+        "features_driving_retention": retention,
+    }
 
 
 # --- Admin ---

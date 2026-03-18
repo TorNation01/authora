@@ -6,6 +6,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
+
+from authora.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
@@ -63,7 +65,27 @@ async def register(
 
     if data.referral_code:
         from authora.services.growth_service import resolve_referral_on_signup
-        await resolve_referral_on_signup(db, user.id, data.referral_code)
+        from authora.services.network_effect_service import (
+            is_creator,
+            record_creator_signup_attributed,
+        )
+
+        ref = await resolve_referral_on_signup(db, user.id, data.referral_code)
+        inviter_id = ref.inviter_id if ref else None
+        if not inviter_id:
+            inviter = await db.execute(
+                select(User).where(User.referral_code == data.referral_code).limit(1)
+            )
+            u = inviter.scalar_one_or_none()
+            inviter_id = u.id if u else None
+        if inviter_id and await is_creator(db, inviter_id):
+            await record_creator_signup_attributed(
+                db,
+                inviter_id,
+                user.id,
+                referral_id=ref.id if ref else None,
+                source="referral",
+            )
 
     if data.affiliate_code and get_settings().feature_affiliate:
         from authora.services.affiliate_service import attribute_signup

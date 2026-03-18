@@ -153,12 +153,15 @@ def generate_share_content(
 
 
 async def get_or_create_referral_code(db: AsyncSession, user_id: uuid.UUID) -> str:
-    """Get or create user referral code."""
+    """Get or create user referral code. Ensures Referral record exists for signup resolution."""
+    from authora.services.network_effect_service import ensure_referral_record
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise ValueError("User not found")
     if user.referral_code:
+        await ensure_referral_record(db, user_id, user.referral_code)
         return user.referral_code
     code = _generate_referral_code()
     while True:
@@ -168,6 +171,7 @@ async def get_or_create_referral_code(db: AsyncSession, user_id: uuid.UUID) -> s
         code = _generate_referral_code()
     user.referral_code = code
     await db.flush()
+    await ensure_referral_record(db, user_id, code)
     return code
 
 

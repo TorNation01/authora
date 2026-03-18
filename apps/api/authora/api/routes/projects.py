@@ -13,7 +13,7 @@ from authora.api.dependencies import CurrentUser
 from authora.api.resolvers import get_project_or_404, get_project_with_access_or_404
 from authora.core.audit import AuditLogger
 from authora.database import get_db
-from authora.models import Book, Chapter, Project, ProjectMember
+from authora.models import Book, Chapter, Project, ProjectMember, ProjectTemplate
 from authora.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate, ProjectWizardRequest
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -62,6 +62,49 @@ async def list_projects(
     result = await db.execute(base)
     projects = result.scalars().all()
     return [ProjectResponse.model_validate(p) for p in projects]
+
+
+class ResumeSessionRequest(BaseModel):
+    """Record resume session (project, book, chapter) for continue-where-you-left-off."""
+
+    project_id: uuid.UUID
+    book_id: uuid.UUID
+    chapter_id: uuid.UUID
+
+
+@router.post("/resume-session")
+async def record_resume_session(
+    data: ResumeSessionRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Record that user is viewing a chapter. Enables 'Continue writing' on dashboard."""
+    from authora.services.retention_lockin_service import set_resume_session
+
+    try:
+        resume = await set_resume_session(
+            db,
+            current_user.id,
+            data.project_id,
+            data.book_id,
+            data.chapter_id,
+        )
+        await db.commit()
+        return resume
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("/resume")
+async def get_resume_session(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get resume session for 'Continue writing' (if valid and recent)."""
+    from authora.services.retention_lockin_service import get_resume_session
+
+    resume = await get_resume_session(db, current_user.id)
+    return {"resume": resume}
 
 
 @router.get("/recent", response_model=ProjectResponse | None)
@@ -174,6 +217,18 @@ async def create_project_from_wizard(
     await record_first_project_created(
         db, current_user.id, project.id, template_slug=template_slug, from_wizard=True
     )
+    if project.template_id:
+        from authora.services.network_effect_service import record_template_usage_started
+
+        tpl = await db.get(ProjectTemplate, project.template_id)
+        await record_template_usage_started(
+            db,
+            current_user.id,
+            project.id,
+            project.template_id,
+            template_slug=template_slug,
+            creator_id=tpl.creator_id if tpl else None,
+        )
     await db.commit()
     await db.refresh(project)
     await db.refresh(book)

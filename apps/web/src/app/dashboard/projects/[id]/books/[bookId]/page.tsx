@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { WritingStudioEditor } from '@/components/editor/WritingStudioEditor';
 import { EditorReferenceContextMenu } from '@/components/editor/EditorReferenceContextMenu';
 import { ManuscriptSidebar } from '@/components/studio/ManuscriptSidebar';
@@ -67,6 +67,7 @@ type PanelMode = 'none' | 'ai' | 'notes' | 'reference' | 'revision' | 'vault' | 
 export default function BookStudioPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.id as string;
   const bookId = params.bookId as string;
   const [book, setBook] = useState<Book | null>(null);
@@ -104,8 +105,13 @@ export default function BookStudioPage() {
     api<Book>(`/api/v1/projects/${projectId}/books/${bookId}`)
       .then((b) => {
         setBook(b);
-        if (b.chapters.length > 0 && !activeChapter) {
-          setActiveChapter(b.chapters[0]);
+        if (b.chapters.length > 0) {
+          const chapterId = searchParams.get('chapter');
+          const target =
+            chapterId && b.chapters.some((c) => c.id === chapterId)
+              ? b.chapters.find((c) => c.id === chapterId)!
+              : b.chapters[0];
+          setActiveChapter(target);
         }
       })
       .catch(() => router.push('/dashboard'));
@@ -118,6 +124,19 @@ export default function BookStudioPage() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    if (activeChapter?.id && book?.id) {
+      api('/api/v1/projects/resume-session', {
+        method: 'POST',
+        body: JSON.stringify({
+          project_id: projectId,
+          book_id: bookId,
+          chapter_id: activeChapter.id,
+        }),
+      }).catch(() => {});
+    }
+  }, [projectId, bookId, activeChapter?.id, book?.id]);
 
   const saveChapter = useCallback(
     async (data: { content: Record<string, unknown>; wordCount: number }) => {

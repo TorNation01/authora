@@ -13,11 +13,21 @@ import {
 } from 'lucide-react';
 import { QUICK_START_OPTIONS } from '@/content/onboarding-copy';
 
+interface ResumeSession {
+  project_id: string;
+  book_id: string;
+  chapter_id: string;
+  project_name: string;
+  book_title: string;
+  chapter_title: string;
+}
+
 interface DashboardQuickStartProps {
   projectId?: string | null;
   recentProjectName?: string;
   hasJourney?: boolean;
   nextStepTitle?: string | null;
+  resumeSession?: ResumeSession | null;
 }
 
 export function DashboardQuickStart({
@@ -25,12 +35,36 @@ export function DashboardQuickStart({
   recentProjectName,
   hasJourney,
   nextStepTitle,
+  resumeSession,
 }: DashboardQuickStartProps) {
   const hasProject = !!projectId;
+  const resumeHref = resumeSession
+    ? `/dashboard/projects/${resumeSession.project_id}/books/${resumeSession.book_id}?chapter=${resumeSession.chapter_id}`
+    : null;
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {hasProject && (
+      {resumeHref && resumeSession && (
+        <Link href={resumeHref}>
+          <Card
+            variant="elevated"
+            className="h-full p-4 border-primary/20 hover:border-primary/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <PenLine className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{QUICK_START_OPTIONS.continueWriting}</p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {resumeSession.chapter_title} · {resumeSession.project_name}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      )}
+      {hasProject && !resumeHref && (
         <Link href={`/dashboard/projects/${projectId}`}>
           <Card
             variant="elevated"

@@ -78,6 +78,14 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [recentProject, setRecentProject] = useState<Project | null>(null);
+  const [resumeSession, setResumeSession] = useState<{
+    project_id: string;
+    book_id: string;
+    chapter_id: string;
+    project_name: string;
+    book_title: string;
+    chapter_title: string;
+  } | null>(null);
   const [journey, setJourney] = useState<JourneySummary | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,9 +108,12 @@ export default function DashboardPage() {
     Promise.all([
       fetchProjects(),
       api<Project | null>('/api/v1/projects/recent').catch(() => null).then(setRecentProject),
+      api<{ resume: { project_id: string; book_id: string; chapter_id: string; project_name: string; book_title: string; chapter_title: string } | null }>('/api/v1/projects/resume')
+        .then((r) => setResumeSession(r.resume))
+        .catch(() => setResumeSession(null)),
       api<JourneySummary>('/api/v1/journey').catch(() => ({ has_journey: false })),
       api<UserPreferences>('/api/v1/auth/me/preferences').catch(() => ({ preferences: {} })),
-    ]).then(([, , j, p]) => {
+    ]).then(([, , , j, p]) => {
       setJourney(j);
       setPreferences(p);
     }).finally(() => setLoading(false));
@@ -276,6 +287,7 @@ export default function DashboardPage() {
             recentProjectName={(recentProject && !recentProject.deleted_at ? recentProject : projects[0])?.name}
             hasJourney={journey?.has_journey}
             nextStepTitle={journey?.next_step?.task?.title}
+            resumeSession={resumeSession}
           />
         </div>
       )}
