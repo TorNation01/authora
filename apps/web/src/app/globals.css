@@ -12,10 +12,13 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    min-height: 100%;
   }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     overflow-x: hidden;
   }
@@ -55,7 +58,13 @@
     @apply py-20 md:py-32;
   }
   .content-max {
-    @apply mx-auto max-w-[80rem] px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[80rem] px-4 sm:px-6 lg:px-8;
+  }
+  .page-content {
+    @apply w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10;
+  }
+  .scroll-x {
+    @apply overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible;
   }
 
   /* Writing-focused prose */
@@ -86,7 +95,7 @@
 
 /* TipTap editor - writing sanctuary feel */
 .ProseMirror {
-  @apply outline-none min-h-[400px] px-6 py-8 font-sans text-[1.0625rem] leading-[1.75];
+  @apply outline-none min-h-[300px] sm:min-h-[400px] px-4 py-6 sm:px-6 sm:py-8 font-sans text-[1rem] sm:text-[1.0625rem] leading-[1.75];
 }
 .ProseMirror p {
   @apply mb-5 leading-relaxed;

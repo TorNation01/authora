@@ -185,7 +185,7 @@ export default function DashboardPage() {
   const showNextStep = journey?.has_journey && journey?.next_step && !journey.next_step.journey_complete;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
+    <div className="w-full min-w-0 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Home"
         description="Your projects and what's next—we're here when you're ready"

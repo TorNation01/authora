@@ -16,7 +16,7 @@ const BULLETS = [
 export function HeroSection() {
   return (
     <section
-      className="relative min-h-[90vh] overflow-hidden flex items-center"
+      className="relative min-h-[85vh] min-h-[85dvh] overflow-hidden flex items-center"
       data-analytics="hero"
     >
       {/* Background: black base + subtle gradient + soft gold glow */}

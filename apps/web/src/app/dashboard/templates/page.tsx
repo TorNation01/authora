@@ -18,8 +18,9 @@ import { api } from '@/lib/api';
 import { createTemplateCheckout } from '@/lib/billing';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/contexts/UserContext';
-import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List, Lock, CreditCard, Search, Star, Users, Filter, TrendingUp, Award } from 'lucide-react';
+import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List, Lock, CreditCard, Search, Star, Users, Filter, TrendingUp, Award, LayoutTemplate } from 'lucide-react';
 import Link from 'next/link';
+import { EmptyState } from '@/components/ui/empty-state';
 import { CATEGORY_DESCRIPTIONS } from '@/content/template-copy';
 
 type TemplateSummary = {
@@ -56,7 +57,7 @@ type TemplateCategory = {
 type TemplateWithParent = TemplateSummary & { parent_id?: string | null };
 
 function buildCategoriesFromFlat(flat: TemplateWithParent[]): TemplateCategory[] {
-  const parents = flat.filter((t) => !t.parent_id);
+  const parents = flat.filter((t) => !t.parent_id || t.parent_id === null);
   const byParentId = flat.reduce<Record<string, TemplateSummary[]>>((acc, t) => {
     if (t.parent_id) {
       const pid = String(t.parent_id);
@@ -65,6 +66,17 @@ function buildCategoriesFromFlat(flat: TemplateWithParent[]): TemplateCategory[]
     }
     return acc;
   }, {});
+  if (parents.length === 0 && flat.length > 0) {
+    return [
+      {
+        category: 'all',
+        name: 'All templates',
+        slug: 'all',
+        template: flat[0] as TemplateSummary,
+        children: flat.slice(1),
+      },
+    ];
+  }
   return parents
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map((p) => {
@@ -336,7 +348,7 @@ export default function TemplateMarketplacePage() {
         description="Choose a template that matches the kind of book you want to write. Apply one to start a new project with a ready-to-use structure."
       />
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {featuredCreators.length > 0 && (
           <section className="mb-10">
             <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -551,6 +563,20 @@ export default function TemplateMarketplacePage() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : filteredCategories.length === 0 ? (
+          <EmptyState
+            icon={<LayoutTemplate className="h-6 w-6" />}
+            title="No templates available"
+            description={
+              user?.is_admin
+                ? 'The template library is empty. Run `npm run db:seed:templates` to seed templates, or create a project from scratch.'
+                : 'The template library is empty. You can still create a new project and start writing from scratch—Authora adapts to your workflow.'
+            }
+            action={{ label: 'Create project', href: '/dashboard/projects/new' }}
+            secondaryAction={
+              user?.is_admin ? { label: 'Admin templates', href: '/dashboard/admin/templates' } : undefined
+            }
+          />
         ) : (
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Category sidebar */}

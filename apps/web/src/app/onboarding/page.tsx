@@ -156,6 +156,8 @@ export default function OnboardingPage() {
     }
   }, [router]);
 
+  const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('access_token');
+
   useEffect(() => {
     const saved = loadProgress();
     if (saved && saved.stepIndex > 0 && saved.data) {
@@ -184,55 +186,44 @@ export default function OnboardingPage() {
     }
   }, [stepIndex, data]);
 
-  const intentStepIndex = steps.findIndex((s) => s.id === 'intent');
-
   useEffect(() => {
-    const atOrPastIntent = intentStepIndex >= 0 && stepIndex >= intentStepIndex;
-    const shouldFetch = data.intent && (atOrPastIntent || data.structure === 'template');
-    if (!shouldFetch) return;
+    if (!hasToken) return;
     setLoadingTemplates(true);
     const load = async () => {
+      let templates: TemplateSummary[] = [];
       try {
         const flat = await api<unknown>('/api/v1/templates/all');
-        const arr = Array.isArray(flat) ? flat : [];
-        setAllTemplates(arr as TemplateSummary[]);
+        if (Array.isArray(flat) && flat.length > 0) {
+          templates = flat as TemplateSummary[];
+        }
       } catch {
-        setAllTemplates([]);
-      } finally {
-        setLoadingTemplates(false);
+        /* try categories */
       }
+      if (templates.length === 0) {
+        try {
+          const cats = await api<unknown>('/api/v1/templates/categories');
+          if (Array.isArray(cats) && cats.length > 0) {
+            for (const c of cats) {
+              const cat = c as { template?: TemplateSummary; children?: TemplateSummary[] };
+              if (cat.template) templates.push(cat.template);
+              if (Array.isArray(cat.children)) templates.push(...cat.children);
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      setAllTemplates(templates);
+      setLoadingTemplates(false);
     };
     load();
-  }, [data.structure, data.intent, stepIndex, intentStepIndex]);
+  }, [hasToken]);
 
-  const selectableTemplates: { id: string; name: string; description: string | null }[] = (() => {
-    const intent = data.intent || 'fiction';
-    const slug = (s: string) => (s || '').toLowerCase();
-    const cat = (t: TemplateSummary) => (t.category || '').toLowerCase();
-
-    const filtered = allTemplates.filter((t) => {
-      if (intent === 'not_sure') return true;
-      if (intent === 'fiction') return slug(t.slug).includes('fiction') || cat(t) === 'fiction';
-      if (intent === 'nonfiction')
-        return (
-          slug(t.slug).includes('nonfiction') ||
-          slug(t.slug).includes('business') ||
-          slug(t.slug).includes('self-help') ||
-          cat(t) === 'nonfiction' ||
-          cat(t) === 'business'
-        );
-      if (intent === 'memoir') return slug(t.slug).includes('memoir') || cat(t) === 'memoir';
-      if (intent === 'workbook') return slug(t.slug).includes('workbook') || cat(t) === 'workbook';
-      return true;
-    });
-
-    const list = filtered.length > 0 ? filtered : allTemplates;
-    return list.map((t) => ({
-      id: typeof t.id === 'string' ? t.id : String(t.id),
-      name: t.name,
-      description: t.description,
-    }));
-  })();
+  const selectableTemplates: { id: string; name: string; description: string | null }[] = allTemplates.map((t) => ({
+    id: typeof t.id === 'string' ? t.id : String(t.id),
+    name: t.name || t.slug || 'Template',
+    description: t.description ?? null,
+  }));
 
   const canProceed = useCallback(() => {
     switch (currentStep?.id) {
@@ -365,12 +356,6 @@ export default function OnboardingPage() {
   };
 
   const handleNext = () => {
-    if (isQuickStart && currentStep?.id === 'entry') {
-      setStepIndex(0);
-      setData((d) => ({ ...d, entry: 'quick' }));
-      return;
-    }
-
     if (currentStep?.id === 'first_action' || (isQuickStart && currentStep?.id === 'entry')) {
       if (isQuickStart) {
         setData((d) => ({ ...d, projectName: d.projectName || 'Untitled Project' }));
@@ -413,8 +398,8 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-muted/20 to-background p-4">
-      <div className="w-full max-w-xl">
+    <div className="min-h-screen min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-muted/20 to-background p-4 sm:p-6">
+      <div className="w-full max-w-xl min-w-0">
         <Link
           href="/dashboard"
           className="mb-8 inline-block font-serif text-xl font-bold text-foreground hover:text-primary transition-colors"

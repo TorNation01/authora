@@ -12,6 +12,11 @@ export default function RestartOnboardingPage() {
   useEffect(() => {
     const reset = async () => {
       if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          router.replace('/login?next=/onboarding/restart');
+          return;
+        }
         localStorage.removeItem(ONBOARDING_PREF_KEY);
       }
       try {
@@ -25,7 +30,7 @@ export default function RestartOnboardingPage() {
           }),
         });
       } catch {
-        // 401 = not logged in; still redirect to onboarding (will redirect to login if needed)
+        // Still redirect - localStorage clear is the main one
       }
       router.replace('/onboarding');
     };

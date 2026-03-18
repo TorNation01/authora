@@ -36,7 +36,7 @@ export const ShareCard = React.forwardRef<HTMLDivElement, ShareCardProps>(
         ref={ref}
         className={cn(
           'relative flex flex-col justify-between rounded-2xl border-2 border-border/60 bg-card p-8 shadow-xl',
-          'w-[400px] min-h-[280px]',
+          'w-full max-w-[400px] min-h-[280px]',
           'text-foreground',
           className
         )}

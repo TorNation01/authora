@@ -107,9 +107,9 @@ export function EditorToolbar({
   );
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
-      <div className="flex min-w-0 items-center gap-3">
-        <h2 className="truncate font-semibold">{chapterTitle || 'Pick a chapter'}</h2>
+    <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
+      <div className="flex min-w-0 flex-1 basis-0 items-center gap-3 overflow-hidden">
+        <h2 className="min-w-0 truncate font-semibold">{chapterTitle || 'Pick a chapter'}</h2>
         {onStatusChange && (
           <select
             value={sectionStatus ?? 'draft'}
@@ -154,7 +154,7 @@ export function EditorToolbar({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
         <WritingSprintTimer
           bookId={bookId}
           getWordsWritten={getSprintWordsWritten}

@@ -79,7 +79,7 @@ export default function ProjectManagePage() {
   const allSections = [...new Set(allChapters.map((c) => c.section_group).filter(Boolean))].sort() as string[];
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Project management"
         description="Storyboard, timeline, and organization"

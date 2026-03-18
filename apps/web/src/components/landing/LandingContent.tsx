@@ -36,19 +36,19 @@ export function LandingContent() {
               {branding.product_name} guides you from idea to finished book. Plan, write, and export
               with calm focus—supported by AI when you need it.
             </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-4">
               {feature_flags.standalone_auth && (
                 <>
-                  <Button asChild size="lg" className="min-w-[180px]">
+                  <Button asChild size="lg" className="w-full sm:w-auto sm:min-w-[180px]">
                     <Link href="/register">Start writing free</Link>
                   </Button>
-                  <Button asChild variant="outline" size="lg" className="min-w-[180px]">
+                  <Button asChild variant="outline" size="lg" className="w-full sm:w-auto sm:min-w-[180px]">
                     <Link href="/login">Sign in</Link>
                   </Button>
                 </>
               )}
               {!feature_flags.standalone_auth && feature_flags.sso_ready && (
-                <Button asChild size="lg" className="min-w-[180px]">
+                <Button asChild size="lg" className="w-full sm:w-auto sm:min-w-[180px]">
                   <Link href="/sso">Sign in</Link>
                 </Button>
               )}

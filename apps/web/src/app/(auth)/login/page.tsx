@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +18,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const config = useConfig();
+  const nextUrl = searchParams.get('next');
 
   useEffect(() => {
     if (config?.feature_flags?.sso_ready && !config?.feature_flags?.standalone_auth) {
@@ -40,15 +42,19 @@ export default function LoginPage() {
       );
       setTokens(res.access_token, res.refresh_token);
       toast({ title: 'Welcome back!', description: 'Redirecting...' });
-      try {
-        const prefs = await api<{ preferences?: { onboarding_completed?: boolean } }>('/api/v1/auth/me/preferences');
-        if (prefs?.preferences?.onboarding_completed !== true) {
-          router.push('/onboarding');
-        } else {
+      if (nextUrl && nextUrl.startsWith('/')) {
+        router.push(nextUrl);
+      } else {
+        try {
+          const prefs = await api<{ preferences?: { onboarding_completed?: boolean } }>('/api/v1/auth/me/preferences');
+          if (prefs?.preferences?.onboarding_completed !== true) {
+            router.push('/onboarding');
+          } else {
+            router.push('/dashboard');
+          }
+        } catch {
           router.push('/dashboard');
         }
-      } catch {
-        router.push('/dashboard');
       }
       router.refresh();
     } catch (err) {

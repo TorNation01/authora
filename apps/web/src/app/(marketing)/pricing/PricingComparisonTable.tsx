@@ -53,9 +53,10 @@ export function PricingComparisonTable() {
       </div>
 
       {/* Desktop table */}
-      <div className="mt-10 hidden overflow-hidden rounded-2xl border border-white/[0.08] bg-card shadow-[var(--shadow-card-premium)] lg:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
+      <div className="mt-10 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 lg:overflow-visible">
+        <div className="hidden rounded-2xl border border-white/[0.08] bg-card shadow-[var(--shadow-card-premium)] lg:block">
+          <div className="overflow-x-auto lg:overflow-visible">
+            <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-white/[0.08] bg-white/[0.02]">
                 <th className="sticky left-0 z-10 min-w-[200px] bg-white/[0.02] px-6 py-4 text-left font-semibold text-foreground backdrop-blur-sm">
@@ -107,7 +108,8 @@ export function PricingComparisonTable() {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
 

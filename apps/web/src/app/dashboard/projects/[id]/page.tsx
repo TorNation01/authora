@@ -49,14 +49,14 @@ export default function ProjectPage() {
   }, [projectId, router]);
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="w-full min-w-0 max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader
         title={projectName || 'Project'}
         description="Books in this project"
         backHref="/dashboard"
         backLabel="Back to Home"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {guidanceMode && (
               <span className="rounded-full border bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground capitalize">
                 {guidanceMode}
