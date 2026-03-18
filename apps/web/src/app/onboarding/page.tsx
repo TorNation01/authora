@@ -58,14 +58,7 @@ type TemplateSummary = {
   name: string;
   description: string | null;
   book_type: string | null;
-};
-
-type TemplateCategory = {
-  category: string;
-  name: string;
-  slug: string;
-  template: TemplateSummary;
-  children: TemplateSummary[];
+  category?: string;
 };
 
 const ONBOARDING_PREF_KEY = 'authora_onboarding_progress_v2';
@@ -144,8 +137,8 @@ export default function OnboardingPage() {
     firstAction: 'write',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<TemplateSummary[]>([]);
   const [showIntroOverlay, setShowIntroOverlay] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
   const router = useRouter();
@@ -191,26 +184,55 @@ export default function OnboardingPage() {
     }
   }, [stepIndex, data]);
 
-  useEffect(() => {
-    if (data.structure === 'template' && data.intent && data.intent !== 'not_sure') {
-      setLoadingTemplates(true);
-      api<TemplateCategory[]>('/api/v1/templates/categories')
-        .then(setCategories)
-        .catch(() => setCategories([]))
-        .finally(() => setLoadingTemplates(false));
-    }
-  }, [data.structure, data.intent]);
+  const intentStepIndex = steps.findIndex((s) => s.id === 'intent');
 
-  const filteredCategories = categories.filter((cat) => {
+  useEffect(() => {
+    const atOrPastIntent = intentStepIndex >= 0 && stepIndex >= intentStepIndex;
+    const shouldFetch = data.intent && (atOrPastIntent || data.structure === 'template');
+    if (!shouldFetch) return;
+    setLoadingTemplates(true);
+    const load = async () => {
+      try {
+        const flat = await api<unknown>('/api/v1/templates/all');
+        const arr = Array.isArray(flat) ? flat : [];
+        setAllTemplates(arr as TemplateSummary[]);
+      } catch {
+        setAllTemplates([]);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    load();
+  }, [data.structure, data.intent, stepIndex, intentStepIndex]);
+
+  const selectableTemplates: { id: string; name: string; description: string | null }[] = (() => {
     const intent = data.intent || 'fiction';
-    if (intent === 'not_sure') return true;
-    const slug = (cat.slug || '').toLowerCase();
-    if (intent === 'fiction') return slug.includes('fiction');
-    if (intent === 'nonfiction') return slug.includes('nonfiction') || slug.includes('business') || slug.includes('self-help');
-    if (intent === 'memoir') return slug.includes('memoir');
-    if (intent === 'workbook') return slug.includes('workbook');
-    return true;
-  });
+    const slug = (s: string) => (s || '').toLowerCase();
+    const cat = (t: TemplateSummary) => (t.category || '').toLowerCase();
+
+    const filtered = allTemplates.filter((t) => {
+      if (intent === 'not_sure') return true;
+      if (intent === 'fiction') return slug(t.slug).includes('fiction') || cat(t) === 'fiction';
+      if (intent === 'nonfiction')
+        return (
+          slug(t.slug).includes('nonfiction') ||
+          slug(t.slug).includes('business') ||
+          slug(t.slug).includes('self-help') ||
+          cat(t) === 'nonfiction' ||
+          cat(t) === 'business'
+        );
+      if (intent === 'memoir') return slug(t.slug).includes('memoir') || cat(t) === 'memoir';
+      if (intent === 'workbook') return slug(t.slug).includes('workbook') || cat(t) === 'workbook';
+      return true;
+    });
+
+    const list = filtered.length > 0 ? filtered : allTemplates;
+    return list.map((t) => ({
+      id: typeof t.id === 'string' ? t.id : String(t.id),
+      name: t.name,
+      description: t.description,
+    }));
+  })();
 
   const canProceed = useCallback(() => {
     switch (currentStep?.id) {
@@ -224,7 +246,7 @@ export default function OnboardingPage() {
         return !!(data.projectName?.trim());
       case 'structure':
         if (data.structure === 'template') {
-          return !!data.templateId || filteredCategories.length === 0;
+          return !!data.templateId || selectableTemplates.length === 0;
         }
         return true;
       case 'first_action':
@@ -232,7 +254,7 @@ export default function OnboardingPage() {
       default:
         return true;
     }
-  }, [currentStep?.id, data, filteredCategories.length]);
+  }, [currentStep?.id, data, selectableTemplates.length]);
 
   const createProject = useCallback(
     async (firstAction: FirstAction) => {
@@ -581,22 +603,22 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Loading templates...</p>
                     ) : (
                       <div className="grid gap-2 max-h-48 overflow-y-auto">
-                        {filteredCategories.map((cat) => (
+                        {selectableTemplates.map((tpl) => (
                           <button
-                            key={cat.slug}
+                            key={tpl.id}
                             type="button"
-                            onClick={() => setData((d) => ({ ...d, templateId: cat.template.id }))}
+                            onClick={() => setData((d) => ({ ...d, templateId: tpl.id }))}
                             className={`rounded-lg border p-3 text-left transition-colors ${
-                              data.templateId === cat.template.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                              data.templateId === tpl.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
                             }`}
                           >
-                            <span className="font-medium text-sm">{cat.name}</span>
-                            {cat.template.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.template.description}</p>
+                            <span className="font-medium text-sm">{tpl.name}</span>
+                            {tpl.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tpl.description}</p>
                             )}
                           </button>
                         ))}
-                        {filteredCategories.length === 0 && !loadingTemplates && (
+                        {selectableTemplates.length === 0 && !loadingTemplates && (
                           <p className="text-sm text-muted-foreground">No templates found. Start blank instead.</p>
                         )}
                       </div>
@@ -667,6 +689,14 @@ export default function OnboardingPage() {
             </div>
           </CardContent>
         </Card>
+        <p className="mt-4 text-center">
+          <Link
+            href="/onboarding/restart"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Restart onboarding
+          </Link>
+        </p>
       </div>
     </div>
   );

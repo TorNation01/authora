@@ -24,6 +24,7 @@
     "db:seed:templates": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed_project_templates",
     "db:seed:frameworks": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed_writing_frameworks",
     "db:seed:all": "npm run db:seed && npm run db:seed:templates && npm run db:seed:frameworks",
+    "db:seed:sample": "cd apps/api && PYTHONPATH=. python -m authora.scripts.seed_sample_content",
     "promote-admin": "cd apps/api && PYTHONPATH=. python -m authora.scripts.promote_admin",
     "setup": "node scripts/setup-wizard.mjs",
     "deploy": "./scripts/deploy.sh",

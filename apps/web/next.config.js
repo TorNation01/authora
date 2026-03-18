@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      { source: '/finish-your-book', destination: '/write-your-book', permanent: true },
+      { source: '/start', destination: '/write-your-book', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

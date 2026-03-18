@@ -689,6 +689,12 @@ class CheckoutCreateRequest(BaseModel):
     promo_code: str | None = None
 
 
+class TemplatePackCheckoutRequest(BaseModel):
+    pack_slug: str
+    success_url: str | None = None
+    cancel_url: str | None = None
+
+
 @router.post("/checkout/template-pack")
 async def create_template_pack_checkout(
     data: TemplatePackCheckoutRequest,
@@ -757,12 +763,6 @@ async def create_checkout(
             detail="Stripe checkout not configured. Set STRIPE_SECRET_KEY to enable.",
         )
     return result
-
-
-class TemplatePackCheckoutRequest(BaseModel):
-    pack_slug: str
-    success_url: str | None = None
-    cancel_url: str | None = None
 
 
 class TemplateCheckoutRequest(BaseModel):

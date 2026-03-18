@@ -30,6 +30,8 @@ type TemplateSummary = {
   book_type: string | null;
   genre: string | null;
   category: string;
+  parent_id?: string | null;
+  sort_order?: number;
   is_featured: boolean;
   access_level?: string;
   premium_pack_slug?: string | null;
@@ -50,6 +52,35 @@ type TemplateCategory = {
   template: TemplateSummary;
   children: TemplateSummary[];
 };
+
+type TemplateWithParent = TemplateSummary & { parent_id?: string | null };
+
+function buildCategoriesFromFlat(flat: TemplateWithParent[]): TemplateCategory[] {
+  const parents = flat.filter((t) => !t.parent_id);
+  const byParentId = flat.reduce<Record<string, TemplateSummary[]>>((acc, t) => {
+    if (t.parent_id) {
+      const pid = String(t.parent_id);
+      if (!acc[pid]) acc[pid] = [];
+      acc[pid].push(t);
+    }
+    return acc;
+  }, {});
+  return parents
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((p) => {
+      const id = typeof p.id === 'string' ? p.id : String(p.id);
+      const children = (byParentId[id] ?? []).sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      );
+      return {
+        category: p.category ?? p.slug ?? id,
+        name: p.name,
+        slug: p.slug,
+        template: p,
+        children,
+      };
+    });
+}
 
 type ChapterSkeleton = { title?: string; summary?: string };
 type PlanningSection = { id?: string; title?: string; guidance?: string };
@@ -107,29 +138,68 @@ export default function TemplateMarketplacePage() {
   >([]);
 
   useEffect(() => {
-    api<TemplateCategory[]>('/api/v1/templates/categories')
-      .then(setCategories)
-      .catch(() => setCategories([]))
-      .finally(() => setLoading(false));
+    const loadCategories = async () => {
+      try {
+        const cats = await api<TemplateCategory[]>('/api/v1/templates/categories');
+        if (Array.isArray(cats) && cats.length > 0) {
+          setCategories(cats);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        /* fall through to /all */
+      }
+      try {
+        const all = await api<TemplateSummary[]>('/api/v1/templates/all');
+        const flat = Array.isArray(all) ? all : [];
+        const built = buildCategoriesFromFlat(flat);
+        setCategories(built);
+      } catch {
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCategories();
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    const hasFilters = filterBookType || filterGenre || filterPriceMin || filterPriceMax;
-    if (searchQuery.trim()) {
-      params.set('search', searchQuery.trim());
-    } else if (!hasFilters) {
-      params.set('featured', 'true');
-    }
-    if (filterBookType) params.set('book_type', filterBookType);
-    if (filterGenre) params.set('genre', filterGenre);
-    const minCents = filterPriceMin ? Math.round(parseFloat(filterPriceMin) * 100) : null;
-    const maxCents = filterPriceMax ? Math.round(parseFloat(filterPriceMax) * 100) : null;
-    if (minCents != null && !isNaN(minCents)) params.set('price_min', String(minCents));
-    if (maxCents != null && !isNaN(maxCents)) params.set('price_max', String(maxCents));
-    api<TemplateSummary[]>(`/api/v1/templates/marketplace?${params}`)
-      .then(setMarketplaceTemplates)
-      .catch(() => setMarketplaceTemplates([]));
+    const loadMarketplace = async () => {
+      const params = new URLSearchParams();
+      const hasFilters = filterBookType || filterGenre || filterPriceMin || filterPriceMax;
+      if (searchQuery.trim()) {
+        params.set('search', searchQuery.trim());
+      } else if (!hasFilters) {
+        params.set('featured', 'true');
+      }
+      if (filterBookType) params.set('book_type', filterBookType);
+      if (filterGenre) params.set('genre', filterGenre);
+      const minCents = filterPriceMin ? Math.round(parseFloat(filterPriceMin) * 100) : null;
+      const maxCents = filterPriceMax ? Math.round(parseFloat(filterPriceMax) * 100) : null;
+      if (minCents != null && !isNaN(minCents)) params.set('price_min', String(minCents));
+      if (maxCents != null && !isNaN(maxCents)) params.set('price_max', String(maxCents));
+      try {
+        const data = await api<TemplateSummary[]>(`/api/v1/templates/marketplace?${params}`);
+        if (Array.isArray(data) && data.length > 0) {
+          setMarketplaceTemplates(data);
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      if (!hasFilters && !searchQuery.trim()) {
+        try {
+          const all = await api<TemplateSummary[]>('/api/v1/templates/all');
+          const flat = Array.isArray(all) ? all : [];
+          setMarketplaceTemplates(flat.filter((t) => t.is_featured).length > 0 ? flat.filter((t) => t.is_featured) : flat.slice(0, 12));
+        } catch {
+          setMarketplaceTemplates([]);
+        }
+      } else {
+        setMarketplaceTemplates([]);
+      }
+    };
+    loadMarketplace();
   }, [searchQuery, filterBookType, filterGenre, filterPriceMin, filterPriceMax]);
 
   useEffect(() => {

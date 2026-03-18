@@ -8,6 +8,7 @@ import { getAppBaseUrl } from '@/lib/config';
 import { Menu, X } from 'lucide-react';
 
 const NAV_LINKS = [
+  { href: '/write-your-book', label: 'Write your book' },
   { href: '/#how-it-works', label: 'How It Works' },
   { href: '/features', label: 'Features' },
   { href: '/pricing', label: 'Pricing' },
