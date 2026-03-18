@@ -29,6 +29,7 @@ import {
   TrendingUp,
   BookOpen,
   Package,
+  CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +56,7 @@ const adminNav = [
   { href: '/dashboard/admin/network-metrics', label: 'Network metrics', icon: TrendingUp },
   { href: '/dashboard/admin/templates', label: 'Templates', icon: BookOpen },
   { href: '/dashboard/admin/template-packs', label: 'Template packs', icon: Package },
+  { href: '/dashboard/admin/payments', label: 'Payment settings', icon: CreditCard },
   { href: '/dashboard/admin/creators', label: 'Creators', icon: Users },
   { href: '/dashboard/admin/creator-payouts', label: 'Creator payouts', icon: DollarSign },
   { href: '/dashboard/admin/template-submissions', label: 'Template submissions', icon: Upload },

@@ -204,6 +204,11 @@ class Settings(BaseSettings):
     stripe_success_url: str = "http://localhost:3000/billing?success=1"
     stripe_cancel_url: str = "http://localhost:3000/billing?canceled=1"
 
+    # PayPal (billing - alternative to Stripe)
+    paypal_client_id: Optional[str] = None
+    paypal_client_secret: Optional[str] = None
+    paypal_mode: str = "sandbox"  # sandbox | live
+
     @field_validator("deployment_mode", mode="before")
     @classmethod
     def validate_deployment_mode(cls, v: str) -> str:

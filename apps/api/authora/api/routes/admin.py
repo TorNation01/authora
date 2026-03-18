@@ -884,6 +884,94 @@ async def admin_openai_health(current_user: AdminUser):
         return {"ok": False, "message": str(e)}
 
 
+# --- Payment settings (Stripe) ---
+
+
+class AdminPaymentSettingsUpdate(BaseModel):
+    """Update payment configuration (Stripe, PayPal) - writes to .env."""
+
+    stripe_secret_key: str | None = Field(None, description="Stripe secret key (sk_live_ or sk_test_)")
+    stripe_publishable_key: str | None = Field(None, description="Stripe publishable key (pk_live_ or pk_test_)")
+    stripe_webhook_secret: str | None = Field(None, description="Stripe webhook signing secret (whsec_)")
+    stripe_success_url: str | None = Field(None, description="Redirect URL after successful payment")
+    stripe_cancel_url: str | None = Field(None, description="Redirect URL when payment is canceled")
+    feature_billing: bool | None = Field(None, description="Enable billing feature flag")
+    paypal_client_id: str | None = Field(None, description="PayPal REST API client ID")
+    paypal_client_secret: str | None = Field(None, description="PayPal REST API client secret")
+    paypal_mode: str | None = Field(None, description="PayPal mode: sandbox | live")
+
+
+@router.get("/payment-settings")
+async def admin_get_payment_settings(current_user: AdminUser, db: Annotated[AsyncSession, Depends(get_db)]):
+    """Get payment/Stripe configuration status (no secret values)."""
+    from authora.services.stripe_service import _stripe_available, is_stripe_live_mode, _get_webhook_secret
+
+    s = get_settings()
+    stripe_configured = _stripe_available()
+    webhook_secret_set = bool(_get_webhook_secret()) if stripe_configured else False
+    live_mode = is_stripe_live_mode() if stripe_configured else None
+
+    r = await db.execute(select(Plan))
+    plans = r.scalars().all()
+    plans_with_stripe = sum(
+        1
+        for p in plans
+        if getattr(p, "stripe_price_id_monthly", None)
+        or getattr(p, "stripe_price_id_yearly", None)
+        or getattr(p, "stripe_price_id_lifetime", None)
+    )
+
+    paypal_configured = bool(getattr(s, "paypal_client_id", None) and getattr(s, "paypal_client_secret", None))
+    paypal_mode = getattr(s, "paypal_mode", "sandbox") or "sandbox"
+
+    return {
+        "stripe_configured": stripe_configured,
+        "webhook_secret_set": webhook_secret_set,
+        "live_mode": live_mode,
+        "feature_billing": getattr(s, "feature_billing", False),
+        "plans_count": len(plans),
+        "plans_with_stripe_prices": plans_with_stripe,
+        "stripe_success_url": s.stripe_success_url or "",
+        "stripe_cancel_url": s.stripe_cancel_url or "",
+        "paypal_configured": paypal_configured,
+        "paypal_mode": paypal_mode,
+    }
+
+
+@router.put("/payment-settings")
+async def admin_update_payment_settings(data: AdminPaymentSettingsUpdate, current_user: AdminUser):
+    """Update payment/Stripe configuration. Writes to .env. Restart API for changes to take effect."""
+    from authora.services.setup_wizard import write_env
+
+    updates: dict[str, str] = {}
+    if data.stripe_secret_key is not None:
+        updates["STRIPE_SECRET_KEY"] = data.stripe_secret_key
+    if data.stripe_publishable_key is not None:
+        updates["STRIPE_PUBLISHABLE_KEY"] = data.stripe_publishable_key
+    if data.stripe_webhook_secret is not None:
+        updates["STRIPE_WEBHOOK_SECRET"] = data.stripe_webhook_secret
+    if data.stripe_success_url is not None:
+        updates["STRIPE_SUCCESS_URL"] = data.stripe_success_url
+    if data.stripe_cancel_url is not None:
+        updates["STRIPE_CANCEL_URL"] = data.stripe_cancel_url
+    if data.feature_billing is not None:
+        updates["FEATURE_BILLING"] = str(data.feature_billing).lower()
+    if data.paypal_client_id is not None:
+        updates["PAYPAL_CLIENT_ID"] = data.paypal_client_id
+    if data.paypal_client_secret is not None:
+        updates["PAYPAL_CLIENT_SECRET"] = data.paypal_client_secret
+    if data.paypal_mode is not None:
+        updates["PAYPAL_MODE"] = data.paypal_mode
+
+    if not updates:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No updates provided")
+
+    ok, msg = write_env(updates)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=msg)
+    return {"ok": True, "message": "Payment settings updated. Restart the API for changes to take effect."}
+
+
 @router.get("/ai/providers/anthropic/health")
 async def admin_anthropic_health(current_user: AdminUser):
     """Check Anthropic connectivity (lightweight models list)."""
