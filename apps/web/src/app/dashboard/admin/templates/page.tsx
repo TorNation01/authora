@@ -86,20 +86,20 @@ export default function AdminTemplatesPage() {
   }, {});
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Project templates</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl font-bold sm:text-2xl">Project templates</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage templates: visibility, featured, access level, pricing.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={includeDisabled} onCheckedChange={setIncludeDisabled} />
             Include disabled
           </label>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/templates">
               <BookOpen className="h-4 w-4 mr-2" />
               View marketplace
@@ -115,9 +115,9 @@ export default function AdminTemplatesPage() {
       ) : (
         <div className="space-y-6">
           {Object.entries(byCategory).map(([category, items]) => (
-            <Card key={category} variant="soft">
+            <Card key={category} variant="soft" className="overflow-hidden">
               <CardHeader className="pb-2">
-                <h2 className="text-lg font-semibold">{category}</h2>
+                <h2 className="text-base font-semibold sm:text-lg break-words">{category}</h2>
                 <p className="text-sm text-muted-foreground">{items.length} templates</p>
               </CardHeader>
               <CardContent>
@@ -125,15 +125,15 @@ export default function AdminTemplatesPage() {
                   {items.map((t) => (
                     <div
                       key={t.id}
-                      className={`flex items-center justify-between rounded-lg border p-3 ${t.is_disabled ? 'opacity-60' : ''}`}
+                      className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${t.is_disabled ? 'opacity-60' : ''}`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
                         <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{t.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{t.slug}</p>
                         </div>
-                        <div className="flex flex-wrap gap-1 shrink-0">
+                        <div className="flex flex-wrap gap-1">
                           {t.is_featured && (
                             <Badge variant="default" className="text-xs">
                               <Star className="h-3 w-3 mr-0.5" />
@@ -152,9 +152,9 @@ export default function AdminTemplatesPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Featured</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">Featured</span>
                           <Switch
                             checked={t.is_featured}
                             onCheckedChange={(v) => handleToggle(t.id, 'is_featured', v)}
@@ -162,7 +162,7 @@ export default function AdminTemplatesPage() {
                           />
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Disabled</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">Disabled</span>
                           <Switch
                             checked={t.is_disabled}
                             onCheckedChange={(v) => handleToggle(t.id, 'is_disabled', v)}
