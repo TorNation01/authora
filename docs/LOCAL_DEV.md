@@ -65,7 +65,7 @@ Or with Docker:
 npm run db:seed
 ```
 
-Creates admin user: `admin@authora.local` / `admin123`
+Creates admin user `admin@authora.local` / `admin123`, plus 35 project templates and 16 writing frameworks.
 
 ## 6. Start Application
 

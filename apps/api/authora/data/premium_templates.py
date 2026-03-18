@@ -45,12 +45,12 @@ def _romance_premium() -> dict[str, Any]:
         "structure_framework": "romance_beats",
         "default_structure": {
             "planning_sections": [
-                {"id": "premise", "title": "Book Premise", "type": "text"},
-                {"id": "hero", "title": "Hero (Protagonist)", "type": "section"},
-                {"id": "heroine", "title": "Heroine (Protagonist)", "type": "section"},
-                {"id": "meet_cute", "title": "Meet-Cute & First Impression", "type": "section"},
-                {"id": "chemistry", "title": "Chemistry & Attraction", "type": "section"},
-                {"id": "internal_conflict", "title": "Internal Conflict (Why They Can't Be Together)", "type": "section"},
+                {"id": "premise", "title": "Book Premise", "type": "text", "guidance": "One sentence: who meets whom, what keeps them apart, what brings them together."},
+                {"id": "hero", "title": "Hero (Protagonist)", "type": "section", "guidance": "What he wants, fears, and how he changes. His wound and growth arc."},
+                {"id": "heroine", "title": "Heroine (Protagonist)", "type": "section", "guidance": "What she wants, fears, and how she changes. Her wound and growth arc."},
+                {"id": "meet_cute", "title": "Meet-Cute & First Impression", "type": "section", "guidance": "The moment they meet. Tension, spark, or memorable first impression."},
+                {"id": "chemistry", "title": "Chemistry & Attraction", "type": "section", "guidance": "What creates the spark. Scenes that show attraction without telling."},
+                {"id": "internal_conflict", "title": "Internal Conflict (Why They Can't Be Together)", "type": "section", "guidance": "Their fears, wounds, or beliefs that keep them from committing."},
                 {"id": "external_conflict", "title": "External Conflict", "type": "section"},
                 {"id": "romance_beats", "title": "Romance Beat Map", "type": "section"},
                 {"id": "black_moment", "title": "Black Moment", "type": "section"},
@@ -148,9 +148,9 @@ def _fantasy_premium() -> dict[str, Any]:
         "structure_framework": "hero_journey",
         "default_structure": {
             "planning_sections": [
-                {"id": "premise", "title": "Book Premise", "type": "text"},
-                {"id": "world", "title": "World & Setting", "type": "section"},
-                {"id": "magic_system", "title": "Magic System / Rules", "type": "section"},
+                {"id": "premise", "title": "Book Premise", "type": "text", "guidance": "One sentence: protagonist, goal, obstacle, stakes."},
+                {"id": "world", "title": "World & Setting", "type": "section", "guidance": "Where and when. Rules, atmosphere, how setting affects the plot."},
+                {"id": "magic_system", "title": "Magic System / Rules", "type": "section", "guidance": "Rules, limits, costs. What magic can and cannot do."},
                 {"id": "protagonist", "title": "Protagonist", "type": "section"},
                 {"id": "antagonist", "title": "Antagonist / Forces", "type": "section"},
                 {"id": "supporting", "title": "Supporting Cast", "type": "section"},
@@ -248,8 +248,8 @@ def _thriller_premium() -> dict[str, Any]:
         "structure_framework": "mystery_thriller",
         "default_structure": {
             "planning_sections": [
-                {"id": "premise", "title": "Book Premise", "type": "text"},
-                {"id": "crime_mystery", "title": "Crime / Mystery at Core", "type": "section"},
+                {"id": "premise", "title": "Book Premise", "type": "text", "guidance": "One sentence: crime or mystery, investigator, stakes."},
+                {"id": "crime_mystery", "title": "Crime / Mystery at Core", "type": "section", "guidance": "What happened. What the reader and protagonist need to discover."},
                 {"id": "protagonist", "title": "Protagonist (Detective / Investigator)", "type": "section"},
                 {"id": "antagonist", "title": "Antagonist / Culprit", "type": "section"},
                 {"id": "clues", "title": "Clue Map", "type": "section"},
@@ -347,8 +347,8 @@ def _scifi_premium() -> dict[str, Any]:
         "structure_framework": "three_act",
         "default_structure": {
             "planning_sections": [
-                {"id": "premise", "title": "Book Premise", "type": "text"},
-                {"id": "concept", "title": "Core Sci-Fi Concept", "type": "section"},
+                {"id": "premise", "title": "Book Premise", "type": "text", "guidance": "One sentence: big idea, protagonist, stakes."},
+                {"id": "concept", "title": "Core Sci-Fi Concept", "type": "section", "guidance": "The speculative element. What if? Technology, world, or idea that drives the story."},
                 {"id": "world", "title": "World / Setting", "type": "section"},
                 {"id": "technology", "title": "Technology / Rules", "type": "section"},
                 {"id": "protagonist", "title": "Protagonist", "type": "section"},
@@ -442,8 +442,8 @@ def _memoir_premium() -> dict[str, Any]:
         "structure_framework": "emotional_arc",
         "default_structure": {
             "planning_sections": [
-                {"id": "why_matters", "title": "Why This Story Matters", "type": "text"},
-                {"id": "defining_moments", "title": "Defining Moments", "type": "section"},
+                {"id": "why_matters", "title": "Why This Story Matters", "type": "text", "guidance": "Why does this story need to be told? What will readers take away?"},
+                {"id": "defining_moments", "title": "Defining Moments", "type": "section", "guidance": "The 3–5 moments that shaped you. Scenes that carry emotional weight."},
                 {"id": "emotional_turning", "title": "Emotional Turning Points", "type": "section"},
                 {"id": "relationships", "title": "Important Relationships", "type": "section"},
                 {"id": "timeline", "title": "Timeline", "type": "section"},
@@ -626,10 +626,10 @@ def _business_premium() -> dict[str, Any]:
         "structure_framework": "authority",
         "default_structure": {
             "planning_sections": [
-                {"id": "core_idea", "title": "Core Idea", "type": "text"},
-                {"id": "reader_problem", "title": "Reader Problem", "type": "text"},
-                {"id": "promised_outcome", "title": "Promised Outcome", "type": "text"},
-                {"id": "positioning", "title": "Authority Positioning", "type": "text"},
+                {"id": "core_idea", "title": "Core Idea", "type": "text", "guidance": "The one big idea. What do you want readers to understand or do?"},
+                {"id": "reader_problem", "title": "Reader Problem", "type": "text", "guidance": "What problem does your reader have? Why will they pick up this book?"},
+                {"id": "promised_outcome", "title": "Promised Outcome", "type": "text", "guidance": "What transformation or result do you promise?"},
+                {"id": "positioning", "title": "Authority Positioning", "type": "text", "guidance": "Why are you the right person to write this? Credentials, experience, unique angle."},
                 {"id": "chapter_outline", "title": "Chapter Outline", "type": "section"},
                 {"id": "frameworks", "title": "Frameworks and Models", "type": "section"},
                 {"id": "case_studies", "title": "Case Studies", "type": "section"},
@@ -717,8 +717,8 @@ def _workbook_premium() -> dict[str, Any]:
         "structure_framework": "module_exercise",
         "default_structure": {
             "planning_sections": [
-                {"id": "outcomes", "title": "Learning Outcomes", "type": "section"},
-                {"id": "modules", "title": "Module Structure", "type": "section"},
+                {"id": "outcomes", "title": "Learning Outcomes", "type": "section", "guidance": "What will readers be able to do after completing this workbook? Be measurable."},
+                {"id": "modules", "title": "Module Structure", "type": "section", "guidance": "How many modules? What does each one teach? Flow and dependencies."},
                 {"id": "prompts", "title": "Prompt Sets", "type": "section"},
                 {"id": "worksheets", "title": "Worksheet Sections", "type": "section"},
                 {"id": "reflections", "title": "Reflection Blocks", "type": "section"},

@@ -28,10 +28,16 @@ export const CUSTOM_PROJECT = {
 } as const;
 
 export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  // Fiction
   fiction: 'Build stories with structure, character, tension, and momentum.',
+  // Non-Fiction
   nonfiction:
     'Turn your expertise, ideas, or message into a clear and compelling book.',
   memoir: 'Shape lived experience into a story with meaning, emotion, and reflection.',
+  // Hybrid / Creative
+  hybrid_creative:
+    'Blend fact with literary craft. Narrative nonfiction, creative nonfiction, and essay collections.',
+  // Business / Authority (nonfiction sub-types)
   workbook:
     'Create guided content with prompts, exercises, and action-oriented structure.',
   journal:
@@ -44,6 +50,13 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   ghostwritten_book:
     "Capture a client's message, voice, and source material in a structured writing flow.",
   custom: CUSTOM_PROJECT.description,
+  // New categories
+  ai_templates:
+    'AI-assisted writing from idea to draft. Generate outlines, expand content, and refine with AI.',
+  accountability:
+    'Daily and weekly check-ins to track progress, reflect, and build writing habit.',
+  business:
+    'Course books, lead magnets, and business content that teaches and converts.',
 };
 
 export const MICROCOPY = {

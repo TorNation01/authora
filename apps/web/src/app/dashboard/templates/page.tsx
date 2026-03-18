@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +14,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { api } from '@/lib/api';
-import { BookOpen, Loader2, ChevronRight, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/contexts/UserContext';
+import { BookOpen, Loader2, ChevronRight, Sparkles, Copy, List } from 'lucide-react';
 import { CATEGORY_DESCRIPTIONS } from '@/content/template-copy';
 
 type TemplateSummary = {
@@ -37,23 +38,30 @@ type TemplateCategory = {
   children: TemplateSummary[];
 };
 
+type ChapterSkeleton = { title?: string; summary?: string };
+type PlanningSection = { id?: string; title?: string; guidance?: string };
+
 type TemplateFull = TemplateSummary & {
   who_it_is_for: string | null;
   expected_outcome: string | null;
   suggested_workflow: string | null;
   default_milestones: unknown[] | null;
   export_recommendations: string[] | null;
-  chapter_skeletons: unknown[] | null;
+  chapter_skeletons: ChapterSkeleton[] | null;
+  default_structure?: { planning_sections?: PlanningSection[] } | null;
 };
 
 export default function TemplateMarketplacePage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const user = useUser();
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateFull | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   useEffect(() => {
     api<TemplateCategory[]>('/api/v1/templates/categories')
@@ -81,6 +89,26 @@ export default function TemplateMarketplacePage() {
   const handleApplyTemplate = (templateId: string) => {
     router.push(`/dashboard/projects/new?templateId=${templateId}`);
   };
+
+  async function handleDuplicateTemplate(templateId: string) {
+    if (!user?.is_admin) return;
+    setDuplicatingId(templateId);
+    try {
+      const res = await api<{ id: string; slug: string; name: string }>(
+        `/api/v1/admin/templates/${templateId}/duplicate`,
+        { method: 'POST' }
+      );
+      toast({ title: 'Template duplicated', description: `Created "${res.name}"` });
+      setPreviewTemplateId(null);
+      api<TemplateCategory[]>('/api/v1/templates/categories')
+        .then(setCategories)
+        .catch(() => {});
+    } catch {
+      toast({ title: 'Failed to duplicate template', variant: 'destructive' });
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -169,7 +197,7 @@ export default function TemplateMarketplacePage() {
 
       {/* Preview dialog */}
       <Dialog open={!!previewTemplateId} onOpenChange={(o) => !o && setPreviewTemplateId(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Template preview</DialogTitle>
             <DialogDescription>
@@ -216,19 +244,75 @@ export default function TemplateMarketplacePage() {
                   <p className="text-sm mt-0.5">{previewTemplate.suggested_workflow}</p>
                 </div>
               )}
-              {previewTemplate.chapter_skeletons && previewTemplate.chapter_skeletons.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Structure</p>
-                  <p className="text-sm mt-0.5 text-muted-foreground">
-                    {previewTemplate.chapter_skeletons.length} chapter{previewTemplate.chapter_skeletons.length !== 1 ? 's' : ''} included
+              {/* Structure preview: planning sections + chapters */}
+              {(previewTemplate.default_structure?.planning_sections?.length ||
+                (previewTemplate.chapter_skeletons && previewTemplate.chapter_skeletons.length > 0)) && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <List className="h-3.5 w-3.5" />
+                    Structure
                   </p>
+                  {previewTemplate.default_structure?.planning_sections &&
+                    previewTemplate.default_structure.planning_sections.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Planning sections</p>
+                        <ul className="text-sm space-y-0.5 text-muted-foreground">
+                          {previewTemplate.default_structure.planning_sections
+                            .slice(0, 8)
+                            .map((s, i) => (
+                              <li key={s.id ?? i}>
+                                {s.title ?? `Section ${i + 1}`}
+                              </li>
+                            ))}
+                          {previewTemplate.default_structure.planning_sections.length > 8 && (
+                            <li className="italic">
+                              +{previewTemplate.default_structure.planning_sections.length - 8} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  {previewTemplate.chapter_skeletons && previewTemplate.chapter_skeletons.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        Chapters ({previewTemplate.chapter_skeletons.length})
+                      </p>
+                      <ul className="text-sm space-y-0.5 text-muted-foreground">
+                        {previewTemplate.chapter_skeletons.slice(0, 6).map((ch, i) => (
+                          <li key={i}>
+                            {ch.title}
+                            {ch.summary ? ` — ${ch.summary}` : ''}
+                          </li>
+                        ))}
+                        {previewTemplate.chapter_skeletons.length > 6 && (
+                          <li className="italic">
+                            +{previewTemplate.chapter_skeletons.length - 6} more
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-wrap gap-2 pt-4">
                 <Button onClick={() => handleApplyTemplate(previewTemplate.id)}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   Use this template
                 </Button>
+                {user?.is_admin && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDuplicateTemplate(previewTemplate.id)}
+                    disabled={duplicatingId === previewTemplate.id}
+                  >
+                    {duplicatingId === previewTemplate.id ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4 mr-2" />
+                    )}
+                    Duplicate
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setPreviewTemplateId(null)}>
                   Close
                 </Button>

@@ -66,10 +66,16 @@ Templates are stored in `project_templates`:
 
 ## Seed Data
 
-Templates are seeded from `authora/data/template_definitions.py`:
+Templates are seeded from `authora/data/template_definitions.py`. They are included in the main seed:
 
 ```bash
-cd apps/api && python -m authora.scripts.seed_project_templates
+npm run db:seed
+```
+
+This seeds users, project templates (35), and writing frameworks (16). To seed templates only:
+
+```bash
+npm run db:seed:templates
 ```
 
 Re-running the seed updates existing templates by slug.
