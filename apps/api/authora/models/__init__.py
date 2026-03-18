@@ -96,6 +96,10 @@ from authora.models.community import (
 )
 from authora.models.revision_pass import RevisionChecklistItem, RevisionPass, RevisionPassChapter
 from authora.models.reference_item import ReferenceItem
+from authora.models.zotero import ZoteroConnection
+from authora.models.citation_style import CitationStyle, ProjectCitationStyle
+from authora.models.source_note import SourceNote
+from authora.models.chapter_citation import ChapterCitation
 from authora.models.ai_revision import AIRevision
 from authora.models.ai_action_log import AIActionLog
 from authora.models.ai_action_registry import AIActionRegistry
@@ -119,6 +123,16 @@ from authora.models.promo_code import PromoCode, PromoCodeRedemption
 from authora.models.entitlement_audit_log import EntitlementAuditLog
 from authora.models.content_embedding import ContentEmbedding, IndexingJob
 from authora.models.integrity import IntegrityIssue, IntegrityScan, IntegrityScanAnalytics
+from authora.models.originality import (
+    AIAssistanceDisclosure,
+    AIOriginRiskReview,
+    ComparisonCorpus,
+    IntegrityReviewComment,
+    IntegrityReviewReport,
+    MatchedPassage,
+    OriginalityAdminConfig,
+    OriginalityScan,
+)
 from authora.models.density import DensityIssue, DensityScan
 from authora.models.vault import (
     ChapterCharacterLink,
@@ -208,6 +222,11 @@ __all__ = [
     "RevisionPassChapter",
     "RevisionChecklistItem",
     "ReferenceItem",
+    "ZoteroConnection",
+    "CitationStyle",
+    "ProjectCitationStyle",
+    "SourceNote",
+    "ChapterCitation",
     "AIRevision",
     "AIActionLog",
     "AIActionRegistry",
@@ -256,6 +275,14 @@ __all__ = [
     "IntegrityScan",
     "IntegrityIssue",
     "IntegrityScanAnalytics",
+    "ComparisonCorpus",
+    "OriginalityScan",
+    "MatchedPassage",
+    "AIAssistanceDisclosure",
+    "AIOriginRiskReview",
+    "IntegrityReviewReport",
+    "IntegrityReviewComment",
+    "OriginalityAdminConfig",
     "DensityScan",
     "DensityIssue",
     "WritingGroup",

@@ -387,6 +387,7 @@ class SourceUpdate(BaseModel):
     citation_notes: str | None = None
     reliability_note: str | None = None
     status: str | None = Field(None, max_length=50)
+    used_in_manuscript: bool | None = None
 
 
 class SourceResponse(BaseModel):
@@ -403,6 +404,8 @@ class SourceResponse(BaseModel):
     citation_notes: str | None
     reliability_note: str | None
     status: str
+    used_in_manuscript: bool = False
+    zotero_item_key: str | None = None
     sort_order: int
     created_at: datetime
     updated_at: datetime

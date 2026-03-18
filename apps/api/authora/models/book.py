@@ -12,6 +12,8 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.ai_revision import AIRevision
+    from authora.models.citation_style import ProjectCitationStyle
+    from authora.models.chapter_citation import ChapterCitation
     from authora.models.density import DensityIssue, DensityScan
     from authora.models.integrity import IntegrityIssue, IntegrityScan
     from authora.models.book_settings import BookSettings
@@ -77,6 +79,9 @@ class Book(Base):
     )
     density_issues: Mapped[list["DensityIssue"]] = relationship(
         "DensityIssue", back_populates="book", cascade="all, delete-orphan"
+    )
+    citation_style_pref: Mapped[list["ProjectCitationStyle"]] = relationship(
+        "ProjectCitationStyle", back_populates="book", cascade="all, delete-orphan", foreign_keys="ProjectCitationStyle.book_id"
     )
 
 
@@ -149,6 +154,9 @@ class Chapter(Base):
     )
     density_issues: Mapped[list["DensityIssue"]] = relationship(
         "DensityIssue", back_populates="chapter", cascade="all, delete-orphan"
+    )
+    chapter_citations: Mapped[list["ChapterCitation"]] = relationship(
+        "ChapterCitation", back_populates="chapter", cascade="all, delete-orphan"
     )
 
 

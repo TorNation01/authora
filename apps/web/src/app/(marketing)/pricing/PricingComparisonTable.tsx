@@ -11,6 +11,13 @@ import {
 const PLAN_ORDER: PlanSlug[] = ['free', 'starter', 'pro', 'studio', 'founder_lifetime'];
 
 const STORY_ENGINE_ROWS = ['story_integrity', 'story_density'];
+const STUDIO_ROWS = [
+  'citation_system',
+  'bibliography',
+  'academic_templates',
+  'originality_review',
+  'ai_insights',
+];
 
 function CellValue({
   val,
@@ -32,10 +39,14 @@ export function PricingComparisonTable() {
   const storyRows = PLAN_COMPARISON_ROWS.filter((r) =>
     STORY_ENGINE_ROWS.includes(r.key)
   );
-  const otherRows = PLAN_COMPARISON_ROWS.filter(
-    (r) => !STORY_ENGINE_ROWS.includes(r.key)
+  const studioRows = PLAN_COMPARISON_ROWS.filter((r) =>
+    STUDIO_ROWS.includes(r.key)
   );
-  const orderedRows = [...storyRows, ...otherRows];
+  const otherRows = PLAN_COMPARISON_ROWS.filter(
+    (r) =>
+      !STORY_ENGINE_ROWS.includes(r.key) && !STUDIO_ROWS.includes(r.key)
+  );
+  const orderedRows = [...storyRows, ...studioRows, ...otherRows];
 
   return (
     <section
@@ -48,7 +59,7 @@ export function PricingComparisonTable() {
           Compare plans
         </h2>
         <p className="mt-2 text-muted-foreground">
-          See what each plan includes. Story Integrity and Story Density Engine are Pro+.
+          See what each plan includes. Citation, academic templates, and originality review are Studio.
         </p>
       </div>
 
@@ -75,17 +86,18 @@ export function PricingComparisonTable() {
             <tbody>
               {orderedRows.map((row, idx) => {
                 const isStoryEngine = STORY_ENGINE_ROWS.includes(row.key);
+                const isStudio = STUDIO_ROWS.includes(row.key);
                 return (
                   <tr
                     key={row.key}
                     className={`border-b border-white/[0.04] transition-colors hover:bg-white/[0.02] ${
                       isStoryEngine ? 'bg-primary/[0.04]' : ''
-                    }`}
+                    } ${isStudio ? 'bg-primary/[0.02]' : ''}`}
                   >
                     <td className="sticky left-0 z-10 min-w-[200px] bg-inherit px-6 py-3 backdrop-blur-sm">
                       <span
                         className={
-                          isStoryEngine
+                          isStoryEngine || isStudio
                             ? 'font-semibold text-foreground'
                             : 'text-muted-foreground'
                         }
@@ -93,6 +105,9 @@ export function PricingComparisonTable() {
                         {row.label}
                         {isStoryEngine && (
                           <span className="ml-1.5 text-xs text-primary">Pro+</span>
+                        )}
+                        {isStudio && (
+                          <span className="ml-1.5 text-xs text-primary">Studio</span>
                         )}
                       </span>
                     </td>
@@ -130,12 +145,15 @@ export function PricingComparisonTable() {
               {orderedRows.map((row) => {
                 const val = PLAN_COMPARISON_MATRIX[slug]?.[row.key];
                 const isStoryEngine = STORY_ENGINE_ROWS.includes(row.key);
+                const isStudio = STUDIO_ROWS.includes(row.key);
                 if (val === false) return null;
                 return (
                   <li
                     key={row.key}
                     className={`flex items-center gap-2 text-sm ${
-                      isStoryEngine ? 'font-medium text-foreground' : 'text-muted-foreground'
+                      isStoryEngine || isStudio
+                        ? 'font-medium text-foreground'
+                        : 'text-muted-foreground'
                     }`}
                   >
                     <Check className="h-4 w-4 shrink-0 text-primary" />

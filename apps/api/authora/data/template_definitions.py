@@ -11,6 +11,11 @@ revision checklists, export readiness checklists, and writing prompts.
 
 from typing import Any
 
+from authora.data.academic_template_definitions import ACADEMIC_TEMPLATE_DEFINITIONS
+from authora.data.poetry_and_additional_template_definitions import (
+    ADDITIONAL_TEMPLATE_DEFINITIONS,
+    POETRY_TEMPLATE_DEFINITIONS,
+)
 from authora.data.premium_templates import get_premium_overrides
 
 # Shared fiction planning sections (guidance = help text for each section)
@@ -3002,6 +3007,14 @@ TEMPLATE_DEFINITIONS_RAW: list[dict[str, Any]] = [
         "is_disabled": False,
     },
 ]
+
+# Merge academic, poetry, and additional templates with main definitions
+TEMPLATE_DEFINITIONS_RAW = (
+    TEMPLATE_DEFINITIONS_RAW
+    + ACADEMIC_TEMPLATE_DEFINITIONS
+    + POETRY_TEMPLATE_DEFINITIONS
+    + ADDITIONAL_TEMPLATE_DEFINITIONS
+)
 
 # Apply premium overrides to flagship launch templates
 TEMPLATE_DEFINITIONS = [_apply_premium(d) for d in TEMPLATE_DEFINITIONS_RAW]

@@ -31,6 +31,9 @@ dependencies = [
     "structlog>=24.1.0",
     "pgvector>=0.2.0",
     "stripe>=8.0.0",
+    "pyzotero>=1.5.0",
+    "citeproc-py>=0.6.0",
+    "citeproc-py-styles>=0.1.0",
 ]
 
 [project.optional-dependencies]

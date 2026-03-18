@@ -24,6 +24,8 @@ from authora.models import (
     IntegrityIssue,
     IntegrityScan,
     NotificationDeliveryLog,
+    OriginalityAdminConfig,
+    OriginalityScan,
     Plan,
     Project,
     ProjectTemplate,
@@ -259,6 +261,85 @@ async def admin_density_analytics(
         "total_issues_detected": scans_row.total_issues or 0,
         "issues_by_category": by_category,
         "issues_by_action": by_action,
+    }
+
+
+# --- Originality / integrity review admin ---
+
+ORIGINALITY_CONFIG_KEYS = (
+    "originality_enabled",
+    "ai_review_enabled",
+    "excluded_sections",
+    "corpora_default",
+    "report_export_enabled",
+    "privacy_retention_days",
+)
+
+
+@router.get("/originality/config")
+async def admin_get_originality_config(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Get originality admin config (corpora, exclusions, feature flags, privacy)."""
+    result = await db.execute(select(OriginalityAdminConfig))
+    rows = result.scalars().all()
+    config = {r.key: r.value for r in rows}
+    defaults = {
+        "originality_enabled": {"enabled": True},
+        "ai_review_enabled": {"enabled": True},
+        "excluded_sections": {"bibliography": True, "quotes": True, "front_matter": True},
+        "corpora_default": {"user_projects": True},
+        "report_export_enabled": {"enabled": True},
+        "privacy_retention_days": {"days": 365},
+    }
+    return {k: config.get(k, defaults.get(k, {})) for k in ORIGINALITY_CONFIG_KEYS}
+
+
+class OriginalityConfigUpdate(BaseModel):
+    """Update single originality config key."""
+
+    value: dict | None = None
+
+
+@router.put("/originality/config/{key}")
+async def admin_update_originality_config(
+    key: str,
+    data: OriginalityConfigUpdate,
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Update originality admin config key."""
+    if key not in ORIGINALITY_CONFIG_KEYS:
+        raise HTTPException(status_code=400, detail=f"Invalid config key. Allowed: {ORIGINALITY_CONFIG_KEYS}")
+    result = await db.execute(select(OriginalityAdminConfig).where(OriginalityAdminConfig.key == key))
+    row = result.scalar_one_or_none()
+    if not row:
+        row = OriginalityAdminConfig(key=key, value=data.value or {})
+        db.add(row)
+    else:
+        row.value = data.value or row.value
+    await db.flush()
+    return {"key": key, "value": row.value}
+
+
+@router.get("/originality/analytics")
+async def admin_originality_analytics(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = Query(30, ge=1, le=365),
+):
+    """Originality scan analytics: scans run, match counts."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    scans_q = select(
+        func.count(OriginalityScan.id).label("total"),
+        func.avg(OriginalityScan.overall_similarity_pct).label("avg_similarity_pct"),
+    ).where(OriginalityScan.started_at >= since, OriginalityScan.status == "completed")
+    scans_row = (await db.execute(scans_q)).one()
+    return {
+        "period_days": days,
+        "scans_total": scans_row.total or 0,
+        "avg_similarity_pct": round(float(scans_row.avg_similarity_pct or 0), 1),
     }
 
 

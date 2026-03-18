@@ -12,6 +12,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.affiliate import AffiliateProfile
+    from authora.models.zotero import ZoteroConnection
     from authora.models.creator_profile import CreatorProfile
     from authora.models.ai_action_log import AIActionLog
     from authora.models.growth import Referral, ShareLink
@@ -78,6 +79,9 @@ class User(Base):
     )
     creator_profile: Mapped["CreatorProfile | None"] = relationship(
         "CreatorProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    zotero_connections: Mapped[list["ZoteroConnection"]] = relationship(
+        "ZoteroConnection", back_populates="user", cascade="all, delete-orphan"
     )
 
 

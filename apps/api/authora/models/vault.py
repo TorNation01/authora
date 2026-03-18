@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -332,6 +332,12 @@ class Source(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    zotero_connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("zotero_connections.id", ondelete="SET NULL"), nullable=True
+    )
+    zotero_item_key: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    zotero_version: Mapped[int | None] = mapped_column(BigInteger(), nullable=True)
+    csl_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     author: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -345,6 +351,7 @@ class Source(Base):
     citation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     reliability_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="needs_review")
+    used_in_manuscript: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
@@ -352,9 +359,16 @@ class Source(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     project: Mapped["Project"] = relationship("Project", back_populates="vault_sources")
+    zotero_connection: Mapped["ZoteroConnection | None"] = relationship("ZoteroConnection", back_populates="sources")
     research_entries: Mapped[list["ResearchEntry"]] = relationship("ResearchEntry", back_populates="source")
     chapter_links: Mapped[list["ChapterSourceLink"]] = relationship(
         "ChapterSourceLink", back_populates="source", cascade="all, delete-orphan"
+    )
+    source_notes: Mapped[list["SourceNote"]] = relationship(
+        "SourceNote", back_populates="source", cascade="all, delete-orphan"
+    )
+    chapter_citations: Mapped[list["ChapterCitation"]] = relationship(
+        "ChapterCitation", back_populates="source", cascade="all, delete-orphan"
     )
 
 

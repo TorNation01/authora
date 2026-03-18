@@ -3,6 +3,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
 import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight';
+import { Citation } from './CitationNode';
 
 export const editorExtensions = (placeholder?: string) => [
   StarterKit.configure({
@@ -17,4 +18,5 @@ export const editorExtensions = (placeholder?: string) => [
   Typography,
   Underline,
   Highlight.configure({ multicolor: true }),
+  Citation,
 ];

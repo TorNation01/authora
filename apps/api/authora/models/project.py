@@ -15,6 +15,7 @@ from authora.database import Base
 
 if TYPE_CHECKING:
     from authora.models.book import Book
+    from authora.models.citation_style import ProjectCitationStyle
     from authora.models.community import FeedbackThread
     from authora.models.density import DensityIssue, DensityScan
     from authora.models.integrity import IntegrityIssue, IntegrityScan
@@ -107,4 +108,7 @@ class Project(Base):
     )
     feedback_threads: Mapped[list["FeedbackThread"]] = relationship(
         "FeedbackThread", back_populates="project", cascade="all, delete-orphan"
+    )
+    citation_style_prefs: Mapped[list["ProjectCitationStyle"]] = relationship(
+        "ProjectCitationStyle", back_populates="project", cascade="all, delete-orphan", foreign_keys="ProjectCitationStyle.project_id"
     )
