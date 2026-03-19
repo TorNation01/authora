@@ -109,9 +109,9 @@ async def create_corpus(
 async def create_scan(
     project_id: uuid.UUID,
     book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
     body: OriginalityScanCreate | None = None,
-    current_user: CurrentUser = Depends(),
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(),
 ):
     """Run originality/similarity scan. Results are review aids only."""
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)

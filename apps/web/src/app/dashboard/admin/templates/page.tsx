@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, BookOpen, Star, Copy, Plus } from 'lucide-react';
+import { Loader2, BookOpen, Star, Copy, Search } from 'lucide-react';
 import Link from 'next/link';
 
 type Template = {
@@ -30,11 +31,33 @@ type Template = {
   creator_id: string | null;
 };
 
+/** Categories to show first (academic, poetry, and other added templates). */
+const CATEGORY_PRIORITY = [
+  'academic',
+  'poetry',
+  'script',
+  'speech',
+  'presentation',
+  'content_transformation',
+];
+
+function sortCategoryEntries(entries: [string, Template[]][]): [string, Template[]][] {
+  return [...entries].sort(([a], [b]) => {
+    const idxA = CATEGORY_PRIORITY.indexOf(a);
+    const idxB = CATEGORY_PRIORITY.indexOf(b);
+    if (idxA >= 0 && idxB >= 0) return idxA - idxB;
+    if (idxA >= 0) return -1;
+    if (idxB >= 0) return 1;
+    return a.localeCompare(b);
+  });
+}
+
 export default function AdminTemplatesPage() {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [includeDisabled, setIncludeDisabled] = useState(false);
+  const [includeDisabled, setIncludeDisabled] = useState(true);
+  const [search, setSearch] = useState('');
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
 
   const fetchTemplates = () => {
@@ -80,10 +103,27 @@ export default function AdminTemplatesPage() {
     }
   };
 
-  const byCategory = templates.reduce<Record<string, Template[]>>((acc, t) => {
-    (acc[t.category] = acc[t.category] || []).push(t);
+  const filteredTemplates = useMemo(() => {
+    if (!search.trim()) return templates;
+    const q = search.trim().toLowerCase();
+    return templates.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.slug.toLowerCase().includes(q) ||
+        (t.category && t.category.toLowerCase().includes(q)) ||
+        (t.genre && t.genre.toLowerCase().includes(q))
+    );
+  }, [templates, search]);
+
+  const byCategory = useMemo(() => {
+    const acc: Record<string, Template[]> = {};
+    for (const t of filteredTemplates) {
+      (acc[t.category] = acc[t.category] || []).push(t);
+    }
     return acc;
-  }, {});
+  }, [filteredTemplates]);
+
+  const sortedCategories = useMemo(() => sortCategoryEntries(Object.entries(byCategory)), [byCategory]);
 
   return (
     <div className="w-full min-w-0 max-w-6xl mx-auto space-y-6">
@@ -95,6 +135,15 @@ export default function AdminTemplatesPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, slug, category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <Switch checked={includeDisabled} onCheckedChange={setIncludeDisabled} />
             Include disabled
@@ -114,7 +163,7 @@ export default function AdminTemplatesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(byCategory).map(([category, items]) => (
+          {sortedCategories.map(([category, items]) => (
             <Card key={category} variant="soft" className="overflow-hidden">
               <CardHeader className="pb-2">
                 <h2 className="text-base font-semibold sm:text-lg break-words">{category}</h2>
@@ -192,10 +241,14 @@ export default function AdminTemplatesPage() {
       )}
 
       <Card variant="soft">
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-2">
           <p className="text-sm text-muted-foreground">
             To create a new template from scratch, use the duplicate button and edit the copy. Full template creation
             API: <code className="rounded bg-muted px-1">POST /api/v1/admin/templates</code>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            If academic, poetry, essays, or other templates are missing, run:{' '}
+            <code className="rounded bg-muted px-1">npm run db:seed</code> to seed all templates.
           </p>
         </CardContent>
       </Card>
