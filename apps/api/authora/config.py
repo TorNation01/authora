@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     feature_billing: bool = False
     feature_story_integrity: bool = True
     feature_story_density: bool = True
+    feature_citation_reference: bool = True
     feature_growth: bool = True
     feature_affiliate: bool = False
 
@@ -270,6 +271,7 @@ class Settings(BaseSettings):
             "billing": self.feature_billing,
             "story_integrity": self.feature_story_integrity,
             "story_density": self.feature_story_density,
+            "citation_reference": self.feature_citation_reference,
             "growth": self.feature_growth,
         }
 

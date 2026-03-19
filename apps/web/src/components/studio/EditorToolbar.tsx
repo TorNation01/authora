@@ -14,15 +14,25 @@ import {
   Type,
   PanelRightClose,
   PanelRight,
+  PanelLeft,
+  PanelLeftClose,
   BookOpen,
   Shield,
   ClipboardList,
   Library,
   Activity,
+  MoreHorizontal,
 } from 'lucide-react';
 import type { SectionStatus } from './ManuscriptSidebar';
+import type { SidebarPosition } from '@/hooks/useWriterStudioPreferences';
 import { useConfig } from '@/contexts/ConfigProvider';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +68,9 @@ interface EditorToolbarProps {
   onStatusChange?: (status: SectionStatus) => void;
   sectionStatus?: string | null;
   showAi?: boolean;
+  /** Sidebar position (left/right) for dominant-hand preference */
+  sidebarPosition?: SidebarPosition;
+  onSidebarPositionChange?: (position: SidebarPosition) => void;
 }
 
 function formatLastSaved(d: Date): string {
@@ -92,11 +105,14 @@ export function EditorToolbar({
   onStatusChange,
   sectionStatus,
   showAi = true,
+  sidebarPosition = 'left',
+  onSidebarPositionChange,
 }: EditorToolbarProps) {
   const config = useConfig();
   const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
   const showRetry = saveStatus === 'error' && onRetry;
   const [exportOpen, setExportOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const sprintStartWordsRef = useRef(0);
   const onSprintStart = useCallback(() => {
     sprintStartWordsRef.current = totalWordCount;
@@ -107,14 +123,14 @@ export function EditorToolbar({
   );
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2">
-      <div className="flex min-w-0 flex-1 basis-0 items-center gap-3 overflow-hidden">
-        <h2 className="min-w-0 truncate font-semibold">{chapterTitle || 'Pick a chapter'}</h2>
+    <header className="flex flex-col gap-2 border-b px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-4">
+      <div className="flex min-w-0 flex-1 shrink items-center gap-2 overflow-hidden sm:gap-3">
+        <h2 className="min-w-0 truncate text-sm font-semibold sm:text-base">{chapterTitle || 'Pick a chapter'}</h2>
         {onStatusChange && (
           <select
             value={sectionStatus ?? 'draft'}
             onChange={(e) => onStatusChange(e.target.value as SectionStatus)}
-            className="rounded border bg-background px-2 py-1 text-xs"
+            className="shrink-0 rounded border bg-background px-1.5 py-0.5 text-xs sm:px-2 sm:py-1"
           >
             <option value="draft">Draft</option>
             <option value="revising">Revising</option>
@@ -122,8 +138,11 @@ export function EditorToolbar({
             <option value="done">Complete</option>
           </select>
         )}
-        <WritingStats wordCount={chapterWordCount} />
-        <span className="text-sm text-muted-foreground">{totalWordCount.toLocaleString()} total</span>
+        <span className="shrink-0 text-xs text-muted-foreground sm:hidden">
+          {chapterWordCount.toLocaleString()}w · {totalWordCount.toLocaleString()} total
+        </span>
+        <WritingStats wordCount={chapterWordCount} className="hidden shrink-0 sm:flex" />
+        <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline sm:text-sm">{totalWordCount.toLocaleString()} total</span>
         {saveStatus === 'saving' && (
           <span className="text-xs text-muted-foreground">Saving…</span>
         )}
@@ -154,17 +173,94 @@ export function EditorToolbar({
         )}
       </div>
 
-      <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
+      <div className="flex min-w-0 flex-shrink flex-wrap items-center justify-end gap-1 overflow-visible">
         <WritingSprintTimer
           bookId={bookId}
           getWordsWritten={getSprintWordsWritten}
           onStart={onSprintStart}
         />
+        <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="md:hidden h-8 shrink-0 px-2">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>More tools and panels</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="max-h-[70vh] overflow-y-auto">
+            <DropdownMenuItem onClick={() => { onToggleDarkMode(); setMoreOpen(false); }}>
+              <Sun className="h-4 w-4 mr-2" />
+              {darkMode ? 'Light mode' : 'Dark mode'}
+            </DropdownMenuItem>
+            {onSidebarPositionChange && (
+              <DropdownMenuItem onClick={() => { onSidebarPositionChange(sidebarPosition === 'left' ? 'right' : 'left'); setMoreOpen(false); }}>
+                <PanelLeft className="h-4 w-4 mr-2" />
+                Sidebar: {sidebarPosition === 'left' ? 'Right' : 'Left'}
+              </DropdownMenuItem>
+            )}
+            {onFindReplace && (
+              <DropdownMenuItem onClick={() => { onFindReplace(); setMoreOpen(false); }}>
+                <Search className="h-4 w-4 mr-2" />
+                Find & replace
+              </DropdownMenuItem>
+            )}
+            {onHistory && (
+              <DropdownMenuItem onClick={() => { onHistory(); setMoreOpen(false); }}>
+                <History className="h-4 w-4 mr-2" />
+                Version history
+              </DropdownMenuItem>
+            )}
+            {onRecoveryCenter && (
+              <DropdownMenuItem onClick={() => { onRecoveryCenter(); setMoreOpen(false); }}>
+                <Shield className="h-4 w-4 mr-2" />
+                Recovery Center
+              </DropdownMenuItem>
+            )}
+            {onQuickInsert && (
+              <DropdownMenuItem onClick={() => { onQuickInsert(); setMoreOpen(false); }}>
+                <Type className="h-4 w-4 mr-2" />
+                Quick insert
+              </DropdownMenuItem>
+            )}
+            {showAi && (
+              <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'ai' ? 'none' : 'ai'); setMoreOpen(false); }}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI panel
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'notes' ? 'none' : 'notes'); setMoreOpen(false); }}>
+              <PanelRight className="h-4 w-4 mr-2" />
+              Notes panel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'reference' ? 'none' : 'reference'); setMoreOpen(false); }}>
+              <BookOpen className="h-4 w-4 mr-2" />
+              Reference panel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'revision' ? 'none' : 'revision'); setMoreOpen(false); }}>
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Revision panel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'vault' ? 'none' : 'vault'); setMoreOpen(false); }}>
+              <Library className="h-4 w-4 mr-2" />
+              Vault panel
+            </DropdownMenuItem>
+            {storyIntegrityEnabled && (
+              <DropdownMenuItem onClick={() => { onTogglePanel(panelMode === 'integrity' ? 'none' : 'integrity'); setMoreOpen(false); }}>
+                <Activity className="h-4 w-4 mr-2" />
+                Story Health panel
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
+              className="h-8 shrink-0 px-2 md:h-9"
               onClick={onToggleDistractionFree}
             >
           {distractionFree ? (
@@ -178,16 +274,50 @@ export function EditorToolbar({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={onToggleDarkMode}>
+            <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9" onClick={onToggleDarkMode}>
               {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>{getTooltip('dark_mode') ?? (darkMode ? 'Light mode' : 'Dark mode')}</TooltipContent>
         </Tooltip>
+        {onSidebarPositionChange && (
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9">
+                    {sidebarPosition === 'left' ? (
+                      <PanelLeft className="h-4 w-4" />
+                    ) : (
+                      <PanelLeftClose className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Sidebar position (left or right for dominant hand)</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => onSidebarPositionChange('left')}
+                className={cn(sidebarPosition === 'left' && 'bg-accent')}
+              >
+                <PanelLeft className="h-4 w-4 mr-2" />
+                Left (right-handed)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onSidebarPositionChange('right')}
+                className={cn(sidebarPosition === 'right' && 'bg-accent')}
+              >
+                <PanelLeftClose className="h-4 w-4 mr-2" />
+                Right (left-handed)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {onFindReplace && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={onFindReplace}>
+              <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9" onClick={onFindReplace}>
                 <Search className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -197,7 +327,7 @@ export function EditorToolbar({
         {onHistory && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={onHistory}>
+              <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9" onClick={onHistory}>
                 <History className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -207,7 +337,7 @@ export function EditorToolbar({
         {onRecoveryCenter && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={onRecoveryCenter}>
+              <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9" onClick={onRecoveryCenter}>
                 <Shield className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -217,7 +347,7 @@ export function EditorToolbar({
         {onQuickInsert && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={onQuickInsert}>
+              <Button variant="ghost" size="sm" className="hidden md:flex h-8 shrink-0 px-2 md:h-9" onClick={onQuickInsert}>
                 <Type className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -230,6 +360,7 @@ export function EditorToolbar({
               <Button
                 variant={panelMode === 'ai' ? 'secondary' : 'outline'}
                 size="sm"
+                className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
                 onClick={() => onTogglePanel(panelMode === 'ai' ? 'none' : 'ai')}
               >
                 <Sparkles className="h-4 w-4 mr-1" />
@@ -244,6 +375,7 @@ export function EditorToolbar({
             <Button
               variant={panelMode === 'notes' ? 'secondary' : 'outline'}
               size="sm"
+              className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
               onClick={() => onTogglePanel(panelMode === 'notes' ? 'none' : 'notes')}
             >
               {panelMode === 'notes' ? (
@@ -261,6 +393,7 @@ export function EditorToolbar({
             <Button
               variant={panelMode === 'reference' ? 'secondary' : 'outline'}
               size="sm"
+              className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
               onClick={() => onTogglePanel(panelMode === 'reference' ? 'none' : 'reference')}
             >
               <BookOpen className="h-4 w-4 mr-1" />
@@ -274,6 +407,7 @@ export function EditorToolbar({
             <Button
               variant={panelMode === 'revision' ? 'secondary' : 'outline'}
               size="sm"
+              className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
               onClick={() => onTogglePanel(panelMode === 'revision' ? 'none' : 'revision')}
             >
               <ClipboardList className="h-4 w-4 mr-1" />
@@ -287,6 +421,7 @@ export function EditorToolbar({
             <Button
               variant={panelMode === 'vault' ? 'secondary' : 'outline'}
               size="sm"
+              className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
               onClick={() => onTogglePanel(panelMode === 'vault' ? 'none' : 'vault')}
             >
               <Library className="h-4 w-4 mr-1" />
@@ -301,6 +436,7 @@ export function EditorToolbar({
             <Button
               variant={panelMode === 'integrity' ? 'secondary' : 'outline'}
               size="sm"
+              className="hidden md:flex h-8 shrink-0 px-2 md:h-9"
               onClick={() => onTogglePanel(panelMode === 'integrity' ? 'none' : 'integrity')}
             >
               <Activity className="h-4 w-4 mr-1" />
@@ -312,10 +448,11 @@ export function EditorToolbar({
         )}
         <Tooltip>
           <TooltipTrigger asChild>
-        <div className="relative">
+        <div className="relative shrink-0">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 shrink-0 px-2 md:h-9 md:px-3"
             onClick={() => setExportOpen((o) => !o)}
           >
             <FileDown className="h-4 w-4 mr-1" />

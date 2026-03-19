@@ -8,12 +8,14 @@ import {
 } from '@/components/marketing/feature-pages';
 import { StoryIntegrityEngineSection } from '@/components/marketing/StoryIntegrityEngineSection';
 import { StoryDensityEngineSection } from '@/components/marketing/StoryDensityEngineSection';
+import { CitationReferenceEngineSection } from '@/components/marketing/CitationReferenceEngineSection';
 import {
   PenLine,
   Bot,
   GitBranch,
   Scissors,
   BookMarked,
+  BookOpen,
   Lightbulb,
   FileEdit,
   Target,
@@ -25,7 +27,7 @@ import {
 export const metadata: Metadata = {
   title: 'Features | AUTHORA — Book Writing Software & Manuscript Intelligence',
   description:
-    'Book writing software with guided planning, AI support, Story Integrity Engine, Story Density Engine, accountability, and export. Fiction and non-fiction templates. Finish your book.',
+    'Book writing software with guided planning, AI support, Story Integrity Engine, Story Density Engine, Citation & Reference Engine, accountability, and export. Fiction and non-fiction templates. Finish your book.',
   alternates: { canonical: '/features' },
   openGraph: {
     title: 'Features | AUTHORA — Book Writing Software That Helps You Finish',
@@ -66,6 +68,12 @@ const FEATURE_GRID = [
     title: 'Story Density Engine',
     description: 'Cut the filler. Strengthen what matters. Detect repetition, drag, and weak sections.',
     href: '/story-density-engine',
+  },
+  {
+    icon: BookOpen,
+    title: 'Citation & Reference Engine',
+    description: 'Add sources, insert citations, generate bibliographies. For students, teachers, lecturers: essays, exams, courses. APA, MLA, Chicago, Zotero sync.',
+    href: '/citation-reference-engine',
   },
   {
     icon: BookMarked,
@@ -182,9 +190,10 @@ export default function FeaturesPage() {
             Not just writing tools—writing intelligence that helps you revise smarter.
           </p>
         </div>
-        <div className="space-y-12">
+        <div className="space-y-12" id="citation-reference">
           <StoryIntegrityEngineSection />
           <StoryDensityEngineSection />
+          <CitationReferenceEngineSection />
         </div>
       </FeaturePageSection>
 

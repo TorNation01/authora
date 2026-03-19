@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Zap, MessageSquare } from 'lucide-react';
+import { Sparkles, Zap, MessageSquare, X } from 'lucide-react';
 import { AIActionPanel } from './AIActionPanel';
 import { AIDrawer } from './AIDrawer';
 import { GhostwriterQuestionnaire } from './GhostwriterQuestionnaire';
@@ -22,6 +22,7 @@ interface AIWritingPanelProps {
   onInsert?: (text: string) => void;
   isFiction?: boolean;
   isNonfiction?: boolean;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export function AIWritingPanel({
   onInsert,
   isFiction,
   isNonfiction,
+  onClose,
   className,
 }: AIWritingPanelProps) {
   const [tab, setTab] = useState<TabId>('actions');
@@ -99,7 +101,8 @@ export function AIWritingPanel({
 
   return (
     <div className={cn('flex flex-col border-l bg-card/80 w-full sm:max-w-md', className)}>
-      <div className="flex border-b">
+      <div className="flex items-center border-b">
+        <div className="flex flex-1">
         <button
           type="button"
           onClick={() => setTab('actions')}
@@ -133,6 +136,17 @@ export function AIWritingPanel({
           <Sparkles className="h-4 w-4" />
           Ghostwriter
         </button>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Close AI panel"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">

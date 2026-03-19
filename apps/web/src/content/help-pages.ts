@@ -128,6 +128,38 @@ export const HELP_PAGES: HelpPage[] = [
     ],
   },
   {
+    slug: 'citation-reference-engine',
+    title: 'Citation & Reference Engine',
+    description: 'Add sources, insert citations, and generate formatted bibliographies.',
+    keywords: ['citation', 'reference', 'bibliography', 'apa', 'mla', 'chicago', 'zotero', 'academic', 'sources'],
+    sections: [
+      {
+        heading: 'What it does',
+        body: [
+          'The Citation & Reference Engine lets you add sources to your vault, insert in-text citations as you write, and generate formatted bibliographies.',
+          'Supports APA, MLA, Chicago, Harvard, IEEE, and MHRA. Uses industry-standard CSL (Citation Style Language).',
+          'Connect Zotero to sync your reference library. Or add sources manually—books, articles, websites.',
+        ],
+      },
+      {
+        heading: 'How to use it',
+        body: [
+          'Add sources in the Vault (Project → Vault → Sources). Or connect Zotero in project settings to sync.',
+          'Set your citation style in project settings: APA, MLA, Chicago, or another supported style.',
+          'Insert citations from the Vault panel while writing. Select a source and add it to your text.',
+          'Generate a bibliography when you\'re ready to export. Authora formats it according to your chosen style.',
+        ],
+      },
+      {
+        heading: 'Studio plan',
+        body: [
+          'Citation and bibliography tools are included in the Studio plan, along with academic templates and originality review.',
+          'Upgrade to Studio when you need proper citations for essays, exams, courses, research papers, or academic books. Built for students, teachers, lecturers, and researchers.',
+        ],
+      },
+    ],
+  },
+  {
     slug: 'ai-assistance',
     title: 'AI assistance',
     description: 'Use AI to write faster—without losing your voice.',

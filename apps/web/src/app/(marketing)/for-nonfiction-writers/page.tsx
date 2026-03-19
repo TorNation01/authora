@@ -20,7 +20,7 @@ import {
 export const metadata: Metadata = {
   title: 'For Non-Fiction Writers | AUTHORA — Book Writing Software for Memoir, Business, Self-Help',
   description:
-    'Book writing software for non-fiction. Structure knowledge, guide readers, create meaningful content. Memoir, business, self-help, workbooks. Story Integrity Engine, Story Density Engine.',
+    'Book writing software for non-fiction. Structure knowledge, guide readers, create meaningful content. Memoir, business, self-help, workbooks. For students, teachers, lecturers: essays, exams, courses. Story Integrity Engine, Story Density Engine.',
   alternates: { canonical: '/for-nonfiction-writers' },
   openGraph: {
     title: 'For Non-Fiction Writers | AUTHORA — Turn Ideas Into Clear, Powerful Books',
@@ -82,6 +82,10 @@ const EXAMPLES = [
     desc: 'Organize case studies, examples, and arguments. Keep the logic tight and the takeaways clear.',
   },
   {
+    title: 'Students, teachers & lecturers',
+    desc: 'Essays, exams, courses, and lecture materials. Citations, bibliography, and academic templates for coursework and teaching.',
+  },
+  {
     title: 'Guides and workbooks',
     desc: 'Create exercises, prompts, and structured content. Templates that support how-to and workbook formats.',
   },
@@ -103,6 +107,10 @@ const FAQ_ITEMS = [
   {
     q: 'Can I use Authora for workbooks and exercises?',
     a: 'Yes. Authora supports workbooks, exercises, case studies, and structured non-fiction formats.',
+  },
+  {
+    q: 'Is Authora suitable for students, teachers, and lecturers?',
+    a: 'Yes. Studio includes academic templates for essays, exams, courses, and lecture materials, plus citation and bibliography tools. Built for coursework and teaching.',
   },
 ];
 

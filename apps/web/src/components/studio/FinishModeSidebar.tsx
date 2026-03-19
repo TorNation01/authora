@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, Flag } from 'lucide-react';
+import { ChevronRight, Flag, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { FinishModeStats } from './FinishModePanel';
 
 interface FinishModeSidebarProps {
@@ -14,6 +15,9 @@ interface FinishModeSidebarProps {
   activeChapterId: string | null;
   onSelectChapter: (chapterId: string) => void;
   onExitFinishMode: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  position?: 'left' | 'right';
 }
 
 export function FinishModeSidebar({
@@ -24,19 +28,62 @@ export function FinishModeSidebar({
   activeChapterId,
   onSelectChapter,
   onExitFinishMode,
+  collapsed = false,
+  onToggleCollapse,
+  position = 'left',
 }: FinishModeSidebarProps) {
   const remaining = stats.remaining_chapters;
   const isComplete = stats.is_complete ?? false;
+  const borderClass = position === 'left' ? 'border-r' : 'border-l';
+
+  if (collapsed && onToggleCollapse) {
+    return (
+      <aside className={cn('flex w-10 flex-shrink-0 flex-col items-center bg-card sm:w-12', borderClass)}>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-2">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Expand sidebar"
+          >
+            <PanelLeft className="h-5 w-5" />
+          </button>
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider [writing-mode:vertical] [text-orientation:mixed] rotate-180">
+            Finish
+          </span>
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-card">
+    <aside className={cn('flex w-48 flex-shrink-0 flex-col bg-card sm:w-56 md:w-64', borderClass)}>
       <div className="border-b p-4 space-y-2">
-        <Link
-          href={`/dashboard/projects/${projectId}`}
-          className="text-sm text-muted-foreground hover:text-foreground block"
-        >
-          ← {bookTitle}
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href={`/dashboard/projects/${projectId}`}
+            className="text-sm text-muted-foreground hover:text-foreground block min-w-0 truncate flex-1"
+          >
+            ← {bookTitle}
+          </Link>
+          {onToggleCollapse && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side={position === 'left' ? 'right' : 'left'}>
+                Collapse sidebar for more space
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Flag className="h-3.5 w-3.5 text-primary" />
           <span className="text-sm font-medium">Finish Mode</span>

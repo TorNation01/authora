@@ -45,7 +45,7 @@ export function FirstWritePromptBlock({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/60 bg-muted/30 p-5 space-y-5',
+        'min-w-0 rounded-xl border border-border/60 bg-muted/30 p-3 space-y-4 sm:p-5 sm:space-y-5',
         className
       )}
       data-first-write-block
@@ -54,16 +54,16 @@ export function FirstWritePromptBlock({
         Begin here—choose your path
       </p>
 
-      {/* Main options */}
-      <div className="grid gap-2 sm:grid-cols-3">
+      {/* Main options - 1 col on narrow, 2 on md, 3 on lg */}
+      <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
         <button
           type="button"
           onClick={onStartWriting}
-          className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/50"
+          className="flex min-w-0 items-start gap-2 rounded-lg border border-border/60 bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 sm:gap-3 sm:p-4"
         >
-          <PenLine className="h-5 w-5 shrink-0 text-primary" />
-          <div>
-            <span className="font-medium text-foreground">
+          <PenLine className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+          <div className="min-w-0 flex-1">
+            <span className="block font-medium text-foreground">
               {FIRST_WRITE.options.startWriting.label}
             </span>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -74,11 +74,11 @@ export function FirstWritePromptBlock({
         <button
           type="button"
           onClick={onGenerateIdea}
-          className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/50"
+          className="flex min-w-0 items-start gap-2 rounded-lg border border-border/60 bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 sm:gap-3 sm:p-4"
         >
-          <Sparkles className="h-5 w-5 shrink-0 text-primary" />
-          <div>
-            <span className="font-medium text-foreground">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+          <div className="min-w-0 flex-1">
+            <span className="block font-medium text-foreground">
               {FIRST_WRITE.options.generateIdea.label}
             </span>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -89,11 +89,11 @@ export function FirstWritePromptBlock({
         <button
           type="button"
           onClick={onOutlineChapter}
-          className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/50"
+          className="flex min-w-0 items-start gap-2 rounded-lg border border-border/60 bg-background p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/50 sm:gap-3 sm:p-4"
         >
-          <List className="h-5 w-5 shrink-0 text-primary" />
-          <div>
-            <span className="font-medium text-foreground">
+          <List className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+          <div className="min-w-0 flex-1">
+            <span className="block font-medium text-foreground">
               {FIRST_WRITE.options.outlineChapter.label}
             </span>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -104,11 +104,11 @@ export function FirstWritePromptBlock({
       </div>
 
       {/* Optional prompts */}
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+      <div className="min-w-0">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Or try
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -138,11 +138,11 @@ export function FirstWritePromptBlock({
 
       {/* AI assist entry */}
       {onAiAssist && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+        <div className="min-w-0">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             AI assist
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <Button
               variant="secondary"
               size="sm"

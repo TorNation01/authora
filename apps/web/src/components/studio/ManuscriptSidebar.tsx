@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -58,6 +58,11 @@ interface ManuscriptSidebarProps {
   canEnterFinishMode?: boolean;
   suggestFinishMode?: boolean;
   onEnterFinishMode?: () => void;
+  /** Sidebar collapsed to a narrow strip for more writing space */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  /** Sidebar rendered on right side (for left-handed writers) */
+  position?: 'left' | 'right';
 }
 
 const STATUS_LABELS: Record<SectionStatus, string> = {
@@ -93,6 +98,9 @@ export function ManuscriptSidebar({
   onStatusChange,
   onSectionGroupChange,
   onTagsChange,
+  collapsed = false,
+  onToggleCollapse,
+  position = 'left',
 }: ManuscriptSidebarProps) {
   const { shouldShowIntroCard, markDismissed } = useTutorial();
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
@@ -111,15 +119,56 @@ export function ManuscriptSidebar({
     onReorder(items.map((c) => c.id));
   }
 
+  const borderClass = position === 'left' ? 'border-r' : 'border-l';
+
+  if (collapsed && onToggleCollapse) {
+    return (
+      <aside className={cn('flex w-10 flex-shrink-0 flex-col items-center bg-card sm:w-12', borderClass)}>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-2">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Expand chapters"
+          >
+            <PanelLeft className="h-5 w-5" />
+          </button>
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider [writing-mode:vertical] [text-orientation:mixed] rotate-180">
+            Chapters
+          </span>
+        </div>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="flex w-64 flex-col border-r bg-card">
-      <div className="border-b p-4 space-y-2">
-        <Link
-          href={`/dashboard/projects/${projectId}`}
-          className="text-sm text-muted-foreground hover:text-foreground block"
-        >
-          ← {bookTitle}
-        </Link>
+    <aside className={cn('flex w-48 flex-shrink-0 flex-col bg-card sm:w-56 md:w-64', borderClass)}>
+      <div className="border-b p-3 space-y-2 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href={`/dashboard/projects/${projectId}`}
+            className="text-sm text-muted-foreground hover:text-foreground block min-w-0 truncate flex-1"
+          >
+            ← {bookTitle}
+          </Link>
+          {onToggleCollapse && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="shrink-0 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  title="Collapse sidebar for more space"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side={position === 'left' ? 'right' : 'left'}>
+                Collapse sidebar for more writing space
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
         {suggestFinishMode && onEnterFinishMode && shouldShowIntroCard('finish_mode_intro') && (
           <FeatureIntroCard
             featureId="finish_mode"

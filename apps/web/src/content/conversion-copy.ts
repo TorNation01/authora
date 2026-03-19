@@ -51,6 +51,8 @@ export const FEATURE_LABELS: Record<string, string> = {
   finish_mode: 'Finish Mode',
   story_integrity: 'Story Integrity Engine',
   story_density: 'Story Density Engine',
+  citation_system: 'Citation & Reference Engine',
+  bibliography: 'Bibliography tools',
   collaboration: 'Collaboration',
   ai: 'AI assistance',
 };

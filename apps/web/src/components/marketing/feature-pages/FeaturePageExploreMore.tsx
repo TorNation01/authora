@@ -7,6 +7,7 @@ export type ExploreMorePage =
   | 'pricing'
   | 'story-integrity-engine'
   | 'story-density-engine'
+  | 'citation-reference-engine'
   | 'for-fiction-writers'
   | 'for-nonfiction-writers';
 
@@ -16,6 +17,7 @@ const EXPLORE_LINKS: Record<ExploreMorePage, { href: string; label: string }> = 
   pricing: { href: '/pricing', label: 'Pricing' },
   'story-integrity-engine': { href: '/story-integrity-engine', label: 'Story Integrity Engine' },
   'story-density-engine': { href: '/story-density-engine', label: 'Story Density Engine' },
+  'citation-reference-engine': { href: '/citation-reference-engine', label: 'Citation & Reference Engine' },
   'for-fiction-writers': { href: '/for-fiction-writers', label: 'For fiction writers' },
   'for-nonfiction-writers': { href: '/for-nonfiction-writers', label: 'For non-fiction writers' },
 };

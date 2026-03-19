@@ -26,6 +26,7 @@ import { FirstWriteProgress } from '@/components/studio/FirstWriteProgress';
 import { GuidedOverlay } from '@/components/tutorial/GuidedOverlay';
 import { useConfig } from '@/contexts/ConfigProvider';
 import { useTutorial } from '@/contexts/TutorialContext';
+import { useWriterStudioPreferences } from '@/hooks/useWriterStudioPreferences';
 import { Button } from '@/components/ui/button';
 import { api, apiStream, ApiError } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -94,6 +95,12 @@ export default function BookStudioPage() {
   const { shouldShowOverlay, markCompleted, markDismissed } = useTutorial();
   const storyIntegrityEnabled = config.feature_flags?.story_integrity ?? true;
   const storyDensityEnabled = config.feature_flags?.story_density ?? true;
+  const {
+    sidebarPosition,
+    sidebarCollapsed,
+    toggleSidebar,
+    setSidebarPosition,
+  } = useWriterStudioPreferences();
 
   const fetchFinishMode = useCallback(() => {
     api<FinishModeStats>(`/api/v1/projects/${projectId}/books/${bookId}/finish-mode`)
@@ -714,9 +721,15 @@ export default function BookStudioPage() {
     [totalWords]
   );
 
+  const sidebarProps = {
+    collapsed: sidebarCollapsed,
+    onToggleCollapse: toggleSidebar,
+    position: sidebarPosition,
+  };
+
   return (
-    <div className={cn('flex h-[calc(100vh-0px)]', darkMode && 'dark')}>
-      {!distractionFree && !finishModeActive && (
+    <div className={cn('flex h-[calc(100vh-0px)] min-w-0 overflow-hidden', darkMode && 'dark')}>
+      {sidebarPosition === 'left' && !distractionFree && !finishModeActive && (
         <ManuscriptSidebar
           bookTitle={book?.title ?? 'Book'}
           bookType={book?.type}
@@ -735,9 +748,10 @@ export default function BookStudioPage() {
           canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
           suggestFinishMode={finishModeStats?.suggest_finish_mode}
           onEnterFinishMode={handleEnterFinishMode}
+          {...sidebarProps}
         />
       )}
-      {!distractionFree && finishModeActive && finishModeStats && (
+      {sidebarPosition === 'left' && !distractionFree && finishModeActive && finishModeStats && (
         <FinishModeSidebar
           bookTitle={book?.title ?? 'Book'}
           projectId={projectId}
@@ -746,10 +760,11 @@ export default function BookStudioPage() {
           activeChapterId={activeChapter?.id ?? null}
           onSelectChapter={(id) => handleJumpToNextChapter(id)}
           onExitFinishMode={handleExitFinishMode}
+          {...sidebarProps}
         />
       )}
 
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {!distractionFree && finishModeActive && finishModeStats && (
           <header className="flex flex-wrap items-center gap-4 border-b px-4 py-3">
             <FinishModePanel
@@ -801,6 +816,8 @@ export default function BookStudioPage() {
             onStatusChange={handleStatusChange}
             sectionStatus={activeChapter?.section_status}
             showAi={!!book?.type}
+            sidebarPosition={sidebarPosition}
+            onSidebarPositionChange={setSidebarPosition}
           />
         )}
 
@@ -870,11 +887,11 @@ export default function BookStudioPage() {
               />
             </div>
           ) : (
-          <div className={cn('flex-1 overflow-auto', distractionFree ? 'p-8 max-w-3xl mx-auto' : 'p-6')}>
+          <div className={cn('flex-1 overflow-auto min-w-0', distractionFree ? 'p-4 sm:p-8 max-w-3xl mx-auto' : 'p-3 sm:p-6')}>
             {activeChapter ? (
               <>
               {showFirstWritePrompt && (
-                <div className="mb-6">
+                <div className="mb-4 min-w-0 sm:mb-6">
                   <FirstWritePromptBlock
                     onStartWriting={handleFocusEditor}
                     onGenerateIdea={handleGenerateStarter}
@@ -932,6 +949,7 @@ export default function BookStudioPage() {
               selection={editorSelection}
               isFiction={book.type === 'fiction'}
               isNonfiction={book.type === 'nonfiction'}
+              onClose={() => setPanelMode('none')}
               onInsert={(text) => {
                 if (editorRef.current) editorRef.current.commands.insertContent(text);
               }}
@@ -1082,6 +1100,41 @@ export default function BookStudioPage() {
           )}
         </div>
       </div>
+
+      {sidebarPosition === 'right' && !distractionFree && !finishModeActive && (
+        <ManuscriptSidebar
+          bookTitle={book?.title ?? 'Book'}
+          bookType={book?.type}
+          projectId={projectId}
+          bookId={bookId}
+          chapters={sortedChapters}
+          activeChapterId={activeChapter?.id ?? null}
+          onSelectChapter={handleSelectChapter}
+          onReorder={handleReorder}
+          onAddChapter={handleAddChapter}
+          onRenameChapter={handleRenameChapter}
+          onDuplicateChapter={handleDuplicateChapter}
+          onDeleteChapter={handleDeleteChapter}
+          onSectionGroupChange={handleSectionGroupChange}
+          onTagsChange={handleTagsChange}
+          canEnterFinishMode={finishModeStats?.can_enter_finish_mode}
+          suggestFinishMode={finishModeStats?.suggest_finish_mode}
+          onEnterFinishMode={handleEnterFinishMode}
+          {...sidebarProps}
+        />
+      )}
+      {sidebarPosition === 'right' && !distractionFree && finishModeActive && finishModeStats && (
+        <FinishModeSidebar
+          bookTitle={book?.title ?? 'Book'}
+          projectId={projectId}
+          bookId={bookId}
+          stats={finishModeStats}
+          activeChapterId={activeChapter?.id ?? null}
+          onSelectChapter={(id) => handleJumpToNextChapter(id)}
+          onExitFinishMode={handleExitFinishMode}
+          {...sidebarProps}
+        />
+      )}
 
       <FindReplaceDialog
         open={showFindReplace}
