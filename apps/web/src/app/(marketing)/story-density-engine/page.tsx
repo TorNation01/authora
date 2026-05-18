@@ -93,7 +93,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Which plans include the Story Density Engine?',
-    a: 'Pro, Studio, and Founder Lifetime. Free and Starter do not include manuscript intelligence tools.',
+    a: 'Pro, Studio. Free and Starter do not include manuscript intelligence tools.',
   },
   {
     q: 'Does it work for non-fiction?',

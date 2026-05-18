@@ -8,7 +8,7 @@ import {
   type PlanSlug,
 } from '@/content/pricing-copy';
 
-const PLAN_ORDER: PlanSlug[] = ['free', 'starter', 'pro', 'studio', 'founder_lifetime'];
+const PLAN_ORDER: PlanSlug[] = ['free', 'starter', 'pro', 'studio'];
 
 const STORY_ENGINE_ROWS = ['story_integrity', 'story_density'];
 const STUDIO_ROWS = [

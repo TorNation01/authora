@@ -4,7 +4,7 @@ import { PricingContent } from './PricingContent';
 export const metadata: Metadata = {
   title: 'Pricing | Authora — Plans for Every Kind of Writer',
   description:
-    'Free, Starter, Pro, Studio, and Founder Lifetime. Whether you are outlining your first idea or finishing your next manuscript, Authora gives you the tools to keep moving.',
+    'Free, Starter, Pro, and Studio. Whether you are outlining your first idea or finishing your next manuscript, Authora gives you the tools to keep moving.',
   alternates: { canonical: '/pricing' },
   openGraph: {
     title: 'Pricing | Authora',

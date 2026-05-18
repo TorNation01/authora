@@ -67,7 +67,6 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
   );
 
   const subscriptionPlans: PlanSlug[] = ['free', 'starter', 'pro', 'studio'];
-  const founderPlan: PlanSlug = 'founder_lifetime';
 
   const renderPlanCard = (
     slug: PlanSlug,
@@ -95,8 +94,7 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
       isPro &&
         'border-primary/50 bg-primary/[0.06] ring-2 ring-primary/30 shadow-[var(--shadow-card-premium)] scale-[1.02]',
       isStudio && !isPro && 'border-primary/30 bg-card',
-      isFounder && 'border-amber-500/40 bg-amber-500/[0.06]',
-      !isPro && !isStudio && !isFounder && 'border-white/[0.08] bg-card',
+      !isPro && !isStudio && 'border-white/[0.08] bg-card',
     ]
       .filter(Boolean)
       .join(' ');
@@ -119,15 +117,7 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
             </span>
           </div>
         )}
-        {isFounder && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-4 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              <Zap className="h-3.5 w-3.5" />
-              Limited Offer
-            </span>
-          </div>
-        )}
-        {plan.badge && !isPro && !isStudio && !isFounder && (
+        {plan.badge && !isPro && !isStudio && (
           <span className="inline-block rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
             {plan.badge}
           </span>
@@ -198,15 +188,6 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
             slug === 'studio',
             false
           );
-        })}
-        {renderPlanCard(
-          founderPlan,
-          DEFAULT_PLANS[founderPlan],
-          false,
-          false,
-          false,
-          true
-        )}
       </div>
     </section>
   );

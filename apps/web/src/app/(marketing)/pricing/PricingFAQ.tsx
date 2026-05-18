@@ -9,7 +9,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Can I work on more than one book?',
-    a: 'Yes. Free allows 1 book; Starter allows 3; Pro and Studio allow unlimited or high limits. Founder Lifetime includes unlimited projects.',
+    a: 'Yes. Free allows 1 book; Starter allows 3; Pro and Studio allow unlimited or high limits.',
   },
   {
     q: 'Is AI included?',
@@ -26,10 +26,6 @@ const FAQ_ITEMS = [
   {
     q: 'Do you offer yearly billing?',
     a: 'Yes. Yearly billing saves you money compared to monthly. Choose monthly or yearly when you subscribe.',
-  },
-  {
-    q: 'Is there a lifetime option?',
-    a: 'Yes. Founder Lifetime is a special one-time plan for early supporters. It includes lifetime access to core Authora features.',
   },
   {
     q: 'Can Authora help with both fiction and non-fiction?',
