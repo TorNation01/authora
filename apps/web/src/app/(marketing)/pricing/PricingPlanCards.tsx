@@ -188,6 +188,7 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
             slug === 'studio',
             false
           );
+        })}
       </div>
     </section>
   );

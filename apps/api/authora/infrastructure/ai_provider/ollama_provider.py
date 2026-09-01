@@ -45,13 +45,15 @@ class OllamaProvider:
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AsyncGenerator[str, None]:
         """Stream completion via Ollama /api/chat."""
         model = kwargs.get("model") or self.model
         messages = self._build_messages(prompt, system_prompt)
         timeout = self._get_timeout()
+        settings = get_settings()
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
         async with httpx.AsyncClient(timeout=timeout) as client:
             async with client.stream(
                 "POST",
@@ -60,7 +62,7 @@ class OllamaProvider:
                     "model": model,
                     "messages": messages,
                     "stream": True,
-                    "options": {"num_predict": max_tokens},
+                    "options": {"num_predict": effective_max_tokens},
                 },
             ) as resp:
                 resp.raise_for_status()
@@ -82,7 +84,7 @@ class OllamaProvider:
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AIResponse:
         """Non-streaming completion."""

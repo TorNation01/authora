@@ -127,7 +127,7 @@ export default function DashboardPage() {
   const handleArchive = async (p: Project) => {
     try {
       await api(`/api/v1/projects/${p.id}/archive`, { method: 'PATCH' });
-      toast({ title: 'Project archived' });
+      toast({ title: 'Project archived', description: 'Freed up a project slot. Restore anytime from the Archived tab.' });
       fetchProjects();
     } catch (e) {
       toast({ title: 'Failed to archive', variant: 'destructive' });

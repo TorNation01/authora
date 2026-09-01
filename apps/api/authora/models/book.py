@@ -39,6 +39,8 @@ class Book(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     genre: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    genre_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # e.g. ["thriller","romance","fantasy"]
+    themes: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # e.g. ["dystopian","post-apocalyptic"]
     type: Mapped[str] = mapped_column(String(50), nullable=False, default="fiction")  # fiction | nonfiction
     planner_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     template_id: Mapped[uuid.UUID | None] = mapped_column(

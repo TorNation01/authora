@@ -8,13 +8,19 @@ from pydantic import BaseModel, Field
 
 
 class GhostwriterIntakeCreate(BaseModel):
-    """Intake questionnaire submission."""
+    """Intake questionnaire submission — no field limits, be as thorough as you want."""
 
     mode: str = Field(default="heavy", pattern="^(light|heavy|full)$")
     intake_answers: dict[str, Any] = Field(default_factory=dict)
-    voice_tone: str | None = Field(None, max_length=255)
+    voice_tone: str | None = None
     target_audience: str | None = None
     desired_outcome: str | None = None
+    word_count_target: int | str | None = None
+    deadline: str | None = None
+    author_background: str | None = None
+    sample_text: str | None = None
+    content_warnings: str | None = None
+    research_notes: str | None = None
 
 
 class GhostwriterOutlineApprove(BaseModel):
@@ -88,6 +94,12 @@ class GhostwriterWorkspaceResponse(BaseModel):
     voice_tone: str | None
     target_audience: str | None
     desired_outcome: str | None
+    word_count_target: int | str | None = None
+    deadline: str | None = None
+    author_background: str | None = None
+    sample_text: str | None = None
+    content_warnings: str | None = None
+    research_notes: str | None = None
     outline: dict[str, Any] | None
     outline_approved_at: datetime | None
     created_at: datetime

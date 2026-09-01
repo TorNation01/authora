@@ -5,7 +5,7 @@ import { BookOpen, PenLine, Sparkles, Target, TrendingUp, FileCheck } from 'luci
 const PILLARS = [
   { icon: BookOpen, label: 'Guided or flexible writing paths' },
   { icon: PenLine, label: 'Full manuscript editor' },
-  { icon: Sparkles, label: 'AI writing assistance' },
+  { icon: Sparkles, label: 'AI coach — not a ghostwriter' },
   { icon: Target, label: 'Built-in accountability' },
   { icon: TrendingUp, label: 'Smart revision system' },
   { icon: FileCheck, label: 'Clean export for real-world use' },

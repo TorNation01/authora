@@ -8,7 +8,7 @@ const STEPS = [
   {
     icon: Lightbulb,
     title: 'Start with clarity',
-    body: 'Choose what you\'re writing and how much guidance you want.',
+    body: 'Pick your primary genre, blend in others, layer on themes. Authora builds the right structure for your unique story.',
   },
   {
     icon: LayoutTemplate,

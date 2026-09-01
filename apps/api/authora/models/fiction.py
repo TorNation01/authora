@@ -25,6 +25,7 @@ class FictionWorkspace(Base):
 
     premise: Mapped[str | None] = mapped_column(Text, nullable=True)
     genre: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    genre_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # genre blend
     tone: Mapped[str | None] = mapped_column(String(255), nullable=True)  # dark, hopeful, humorous, etc.
     themes: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)  # ["identity", "redemption"]
     pacing_notes: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -30,7 +30,7 @@ class AICompletionResult:
 async def complete_stream(
     prompt: str,
     system_prompt: str | None = None,
-    max_tokens: int = 2048,
+    max_tokens: int | None = None,
     task: str = "general",
     project_prefs: dict | None = None,
     db_overrides: dict[str, str] | None = None,
@@ -52,7 +52,7 @@ async def complete_stream(
 async def complete_sync(
     prompt: str,
     system_prompt: str | None = None,
-    max_tokens: int = 2048,
+    max_tokens: int | None = None,
     task: str = "general",
     project_prefs: dict | None = None,
     db_overrides: dict[str, str] | None = None,

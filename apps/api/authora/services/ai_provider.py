@@ -33,7 +33,7 @@ class AIProvider(ABC):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AsyncGenerator[str, None]:
         """Stream completion. Yields text chunks."""
@@ -44,7 +44,7 @@ class AIProvider(ABC):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AIResponse:
         """Non-streaming completion with token counts."""
@@ -62,23 +62,25 @@ class OpenAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AsyncGenerator[str, None]:
         from openai import AsyncOpenAI
 
         settings = get_settings()
-        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        base_url = settings.openai_base_url or None
+        client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=base_url)
         messages: list[dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
         model = kwargs.get("model") or settings.ai_model or "gpt-4o-mini"
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
         stream = await client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=max_tokens,
+            max_tokens=effective_max_tokens,
             stream=True,
         )
         async for chunk in stream:
@@ -89,23 +91,25 @@ class OpenAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AIResponse:
         from openai import AsyncOpenAI
 
         settings = get_settings()
-        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        base_url = settings.openai_base_url or None
+        client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=base_url)
         messages: list[dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
         model = kwargs.get("model") or settings.ai_model or "gpt-4o-mini"
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
         resp = await client.chat.completions.create(
             model=model,
             messages=messages,
-            max_tokens=max_tokens,
+            max_tokens=effective_max_tokens,
         )
         choice = resp.choices[0] if resp.choices else None
         usage = resp.usage
@@ -130,7 +134,7 @@ class AnthropicProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AsyncGenerator[str, None]:
         from anthropic import AsyncAnthropic
@@ -139,10 +143,11 @@ class AnthropicProvider(AIProvider):
         client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         sys = system_prompt or "You are a helpful writing assistant."
         model = kwargs.get("model") or settings.ai_model or "claude-3-haiku-20240307"
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
 
         async with client.messages.stream(
             model=model,
-            max_tokens=max_tokens,
+            max_tokens=effective_max_tokens,
             system=sys,
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
@@ -153,7 +158,7 @@ class AnthropicProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
         **kwargs: object,
     ) -> AIResponse:
         from anthropic import AsyncAnthropic
@@ -162,10 +167,11 @@ class AnthropicProvider(AIProvider):
         client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         sys = system_prompt or "You are a helpful writing assistant."
         model = kwargs.get("model") or settings.ai_model or "claude-3-haiku-20240307"
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
 
         resp = await client.messages.create(
             model=model,
-            max_tokens=max_tokens,
+            max_tokens=effective_max_tokens,
             system=sys,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -212,7 +218,7 @@ def get_provider(provider_name: str | None = None) -> AIProvider | None:
 async def complete_with_retry(
     prompt: str,
     system_prompt: str | None = None,
-    max_tokens: int = 2048,
+    max_tokens: int | None = None,
     max_retries: int = 3,
     task: str = "general",
     project_prefs: dict | None = None,

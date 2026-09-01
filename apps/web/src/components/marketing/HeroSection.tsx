@@ -6,7 +6,8 @@ import { CTA_MICROCOPY } from '@/content/cta-copy';
 import { ProductPreview } from '@/components/marketing/ProductPreview';
 
 const BULLETS = [
-  'Know what to write next',
+  'Blend genres — thriller/romance/fantasy? Go for it',
+  'AI coach, not ghostwriter — you stay in control',
   'Fix what\'s not working',
   'Cut what doesn\'t matter',
   'Strengthen what does',

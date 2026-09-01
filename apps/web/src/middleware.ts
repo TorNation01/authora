@@ -1,6 +1,7 @@
 /**
  * Host-based routing for Option 2 domain architecture:
  * - authora.studio = marketing only
+ * - v2.authora.studio = marketing only (v2 preview)
  * - app.authora.studio = logged-in app (dashboard, auth, setup)
  * - api.authora.studio = backend API (handled by reverse proxy)
  *
@@ -15,6 +16,17 @@ const MARKETING_HOST = process.env.NEXT_PUBLIC_MARKETING_URL
 const APP_HOST = process.env.NEXT_PUBLIC_APP_URL
   ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname
   : 'app.authora.studio';
+
+// Additional hosts that should serve the marketing site
+const MARKETING_HOSTS = new Set([
+  MARKETING_HOST,
+  'www.authora.studio',
+]);
+
+// Standalone preview hosts — serve both marketing and app on one domain (no split-domain redirects)
+const STANDALONE_HOSTS = new Set([
+  'v2.authora.studio',
+]);
 
 const MARKETING_PATHS = ['/', '/features', '/pricing', '/faq', '/contact', '/demo', '/terms', '/privacy'];
 const APP_PATHS = ['/dashboard', '/login', '/register', '/sso', '/setup', '/onboarding'];
@@ -50,8 +62,13 @@ export function middleware(request: NextRequest) {
 
   const protocol = request.headers.get('x-forwarded-proto') || 'https';
 
+  // Standalone preview hosts: serve everything — no split-domain redirects
+  if (STANDALONE_HOSTS.has(hostname)) {
+    return NextResponse.next();
+  }
+
   // On marketing host: redirect app paths to app subdomain
-  if (hostname === MARKETING_HOST) {
+  if (MARKETING_HOSTS.has(hostname)) {
     if (isAppPath(pathname)) {
       const url = new URL(pathname + request.nextUrl.search, `${protocol}://${APP_HOST}`);
       return NextResponse.redirect(url, 301);

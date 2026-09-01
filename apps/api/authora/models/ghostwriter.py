@@ -45,9 +45,17 @@ class GhostwriterWorkspace(Base):
 
     # Intake questionnaire
     intake_answers: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    voice_tone: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    genre_tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # genre blend from intake
+    themes: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # thematic overlays
+    voice_tone: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_audience: Mapped[str | None] = mapped_column(Text, nullable=True)
     desired_outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
+    word_count_target: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deadline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    author_background: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sample_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_warnings: Mapped[str | None] = mapped_column(Text, nullable=True)
+    research_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Outline
     outline: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)  # {chapters: [{title, summary}, ...]}

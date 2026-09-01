@@ -73,16 +73,19 @@ async def recommend_frameworks_endpoint(
     db: Annotated[AsyncSession, Depends(get_db)],
     book_type: str = Query(..., description="fiction | nonfiction"),
     genre: str | None = Query(None),
+    genre_tags: str | None = Query(None, description="Comma-separated genre blend, e.g. thriller,romance,fantasy"),
     template_id: uuid.UUID | None = Query(None),
     template_slug: str | None = Query(None),
     is_series: bool = Query(False),
     limit: int = Query(5, ge=1, le=10),
 ):
-    """Get recommended frameworks for a book based on type, genre, and template."""
+    """Get recommended frameworks for a book based on type, genre blend, and template."""
+    tags_list = [t.strip() for t in genre_tags.split(",") if t.strip()] if genre_tags else None
     frameworks = await recommend_frameworks(
         db,
         book_type=book_type,
         genre=genre,
+        genre_tags=tags_list,
         template_id=template_id,
         template_slug=template_slug,
         is_series=is_series,

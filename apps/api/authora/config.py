@@ -73,8 +73,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Rate limiting (global and auth)
-    rate_limit_requests_per_minute: Optional[int] = None  # Default 100 when unset
-    rate_limit_auth_attempts: Optional[int] = None  # Login/register; default 5 per window
+    rate_limit_requests_per_minute: Optional[int] = 1000  # Bumped for tunnel testing
+    rate_limit_auth_attempts: Optional[int] = 100  # Login/register; bumped for testing
     rate_limit_auth_window_seconds: int = 900  # 15 min for auth
 
     # Security headers
@@ -93,10 +93,12 @@ class Settings(BaseSettings):
 
     # AI (optional - configured via setup wizard)
     openai_api_key: Optional[str] = None
+    openai_base_url: Optional[str] = None  # Custom base URL (e.g. LiteLLM proxy)
     anthropic_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None  # Gemini-ready slot
     ai_provider: str = "openai"  # openai | anthropic | ollama (legacy single-provider)
     ai_model: str = "gpt-4o-mini"
+    ai_max_tokens: int = 16384  # Default max tokens for AI completions
     ai_rate_limit_per_minute: Optional[int] = 60
 
     # AI provider mode: auto (prefer local, fallback cloud) | cloud | local
@@ -177,6 +179,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3031",
         "http://web:3000",
+        "https://app.authora.studio",
+        "https://authora.studio",
+        "https://www.authora.studio",
+        "https://api.authora.studio",
     ]
 
     # Storage

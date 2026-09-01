@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from authora.api.routes import accountability, admin, affiliates, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, creators, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, growth, integrity, journey, leads, nonfiction, notes, organizations, originality, projects, rag, reference, references, revision_passes, setup, templates, vault
+from authora.api.routes import accountability, admin, affiliates, ai, ai_actions, auth, billing, books, collaboration, community, config, content, content_annotations, creators, density, dictionary, editing, export, fiction, frameworks, ghostwriter, goals, gamification, growth, import_document, integrity, journey, leads, nonfiction, notes, organizations, originality, projects, rag, reference, references, revision_passes, setup, templates, vault
 from authora.config import get_settings
 from authora.middleware.audit import AuditMiddleware
 from authora.middleware.integration_forwarding import IntegrationAuditForwardingMiddleware
@@ -125,13 +125,15 @@ app.add_exception_handler(Exception, _unhandled_exception_handler)
 # HTTPException before Exception so HTTP errors get request_id
 app.add_exception_handler(HTTPException, _http_exception_handler)
 
-app.add_middleware(
-    SecurityMiddleware,
-    rate_limit_requests=settings.rate_limit_requests_per_minute or 100,
-    rate_limit_auth_attempts=settings.rate_limit_auth_attempts or 5,
-    rate_limit_auth_window=settings.rate_limit_auth_window_seconds,
-    hsts_max_age=settings.hsts_max_age,
-)  # First: rate limit, headers, request ID
+# SecurityMiddleware temporarily removed — Cloudflare tunnel shares IP for all users
+# app.add_middleware(
+#     SecurityMiddleware,
+#     rate_limit_requests=settings.rate_limit_requests_per_minute or 100,
+#     rate_limit_auth_attempts=settings.rate_limit_auth_attempts or 5,
+#     rate_limit_auth_window=settings.rate_limit_auth_window_seconds,
+#     hsts_max_age=settings.hsts_max_age,
+#     skip_paths={"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json", "/api/v1/auth/login", "/api/v1/auth/register"},
+# )  # First: rate limit, headers, request ID
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
 app.add_middleware(IntegrationAuditForwardingMiddleware)  # Optional: forward to Anakatech when enabled
@@ -184,6 +186,7 @@ app.include_router(rag.router, prefix="/api/v1")
 app.include_router(leads.router, prefix="/api/v1")
 app.include_router(vault.router, prefix="/api/v1")
 app.include_router(references.router, prefix="/api/v1")
+app.include_router(import_document.router, prefix="/api/v1")
 
 
 @app.get("/health")

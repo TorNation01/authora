@@ -16,20 +16,23 @@ class OpenAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> AsyncGenerator[str, None]:
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=self.api_key)
+        settings = get_settings()
+        base_url = settings.openai_base_url or None
+        client = AsyncOpenAI(api_key=self.api_key, base_url=base_url)
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        effective_max_tokens = max_tokens or settings.ai_max_tokens
         stream = await client.chat.completions.create(
             model=self.model,
             messages=messages,
-            max_tokens=max_tokens,
+            max_tokens=effective_max_tokens,
             stream=True,
         )
         async for chunk in stream:
@@ -40,7 +43,7 @@ class OpenAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> str:
         result = []
         async for chunk in self.complete(prompt, system_prompt, max_tokens):

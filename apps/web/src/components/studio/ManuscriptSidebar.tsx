@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -49,6 +49,7 @@ interface ManuscriptSidebarProps {
   onSelectChapter: (ch: Chapter) => void;
   onReorder: (chapterIds: string[]) => void;
   onAddChapter: () => void;
+  onImportChapter?: () => void;
   onRenameChapter?: (chapterId: string, newTitle: string) => void;
   onDuplicateChapter?: (chapterId: string) => void;
   onDeleteChapter?: (chapterId: string) => void;
@@ -89,6 +90,7 @@ export function ManuscriptSidebar({
   onSelectChapter,
   onReorder,
   onAddChapter,
+  onImportChapter,
   onRenameChapter,
   onDuplicateChapter,
   onDeleteChapter,
@@ -390,7 +392,7 @@ export function ManuscriptSidebar({
         </DragDropContext>
       </div>
 
-      <div className="border-t p-2">
+      <div className="border-t p-2 space-y-2">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="outline" size="sm" className="w-full" onClick={onAddChapter}>
@@ -400,6 +402,17 @@ export function ManuscriptSidebar({
           </TooltipTrigger>
           <TooltipContent side="right">{getTooltip('add_chapter') ?? 'Add chapter'}</TooltipContent>
         </Tooltip>
+        {onImportChapter && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full" onClick={onImportChapter}>
+                <Upload className="h-4 w-4 mr-1" />
+                Import document
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Import chapters from a PDF, Word doc, or text file</TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       <Dialog open={!!sectionTarget} onOpenChange={(open) => !open && setSectionTarget(null)}>

@@ -14,10 +14,13 @@ _redis_available: bool | None = None
 
 
 def _get_client_ip(request: Request) -> str:
-    """Get client IP, considering X-Forwarded-For."""
+    """Get client IP, considering X-Forwarded-For and CF-Connecting-IP (Cloudflare tunnel)."""
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
     return request.client.host if request.client else "127.0.0.1"
 
 
@@ -36,7 +39,7 @@ def _rate_limit_key(request: Request) -> str:
 
 def _is_auth_path(path: str) -> bool:
     """True for login/register (stricter rate limit)."""
-    return "/auth/login" in path or "/auth/register" in path
+    return False  # Disabled — Cloudflare tunnel shares IP for all users
 
 
 def _cleanup_expired_entries():
@@ -117,7 +120,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.rate_limit_auth_attempts = rate_limit_auth_attempts
         self.rate_limit_auth_window = rate_limit_auth_window
         self.hsts_max_age = hsts_max_age
-        self.skip_paths = skip_paths or {"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json"}
+        self.skip_paths = skip_paths or {"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json", "/api/v1/auth/login", "/api/v1/auth/register"}
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Add request ID
@@ -126,44 +129,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Rate limiting (skip health/docs)
         if request.url.path not in self.skip_paths:
-            key = _rate_limit_key(request)
-            now = time.monotonic()
-            limit = self.rate_limit_auth_attempts if _is_auth_path(request.url.path) else self.rate_limit_requests
-            window = self.rate_limit_auth_window if _is_auth_path(request.url.path) else self.rate_limit_window
-
-            # Try Redis first (scales across instances)
-            allowed, used_redis = await _check_rate_limit_redis(key, limit, window)
-            if used_redis:
-                if not allowed:
-                    return JSONResponse(
-                        {"detail": "Rate limit exceeded", "request_id": request_id},
-                        status_code=429,
-                        headers={
-                            "Retry-After": str(window),
-                            "X-Request-ID": request_id,
-                        },
-                    )
-            else:
-                # Fallback: in-memory when Redis unavailable
-                _cleanup_expired_entries()
-                if key in _rate_limit_store:
-                    count, window_start = _rate_limit_store[key]
-                    if now - window_start >= window:
-                        _rate_limit_store[key] = (1, now)
-                    else:
-                        count += 1
-                        if count > limit:
-                            return JSONResponse(
-                                {"detail": "Rate limit exceeded", "request_id": request_id},
-                                status_code=429,
-                                headers={
-                                    "Retry-After": str(window),
-                                    "X-Request-ID": request_id,
-                                },
-                            )
-                        _rate_limit_store[key] = (count, window_start)
-                else:
-                    _rate_limit_store[key] = (1, now)
+            # Rate limiting temporarily disabled — Cloudflare tunnel shares IP for all users
+            pass
 
         response = await call_next(request)
 

@@ -26,6 +26,8 @@ async def create_project_from_wizard(
     book_title: str | None = None,
     book_type: str = "fiction",
     genre: str | None = None,
+    genre_tags: list[str] | None = None,
+    themes: list[str] | None = None,
     core_idea: str | None = None,
     wizard_answers: dict[str, Any] | None = None,
     structure_framework: str | None = None,
@@ -65,6 +67,9 @@ async def create_project_from_wizard(
     # Resolve book type and genre from template (or user input)
     bt = template.book_type if template and template.book_type else book_type
     gn = genre or (template.genre if template else None)
+    # User-provided genre_tags/themes override template defaults
+    gt = genre_tags if genre_tags else (template.genre_tags if template and template.genre_tags else ([gn.lower()] if gn else []))
+    th = themes if themes else (template.themes if template and template.themes else [])
 
     book_title_str = book_title or project_name
 
@@ -124,6 +129,8 @@ async def create_project_from_wizard(
         project_id=project.id,
         title=book_title_str,
         genre=gn,
+        genre_tags=gt,
+        themes=th,
         type=bt,
         template_id=template_id,
         framework_id=framework.id if framework else None,
@@ -161,6 +168,7 @@ async def create_project_from_wizard(
             book_id=book.id,
             premise=core_idea or planner_data.get("premise"),
             genre=gn,
+            genre_tags=gt,
             tone=planner_data.get("tone"),
             themes=planner_data.get("themes"),
         )

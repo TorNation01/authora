@@ -183,6 +183,8 @@ async def create_project_from_wizard(
             book_title=data.book_title,
             book_type=data.book_type,
             genre=data.genre,
+            genre_tags=data.genre_tags,
+            themes=data.themes,
             core_idea=data.core_idea,
             wizard_answers=data.wizard_answers,
             structure_framework=data.structure_framework,

@@ -6,7 +6,7 @@ const FEATURES = [
   {
     icon: BookOpen,
     title: 'Guided planning',
-    description: 'Fiction or non-fiction—structured planners and templates help you outline before you write. Romance, thriller, memoir, business: we have you covered.',
+    description: 'Fiction or non-fiction — structured planners and templates help you outline before you write. Blend genres, layer themes, and build a story that\'s uniquely yours.',
   },
   {
     icon: Sparkles,

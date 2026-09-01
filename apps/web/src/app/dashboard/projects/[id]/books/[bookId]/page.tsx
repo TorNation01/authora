@@ -20,6 +20,7 @@ import { RevisionPanel } from '@/components/studio/RevisionPanel';
 import { VersionHistoryDialog } from '@/components/studio/VersionHistoryDialog';
 import { RecoveryCenterDialog } from '@/components/studio/RecoveryCenterDialog';
 import { QuickInsertDialog } from '@/components/studio/QuickInsertDialog';
+import { ImportDocumentDialog } from '@/components/studio/ImportDocumentDialog';
 import { StoryIntegrityPanel } from '@/components/studio/StoryIntegrityPanel';
 import { FirstWritePromptBlock, hasCompletedFirstWrite, markFirstWriteDone } from '@/components/studio/FirstWritePromptBlock';
 import { FirstWriteProgress } from '@/components/studio/FirstWriteProgress';
@@ -80,6 +81,7 @@ export default function BookStudioPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [showRecoveryCenter, setShowRecoveryCenter] = useState(false);
   const [showQuickInsert, setShowQuickInsert] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [versions, setVersions] = useState<Version[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [editorSelection, setEditorSelection] = useState('');
@@ -740,6 +742,7 @@ export default function BookStudioPage() {
           onSelectChapter={handleSelectChapter}
           onReorder={handleReorder}
           onAddChapter={handleAddChapter}
+          onImportChapter={() => setShowImport(true)}
           onRenameChapter={handleRenameChapter}
           onDuplicateChapter={handleDuplicateChapter}
           onDeleteChapter={handleDeleteChapter}
@@ -1112,6 +1115,7 @@ export default function BookStudioPage() {
           onSelectChapter={handleSelectChapter}
           onReorder={handleReorder}
           onAddChapter={handleAddChapter}
+          onImportChapter={() => setShowImport(true)}
           onRenameChapter={handleRenameChapter}
           onDuplicateChapter={handleDuplicateChapter}
           onDeleteChapter={handleDeleteChapter}
@@ -1162,6 +1166,24 @@ export default function BookStudioPage() {
         open={showQuickInsert}
         onOpenChange={setShowQuickInsert}
         editorRef={editorRef}
+      />
+      <ImportDocumentDialog
+        projectId={projectId}
+        bookId={bookId}
+        onImported={() => {
+          // Refresh the book to get new chapters
+          api<Book>(`/api/v1/projects/${projectId}/books/${bookId}`)
+            .then((b) => {
+              setBook(b);
+              if (b.chapters.length > 0 && !activeChapter) {
+                setActiveChapter(b.chapters[0]);
+              }
+            })
+            .catch(() => {});
+        }}
+        trigger={<span className="hidden" />}
+        open={showImport}
+        onOpenChange={setShowImport}
       />
       <FinishModeSettingsDialog
         open={showFinishModeSettings}

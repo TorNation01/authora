@@ -12,7 +12,7 @@ class AIProvider(ABC):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream completion. Yields text chunks."""
         ...
@@ -22,7 +22,7 @@ class AIProvider(ABC):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> str:
         """Non-streaming completion. Returns full text."""
         ...

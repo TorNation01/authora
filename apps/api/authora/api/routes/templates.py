@@ -15,7 +15,6 @@ from authora.schemas.template import TemplateResponse, TemplateSummary
 from authora.services.billing_service import get_user_plan
 from authora.services.template_access_service import (
     _check_template_access,
-    get_user_purchased_packs,
     get_user_purchased_template_ids,
     has_template_access,
 )
@@ -26,7 +25,6 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 def _template_to_summary_with_access(
     t: ProjectTemplate,
     user_plan_slug: str,
-    purchased_packs: set[str],
     purchased_template_ids: set[uuid.UUID] | None = None,
     *,
     creator_name: str | None = None,
@@ -36,12 +34,9 @@ def _template_to_summary_with_access(
 ) -> TemplateSummary:
     """Build TemplateSummary with can_use and required_action."""
     access_level = getattr(t, "access_level", None) or "free"
-    pack_slug = getattr(t, "premium_pack_slug", None)
     can_use, required_action = _check_template_access(
         access_level,
-        pack_slug,
         user_plan_slug,
-        purchased_packs,
         purchased_template_ids=purchased_template_ids or set(),
         template_id=t.id,
     )
@@ -57,7 +52,7 @@ def _template_to_summary_with_access(
         sort_order=t.sort_order,
         is_featured=t.is_featured,
         access_level=access_level,
-        premium_pack_slug=pack_slug,
+        premium_pack_slug=None,  # v2: packs deprecated
         price_cents=getattr(t, "price_cents", None),
         is_paid=getattr(t, "is_paid", False),
         can_use=can_use,
@@ -71,7 +66,7 @@ def _template_to_summary_with_access(
 
 @router.get("", response_model=list[TemplateSummary])
 async def list_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     category: str | None = Query(None, description="Filter by category"),
     parent_id: uuid.UUID | None = Query(None, description="Filter by parent (sub-templates only)"),
@@ -99,7 +94,7 @@ async def list_templates(
 
 @router.get("/featured-launch", response_model=list[TemplateSummary])
 async def list_featured_launch_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List first-wave premium launch templates (Romance, Fantasy, Thriller, Sci-fi, Memoir, Self-help, Business, Workbook)."""
@@ -122,7 +117,7 @@ async def list_featured_launch_templates(
 
 @router.get("/categories", response_model=list[dict])
 async def list_categories(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List template categories with top-level templates and their children. Includes access info."""
@@ -130,7 +125,6 @@ async def list_categories(
 
     plan = await get_user_plan(db, current_user.id)
     plan_slug = getattr(plan, "slug", "free") or "free"
-    purchased = await get_user_purchased_packs(db, current_user.id)
     purchased_templates = await get_user_purchased_template_ids(db, current_user.id)
 
     q = (
@@ -160,7 +154,6 @@ async def list_categories(
         return _template_to_summary_with_access(
             t,
             plan_slug,
-            purchased,
             purchased_templates,
             creator_name=creator_names.get(t.creator_id) if t.creator_id else None,
             usage_count=usage_counts.get(t.id, 0),
@@ -187,7 +180,7 @@ async def list_categories(
 
 @router.get("/all", response_model=list[TemplateSummary])
 async def list_all_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List all templates (top-level and sub-templates) for wizard."""
@@ -203,7 +196,7 @@ async def list_all_templates(
 
 @router.get("/trending")
 async def list_trending_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     days: int = 7,
     limit: int = 10,
@@ -217,7 +210,7 @@ async def list_trending_templates(
 
 @router.get("/top-sellers")
 async def list_top_sellers(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     limit: int = 10,
 ):
@@ -231,7 +224,7 @@ async def list_top_sellers(
 @router.get("/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: uuid.UUID,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get template by ID with full details. Includes can_use, required_action, trust signals."""
@@ -268,7 +261,7 @@ async def get_template(
 @router.post("/{template_id}/view")
 async def record_template_view(
     template_id: uuid.UUID,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Record a template view (preview opened). Used for analytics."""
@@ -289,7 +282,7 @@ async def record_template_view(
 @router.get("/{template_id}/analytics")
 async def get_template_analytics(
     template_id: uuid.UUID,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get analytics for a template (views, conversions, earnings). Creator-only."""
@@ -314,7 +307,7 @@ async def get_template_analytics(
 
 @router.get("/starters", response_model=list[dict])
 async def list_starters(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List starter templates with template IDs resolved from slugs.
@@ -341,7 +334,7 @@ async def list_starters(
 
 @router.get("/purchased", response_model=list[TemplateSummary])
 async def list_purchased_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List templates the user has purchased (creator templates). Saved to account, accessible anytime."""
@@ -365,33 +358,16 @@ async def list_purchased_templates(
 
 @router.get("/packs", response_model=list[dict])
 async def list_template_packs(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """List available template packs for purchase."""
-    from authora.models import TemplatePack
-
-    q = select(TemplatePack).where(TemplatePack.is_active.is_(True)).order_by(TemplatePack.sort_order.asc())
-    result = await db.execute(q)
-    packs = result.scalars().all()
-    purchased = await get_user_purchased_packs(db, current_user.id)
-
-    return [
-        {
-            "slug": p.slug,
-            "name": p.name,
-            "description": p.description,
-            "price_cents": p.price_cents,
-            "template_slugs": p.template_slugs or [],
-            "purchased": p.slug in purchased,
-        }
-        for p in packs
-    ]
+    """DEPRECATED in v2 — packs are folded into plans. Returns empty list."""
+    return []
 
 
 @router.get("/marketplace", response_model=list[TemplateSummary])
 async def list_marketplace_templates(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
     category: str | None = Query(None, description="Filter by category"),
     featured: bool | None = Query(None, description="Only featured templates"),
@@ -408,7 +384,6 @@ async def list_marketplace_templates(
 
     plan = await get_user_plan(db, current_user.id)
     plan_slug = getattr(plan, "slug", "free") or "free"
-    purchased = await get_user_purchased_packs(db, current_user.id)
     purchased_templates = await get_user_purchased_template_ids(db, current_user.id)
 
     q = select(ProjectTemplate).where(ProjectTemplate.is_disabled.is_(False))
@@ -444,7 +419,6 @@ async def list_marketplace_templates(
         _template_to_summary_with_access(
             t,
             plan_slug,
-            purchased,
             purchased_templates,
             creator_name=creator_names.get(t.creator_id) if t.creator_id else None,
             usage_count=usage_counts.get(t.id, 0),
@@ -456,7 +430,7 @@ async def list_marketplace_templates(
 @router.get("/slug/{slug}", response_model=TemplateResponse)
 async def get_template_by_slug(
     slug: str,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get template by slug with access info."""

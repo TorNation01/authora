@@ -40,6 +40,9 @@ import {
 } from '@/content/framework-copy';
 import { TemplatePreviewCard } from '@/components/onboarding/TemplatePreviewCard';
 import { StarterTemplateSelector } from '@/components/onboarding/StarterTemplateSelector';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { GENRE_OPTIONS } from '@/content/genre-options';
+import { THEME_OPTIONS } from '@/content/theme-options';
 import { useProjectCreateGuard, useLimitErrorHandler, isLimitError } from '@/hooks/use-conversion-triggers';
 
 type TemplateSummary = {
@@ -119,6 +122,8 @@ export default function NewProjectPage() {
   const [targetWords, setTargetWords] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [guidanceMode, setGuidanceMode] = useState<'guided' | 'flexible' | 'freeform'>('guided');
+  const [genreTags, setGenreTags] = useState<string[]>([]);
+  const [themes, setThemes] = useState<string[]>([]);
 
   useEffect(() => {
     if (mode === 'wizard') {
@@ -265,6 +270,8 @@ export default function NewProjectPage() {
             book_title: bookTitle.trim() || projectName.trim(),
             book_type: template?.book_type || selectedCategory?.template?.book_type || 'fiction',
             genre: template?.genre || selectedCategory?.template?.genre || null,
+            genre_tags: genreTags.length > 0 ? genreTags : null,
+            themes: themes.length > 0 ? themes : null,
             core_idea: coreIdea.trim() || null,
             structure_framework: structureFramework || null,
             target_words: targetWords ? parseInt(targetWords, 10) : null,
@@ -303,12 +310,7 @@ export default function NewProjectPage() {
 
   const nextStep = () => {
     if (step < totalSteps) {
-      // When step 2 has no children, we showed name there—skip step 3 (duplicate name)
-      if (step === 2 && selectedCategory && selectedCategory.children.length === 0) {
-        setStep(4);
-      } else {
-        setStep(step + 1);
-      }
+      setStep(step + 1);
     } else {
       handleWizardCreate();
     }
@@ -316,12 +318,7 @@ export default function NewProjectPage() {
 
   const prevStep = () => {
     if (step > 1) {
-      // When going back from step 4 and we skipped step 3, go to step 2
-      if (step === 4 && selectedCategory && selectedCategory.children.length === 0) {
-        setStep(2);
-      } else {
-        setStep(step - 1);
-      }
+      setStep(step - 1);
     }
   };
 
@@ -506,7 +503,7 @@ export default function NewProjectPage() {
           </CardTitle>
           <CardDescription>
             {step === 1 && 'What kind of book are you writing?'}
-            {step === 2 && (selectedCategory?.children.length ? 'Pick the genre that best fits.' : 'Give your project a name.')}
+            {step === 2 && 'Shape your story with genres and themes.'}
             {step === 3 && 'Give your project a name.'}
             {step === 4 && 'One sentence about what this book is about.'}
             {step === 5 && FRAMEWORK_SELECTION.subheading}
@@ -621,28 +618,60 @@ export default function NewProjectPage() {
             </div>
           )}
 
-          {step === 2 && selectedCategory && selectedCategory.children.length > 0 && (
-            <div className="space-y-2">
-              <Label>Genre</Label>
-              <Select value={selectedTemplateId || ''} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Select genre" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={selectedCategory.template.id}>
-                    {selectedCategory.template.name} (general)
-                  </SelectItem>
-                  {selectedCategory.children.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {step === 2 && selectedCategory && (
+            <div className="space-y-5">
+              {/* Instructional banner */}
+              <div className="rounded-lg border bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 p-4">
+                <h3 className="text-sm font-semibold mb-1.5">🎨 Shape your story's DNA</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Pick your <strong>primary genre</strong> below — this sets your starting template and framework.
+                  Then <strong>blend in additional genres</strong> and <strong>themes</strong> to create something
+                  uniquely yours. A thriller/romance/fantasy with dystopian themes? Go for it.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  You can change any of this later from your project dashboard.
+                </p>
+              </div>
+
+              {selectedCategory.children.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Primary genre</Label>
+                  <Select value={selectedTemplateId || ''} onValueChange={setSelectedTemplateId}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select genre" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={selectedCategory.template.id}>
+                        {selectedCategory.template.name} (general)
+                      </SelectItem>
+                      {selectedCategory.children.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <MultiSelect
+                value={genreTags}
+                onChange={setGenreTags}
+                options={GENRE_OPTIONS}
+                label="Genre blend"
+                placeholder="Add genres to blend..."
+              />
+              <MultiSelect
+                value={themes}
+                onChange={setThemes}
+                options={THEME_OPTIONS}
+                label="Themes"
+                placeholder="Add themes..."
+              />
             </div>
           )}
 
-          {((step === 2 && selectedCategory && selectedCategory.children.length === 0) || (step === 3 && selectedCategory && selectedCategory.children.length > 0)) && (
+          {step === 3 && selectedCategory && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="projectName">Project name</Label>

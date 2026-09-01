@@ -80,6 +80,12 @@ async def submit_intake(
     ws.voice_tone = data.voice_tone
     ws.target_audience = data.target_audience
     ws.desired_outcome = data.desired_outcome
+    ws.word_count_target = data.word_count_target
+    ws.deadline = data.deadline
+    ws.author_background = data.author_background
+    ws.sample_text = data.sample_text
+    ws.content_warnings = data.content_warnings
+    ws.research_notes = data.research_notes
     ws.workflow_step = "outline"
     await db.flush()
     await db.refresh(ws)

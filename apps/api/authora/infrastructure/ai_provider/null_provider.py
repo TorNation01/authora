@@ -12,7 +12,7 @@ class NullAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> AsyncGenerator[str, None]:
         yield "[AI not configured. Add OpenAI or Anthropic API key in settings.]"
 
@@ -20,6 +20,6 @@ class NullAIProvider(AIProvider):
         self,
         prompt: str,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> str:
         return "[AI not configured. Add OpenAI or Anthropic API key in settings.]"

@@ -81,6 +81,8 @@ class ProjectWizardRequest(BaseModel):
         description="Knowledge vault mode (defaults from book_type if not set)",
     )
     genre: str | None = None
+    genre_tags: list[str] | None = Field(None, description="Genre blend, e.g. ['thriller','romance','fantasy']")
+    themes: list[str] | None = Field(None, description="Thematic overlays, e.g. ['dystopian','post-apocalyptic']")
     core_idea: str | None = Field(None, max_length=2000)
     wizard_answers: dict[str, str | int | list] | None = None
     structure_framework: str | None = None

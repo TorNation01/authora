@@ -38,7 +38,9 @@ async def build_fiction_context(
         if ws.premise:
             parts.append(f"PREMISE: {ws.premise}")
         if ws.genre:
-            parts.append(f"GENRE: {ws.genre}")
+            parts.append(f"PRIMARY GENRE: {ws.genre}")
+        if ws.genre_tags:
+            parts.append(f"GENRE BLEND: {', '.join(ws.genre_tags)}")
         if ws.tone:
             parts.append(f"TONE: {ws.tone}")
         if ws.themes:

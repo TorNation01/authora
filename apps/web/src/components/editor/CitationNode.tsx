@@ -41,7 +41,7 @@ export const Citation = Node.create<CitationOptions>({
   },
 
   addNodeView() {
-    return ReactNodeViewRenderer(CitationView);
+    return ReactNodeViewRenderer(CitationView as any);
   },
 
   addCommands() {

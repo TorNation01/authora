@@ -33,12 +33,13 @@ async def recommend_frameworks(
     *,
     book_type: str,
     genre: str | None = None,
+    genre_tags: list[str] | None = None,
     template_id: UUID | None = None,
     template_slug: str | None = None,
     is_series: bool = False,
     limit: int = 5,
 ) -> list[WritingFramework]:
-    """Recommend frameworks for a book based on type, genre, and template."""
+    """Recommend frameworks for a book based on type, genre blend, and template."""
     q = (
         select(WritingFramework)
         .where(
@@ -51,7 +52,13 @@ async def recommend_frameworks(
     all_frameworks = result.scalars().all()
 
     scored: list[tuple[WritingFramework, float]] = []
-    genre_lower = (genre or "").lower()
+    # Build search set: primary genre + all genre tags
+    search_terms: list[str] = []
+    if genre:
+        search_terms.append(genre.lower())
+    if genre_tags:
+        search_terms.extend(t.lower() for t in genre_tags)
+    search_terms = list(dict.fromkeys(search_terms))  # dedupe, preserve order
     template_slug_resolved = template_slug
 
     if template_id and not template_slug_resolved:
@@ -65,10 +72,15 @@ async def recommend_frameworks(
 
         ideal_genres = rules.get("ideal_genres") or rules.get("genres") or fw.ideal_genres or []
         for g in ideal_genres:
-            if genre_lower and g.lower() in genre_lower or genre_lower in g.lower():
-                score += rules.get("weight", 0.5)
-                break
-        if not genre_lower and ideal_genres:
+            g_lower = g.lower()
+            for term in search_terms:
+                if g_lower in term or term in g_lower:
+                    score += rules.get("weight", 0.5)
+                    break
+            else:
+                continue
+            break
+        if not search_terms and ideal_genres:
             score += 0.2
 
         weight = rules.get("weight", 0.5)
@@ -136,10 +148,12 @@ async def get_framework_for_template(
 
     book_type = template.book_type if template else "fiction"
     genre = template.genre
+    genre_tags = template.genre_tags if template else None
     recs = await recommend_frameworks(
         db,
         book_type=book_type,
         genre=genre,
+        genre_tags=genre_tags,
         template_slug=template.slug if template else None,
         limit=1,
     )

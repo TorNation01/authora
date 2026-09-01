@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,7 +14,7 @@ import { setTokens } from '@/lib/auth';
 import { useConfig } from '@/contexts/ConfigProvider';
 import { getMarketingBaseUrl } from '@/lib/config';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -123,5 +124,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
