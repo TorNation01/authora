@@ -159,9 +159,18 @@ async def create_character(
         name=data.name,
         role=data.role,
         description=data.description,
+        age=data.age,
+        appearance=data.appearance,
+        voice=data.voice,
         backstory=data.backstory,
         goals=data.goals,
+        need=data.need,
+        wound=data.wound,
         flaws=data.flaws,
+        secret=data.secret,
+        arc_summary=data.arc_summary,
+        first_appearance=data.first_appearance,
+        status=data.status,
         traits=data.traits,
         sort_order=sort_order,
     )
@@ -247,6 +256,7 @@ async def create_relationship(
         relationship_type=data.relationship_type,
         description=data.description,
         arc_notes=data.arc_notes,
+        intensity=data.intensity,
     )
     db.add(rel)
     await db.flush()
@@ -418,6 +428,7 @@ async def create_plot_arc(
         book_id=book_id,
         name=data.name,
         structure=data.structure,
+        character_id=data.character_id,
         beats=data.beats,
     )
     db.add(arc)

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { BookNav } from '@/components/bible/nav';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -328,6 +329,8 @@ export default function GhostwriterPage() {
         backHref={`/dashboard/projects/${projectId}/books/${bookId}`}
         backLabel="Manuscript"
       />
+
+      <BookNav projectId={projectId} bookId={bookId} className="mb-5" />
 
       {/* Step 1: Intake */}
       <Card variant="soft" className="mb-6">

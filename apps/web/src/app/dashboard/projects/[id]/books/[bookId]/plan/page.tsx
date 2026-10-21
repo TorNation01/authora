@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { BookNav } from '@/components/bible/nav';
 import { Progress } from '@/components/ui/progress';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -115,6 +116,8 @@ function FictionWorkspace({
         backHref={`/dashboard/projects/${projectId}/books/${bookId}`}
         backLabel="Book"
       />
+
+      <BookNav projectId={projectId} bookId={bookId} className="mb-5" />
 
       <Progress value={progress} showLabel className="mb-6" />
 
@@ -1025,6 +1028,8 @@ function NonfictionWorkspace({
         backHref={`/dashboard/projects/${projectId}/books/${bookId}`}
         backLabel="Book"
       />
+
+      <BookNav projectId={projectId} bookId={bookId} className="mb-5" />
 
       <Progress value={progress} showLabel className="mb-6" />
 

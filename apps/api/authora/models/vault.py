@@ -234,6 +234,8 @@ class TimelineEvent(Base):
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, default="story_event")
     event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     date_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    chapter_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="SET NULL"), nullable=True)
+    character_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)  # who is present
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     storyline: Mapped[str | None] = mapped_column(String(255), nullable=True)
     time_period: Mapped[str | None] = mapped_column(String(255), nullable=True)

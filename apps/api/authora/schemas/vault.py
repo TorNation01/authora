@@ -254,6 +254,8 @@ class TimelineEventCreate(BaseModel):
     event_type: str = Field(default="story_event", max_length=50)
     event_date: date | None = None
     date_label: str | None = Field(None, max_length=255)
+    chapter_id: UUID | None = None
+    character_ids: list[str] = Field(default_factory=list)
     sequence_order: int = 0
     storyline: str | None = Field(None, max_length=255)
     time_period: str | None = Field(None, max_length=255)
@@ -266,6 +268,8 @@ class TimelineEventUpdate(BaseModel):
     event_type: str | None = Field(None, max_length=50)
     event_date: date | None = None
     date_label: str | None = Field(None, max_length=255)
+    chapter_id: UUID | None = None
+    character_ids: list[str] | None = None
     sequence_order: int | None = None
     storyline: str | None = Field(None, max_length=255)
     time_period: str | None = Field(None, max_length=255)
@@ -281,6 +285,8 @@ class TimelineEventResponse(BaseModel):
     event_type: str
     event_date: date | None
     date_label: str | None
+    chapter_id: UUID | None = None
+    character_ids: list[str] = Field(default_factory=list)
     sequence_order: int
     storyline: str | None
     time_period: str | None
