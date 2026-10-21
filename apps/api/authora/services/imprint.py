@@ -8,11 +8,15 @@ No addresses, phone numbers or contact details are invented here.
 """
 
 from dataclasses import dataclass, field
+import os
 
 ANEMA_HOUSE_NAME = "Anema House Publishing"
 ANEMA_HOUSE_URL = "https://anemahouse.com"
 BOOKFORGE_NAME = "Bookforge"
-BOOKFORGE_URL = "https://bookforge.studio"
+# BookForge is an internal build pipeline. It has no public address, so the
+# imprint must not invent one. Set BOOKFORGE_PUBLIC_URL only when a real,
+# publicly reachable endpoint exists.
+BOOKFORGE_URL = os.environ.get("BOOKFORGE_PUBLIC_URL", "").strip()
 
 HEADING = "A Note on This Edition"
 
@@ -65,7 +69,8 @@ def build_imprint_page(
 
     links = [
         (f"{ANEMA_HOUSE_NAME} - production and publishing", ANEMA_HOUSE_URL),
-        (f"{BOOKFORGE_NAME} - build pipeline", BOOKFORGE_URL),
     ]
+    if BOOKFORGE_URL:
+        links.append((f"{BOOKFORGE_NAME} - build pipeline", BOOKFORGE_URL))
 
     return ImprintPage(heading=HEADING, paragraphs=paragraphs, links=links)

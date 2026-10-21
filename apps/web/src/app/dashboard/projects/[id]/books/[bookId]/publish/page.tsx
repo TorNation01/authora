@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 const ANEMA_HOUSE_URL = 'https://anemahouse.com';
-const BOOKFORGE_URL = 'https://bookforge.studio';
+const BOOKFORGE_URL = (process.env.NEXT_PUBLIC_BOOKFORGE_URL ?? '').trim();
 
 type ChecklistStatus = 'pass' | 'warn' | 'fail';
 
@@ -1032,23 +1032,37 @@ export default function PublishPage() {
             </span>
           </a>
 
-          <a
-            href={BOOKFORGE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col justify-between rounded-xl border border-border/70 p-5 transition-colors hover:border-foreground/40"
-          >
-            <div>
-              <p className="font-serif text-base font-semibold">Take it to Bookforge</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                The build pipeline behind print-ready and retail packages.
-              </p>
+          {BOOKFORGE_URL ? (
+            <a
+              href={BOOKFORGE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex flex-col justify-between rounded-xl border border-border/70 p-5 transition-colors hover:border-foreground/40"
+            >
+              <div>
+                <p className="font-serif text-base font-semibold">Take it to Bookforge</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The build pipeline behind print-ready and retail packages.
+                </p>
+              </div>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
+                {BOOKFORGE_URL.replace(/^https?:\/\//, '')}
+                <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5" />
+              </span>
+            </a>
+          ) : (
+            <div className="flex flex-col justify-between rounded-xl border border-border/70 p-5">
+              <div>
+                <p className="font-serif text-base font-semibold">Take it to Bookforge</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The build pipeline behind print-ready and retail packages.
+                </p>
+              </div>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                Internal pipeline — runs on the build host, no public address
+              </span>
             </div>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium">
-              bookforge.studio
-              <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5" />
-            </span>
-          </a>
+          )}
         </div>
 
         <Card variant="soft" className="mt-5">
