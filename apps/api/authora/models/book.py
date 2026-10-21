@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from authora.models.chapter_section import ChapterSection
     from authora.models.note import Note
     from authora.models.project import Project
+    from authora.models.publication import BookPublication
     from authora.models.project_template import ProjectTemplate
     from authora.models.publishing_asset import PublishingAsset
     from authora.models.revision_pass import RevisionPass
@@ -63,6 +64,9 @@ class Book(Base):
     )
     book_settings: Mapped["BookSettings | None"] = relationship(
         "BookSettings", back_populates="book", uselist=False, cascade="all, delete-orphan"
+    )
+    publication: Mapped["BookPublication | None"] = relationship(
+        "BookPublication", back_populates="book", uselist=False, cascade="all, delete-orphan"
     )
     publishing_assets: Mapped[list["PublishingAsset"]] = relationship(
         "PublishingAsset", back_populates="book", cascade="all, delete-orphan"

@@ -107,6 +107,7 @@ from authora.models.ghostwriter_session import GhostwriterSession
 from authora.models.reminder import Reminder
 from authora.models.analytics_event import AnalyticsEvent
 from authora.models.publishing_asset import PublishingAsset
+from authora.models.publication import BookPublication
 from authora.models.feature_flag import FeatureFlag
 from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
@@ -234,6 +235,7 @@ __all__ = [
     "Reminder",
     "AnalyticsEvent",
     "PublishingAsset",
+    "BookPublication",
     "FeatureFlag",
     "SetupState",
     "Plan",

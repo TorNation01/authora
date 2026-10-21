@@ -339,6 +339,10 @@ async def export_book(
     author_bio: str | None = Query(None),
     format_style: str = Query("manuscript", pattern="^(manuscript|print|ebook|workbook)$"),
     backup_style: bool = Query(False, description="Use backup-style filename (title-backup-YYYY-MM-DD.ext)"),
+    include_imprint_page: bool = Query(
+        False,
+        description="Append the imprint's back-matter page (built from this book's publication record).",
+    ),
 ):
     """Export book to specified format. Supports front/back matter via query params."""
     from authora.config import get_settings
@@ -361,6 +365,21 @@ async def export_book(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
     chapters_data = _chapters_data(book)
+    # Fall back to the saved publication record so exports started from anywhere
+    # (not just the Publish page) carry the same title-page and matter copy.
+    from authora.models.publication import BookPublication
+
+    pub_result = await db.execute(select(BookPublication).where(BookPublication.book_id == book_id))
+    publication_rec = pub_result.scalar_one_or_none()
+    if publication_rec is not None:
+        author_name = author_name or publication_rec.author_name
+        copyright_notice = copyright_notice or publication_rec.copyright_notice
+        dedication = dedication or publication_rec.dedication
+        front_matter = front_matter or publication_rec.front_matter
+        acknowledgements = acknowledgements or publication_rec.acknowledgements
+        author_bio = author_bio or publication_rec.author_bio
+        back_matter = back_matter or publication_rec.back_matter
+
     params = ExportParams(
         book_title=book.title,
         author_name=author_name or "Author",
@@ -376,6 +395,15 @@ async def export_book(
         author_bio=author_bio,
         format_style=format_style,
     )
+
+    if include_imprint_page:
+        from authora.services.imprint import build_imprint_page
+
+        params.imprint_page = build_imprint_page(
+            book_title=(publication_rec.title if publication_rec and publication_rec.title else book.title),
+            author_name=author_name or (publication_rec.author_name if publication_rec else None),
+            imprint=(publication_rec.imprint if publication_rec else None),
+        )
 
     fmt_map = {
         "txt": ("text/plain", export_full_txt),

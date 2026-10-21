@@ -20,6 +20,13 @@ interface Book {
   created_at: string;
 }
 
+interface BookProgress {
+  id: string;
+  word_count: number;
+  chapter_count: number;
+  chapters_done: number;
+}
+
 interface ProjectData {
   name: string;
   guidance_mode?: string;
@@ -30,6 +37,7 @@ export default function ProjectPage() {
   const router = useRouter();
   const projectId = params.id as string;
   const [books, setBooks] = useState<Book[]>([]);
+  const [progress, setProgress] = useState<Record<string, BookProgress>>({});
   const [projectName, setProjectName] = useState('');
   const [guidanceMode, setGuidanceMode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,11 +46,17 @@ export default function ProjectPage() {
     Promise.all([
       api<ProjectData>(`/api/v1/projects/${projectId}`),
       api<Book[]>(`/api/v1/projects/${projectId}/books`),
+      api<{ books: BookProgress[] }>(`/api/v1/projects/${projectId}/progress`).catch(() => ({ books: [] })),
     ])
-      .then(([proj, bks]) => {
+      .then(([proj, bks, prog]) => {
         setProjectName(proj.name);
         setGuidanceMode(proj.guidance_mode || null);
         setBooks(bks);
+        const map: Record<string, BookProgress> = {};
+        (prog.books || []).forEach((b) => {
+          map[b.id] = b;
+        });
+        setProgress(map);
       })
       .catch(() => router.push('/dashboard'))
       .finally(() => setLoading(false));
@@ -121,21 +135,51 @@ export default function ProjectPage() {
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {books.map((b) => (
-                <Link key={b.id} href={`/dashboard/projects/${projectId}/books/${b.id}`}>
+              {books.map((b) => {
+                const stat = progress[b.id];
+                const complete = !!stat && stat.chapter_count > 0 && stat.word_count > 0;
+                return (
                   <Card
+                    key={b.id}
                     variant="sanctuary"
-                    className="block p-6 hover:shadow-md transition-shadow cursor-pointer h-full"
+                    className="flex h-full flex-col p-6 hover:shadow-md transition-shadow"
                   >
-                    <BookOpen className="h-8 w-8 text-primary mb-3" />
-                    <h3 className="font-semibold text-foreground">{b.title}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <BookOpen className="h-8 w-8 text-primary" />
+                      {complete && (
+                        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                          Manuscript complete
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`/dashboard/projects/${projectId}/books/${b.id}`} className="mt-3">
+                      <h3 className="font-semibold text-foreground hover:underline">{b.title}</h3>
+                    </Link>
                     <p className="text-sm text-muted-foreground mt-1">
                       {b.type} {b.genre ? `· ${b.genre}` : ''}
                     </p>
-                    <p className="text-sm text-primary font-medium mt-3">Open book →</p>
+                    {stat && stat.word_count > 0 && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {stat.word_count.toLocaleString()} words · {stat.chapter_count} chapters
+                      </p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+                      <Link
+                        href={`/dashboard/projects/${projectId}/books/${b.id}`}
+                        className="text-sm text-primary font-medium"
+                      >
+                        Open book →
+                      </Link>
+                      <Link
+                        href={`/dashboard/projects/${projectId}/books/${b.id}/publish`}
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        Publish{complete ? ' & release' : ''} →
+                      </Link>
+                    </div>
                   </Card>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </>

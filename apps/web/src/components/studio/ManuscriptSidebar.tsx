@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft, Upload } from 'lucide-react';
+import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft, Upload, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -206,6 +206,18 @@ export function ManuscriptSidebar({
             </FeatureGate>
           </TooltipTrigger>
           <TooltipContent side="right">{getTooltip('ghostwriter_link') ?? 'Ghostwriter'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/dashboard/projects/${projectId}/books/${bookId}/publish`}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Publish &amp; release
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">Publishing checklist, metadata, files and release</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

@@ -7,6 +7,7 @@ from typing import Any
 
 from authora.services.export import tiptap_to_plain_text
 from authora.services.export_templates import get_template
+from authora.services.imprint import ImprintPage
 
 
 PLACEHOLDER_PATTERNS = (
@@ -120,6 +121,7 @@ class ExportParams:
     copyright_notice: str | None = None
     author_bio: str | None = None
     format_style: str = "manuscript"  # manuscript | print | ebook
+    imprint_page: "ImprintPage | None" = None
 
 
 SCENE_BREAK_MARKERS = frozenset({"***", "* * *", "###", "---", "— — —", "* * * *"})
@@ -398,6 +400,16 @@ def export_full_docx(
                 if p.strip():
                     doc.add_paragraph(p.strip())
 
+    if params.imprint_page:
+        ip = params.imprint_page
+        add_break()
+        doc.add_heading(ip.heading, level=0)
+        for para in ip.paragraphs:
+            if para.strip():
+                doc.add_paragraph(para.strip())
+        for label, url in ip.links:
+            doc.add_paragraph(f"{label}: {url}")
+
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
@@ -451,6 +463,10 @@ def export_full_txt(chapters: list[dict], params: ExportParams) -> bytes:
         parts.append("BACK MATTER")
         parts.append("")
         parts.append(params.back_matter)
+
+    if params.imprint_page:
+        parts.append("=" * 40)
+        parts.append(params.imprint_page.as_text())
 
     return "\n".join(parts).encode("utf-8")
 
@@ -563,6 +579,24 @@ def export_full_pdf(chapters: list[dict], params: ExportParams) -> bytes:
                 story.append(Paragraph(safe(p.strip()), styles["Normal"]))
                 story.append(Spacer(1, 6))
 
+    if params.imprint_page:
+        ip = params.imprint_page
+        story.append(PageBreak())
+        story.append(Paragraph(safe(ip.heading), styles["Heading1"]))
+        story.append(Spacer(1, 12))
+        for para in ip.paragraphs:
+            if para.strip():
+                story.append(Paragraph(safe(para.strip()), styles["Normal"]))
+                story.append(Spacer(1, 8))
+        for label, url in ip.links:
+            story.append(
+                Paragraph(
+                    f'<link href="{safe(url)}" color="#1A1A1A">{safe(label)}: {safe(url)}</link>',
+                    styles["Normal"],
+                )
+            )
+            story.append(Spacer(1, 4))
+
     doc.build(story)
     buffer.seek(0)
     return buffer.getvalue()
@@ -658,7 +692,7 @@ def export_full_epub(chapters: list[dict], params: ExportParams) -> bytes:
         idx += 1
 
     for i, ch in enumerate(chapters_data, 1):
-        html_body = _text_to_epub_html(ch["text"])
+        html_body = f"<h1 class=\"chapter-title\">{_html_escape(ch['title'])}</h1>\n" + _text_to_epub_html(ch["text"])
         epub_ch = add_html_chapter(ch["title"], html_body, f"chap_{i}.xhtml")
         spine_items.append(epub_ch)
         toc_entries.append(epub_ch)
@@ -686,6 +720,24 @@ def export_full_epub(chapters: list[dict], params: ExportParams) -> bytes:
             back_ch = add_html_chapter("Back Matter", "\n".join(back_parts), f"back_matter_{idx}.xhtml")
             spine_items.append(back_ch)
             toc_entries.append(back_ch)
+
+    if params.imprint_page:
+        ip = params.imprint_page
+        ip_parts = [f"<h2>{_html_escape(ip.heading)}</h2>"]
+        for para in ip.paragraphs:
+            if para.strip():
+                ip_parts.append(f"<p>{_html_escape(para.strip())}</p>")
+        if ip.links:
+            ip_parts.append("<p class=\"imprint-links\">")
+            for label, url in ip.links:
+                ip_parts.append(
+                    f"<a href=\"{_html_escape(url)}\">{_html_escape(label)}</a><br/>"
+                )
+            ip_parts.append("</p>")
+        ip_ch = add_html_chapter(ip.heading, "\n".join(ip_parts), f"imprint_{idx}.xhtml")
+        spine_items.append(ip_ch)
+        toc_entries.append(ip_ch)
+        idx += 1
 
     book.toc = toc_entries
     book.spine = spine_items
