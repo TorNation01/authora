@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from authora.models import (
     Book,
     Chapter,
+    CharacterRelationship,
     FictionCharacter,
     FictionTracker,
     FictionWorkspace,
@@ -37,10 +38,26 @@ async def build_fiction_context(
     if ws:
         if ws.premise:
             parts.append(f"PREMISE: {ws.premise}")
+        if ws.logline:
+            parts.append(f"LOGLINE: {ws.logline}")
         if ws.genre:
             parts.append(f"PRIMARY GENRE: {ws.genre}")
+        if ws.subgenre:
+            parts.append(f"SUBGENRE: {ws.subgenre}")
         if ws.genre_tags:
             parts.append(f"GENRE BLEND: {', '.join(ws.genre_tags)}")
+        if ws.audience:
+            parts.append(f"AUDIENCE: {ws.audience}")
+        if ws.pov:
+            parts.append(f"POINT OF VIEW: {ws.pov}")
+        if ws.tense:
+            parts.append(f"TENSE: {ws.tense}")
+        if ws.target_word_count:
+            parts.append(f"TARGET LENGTH: {ws.target_word_count} words")
+        if ws.comparable_titles:
+            parts.append(f"COMPARABLE TITLES: {', '.join(ws.comparable_titles)}")
+        if ws.central_question:
+            parts.append(f"CENTRAL DRAMATIC QUESTION: {ws.central_question}")
         if ws.tone:
             parts.append(f"TONE: {ws.tone}")
         if ws.themes:
@@ -58,9 +75,42 @@ async def build_fiction_context(
         for c in chars:
             line = f"- {c.name} ({c.role})"
             if c.description:
-                line += f": {c.description[:200]}..."
+                line += f": {c.description[:200]}"
+            details = []
+            if c.age:
+                details.append(f"age {c.age}")
+            if c.goals:
+                details.append(f"wants {c.goals[:160]}")
+            if c.need:
+                details.append(f"needs {c.need[:160]}")
+            if c.wound:
+                details.append(f"wound: {c.wound[:160]}")
+            if c.flaws:
+                details.append(f"flaw: {c.flaws[:160]}")
+            if c.secret:
+                details.append(f"secret: {c.secret[:160]}")
+            if c.voice:
+                details.append(f"voice: {c.voice[:120]}")
+            if c.arc_summary:
+                details.append(f"arc: {c.arc_summary[:200]}")
+            if details:
+                line += " | " + "; ".join(details)
             char_lines.append(line)
         parts.append("CHARACTERS:\n" + "\n".join(char_lines))
+
+    # Relationships
+    result = await db.execute(
+        select(CharacterRelationship).where(CharacterRelationship.book_id == book_id)
+    )
+    rels = result.scalars().all()
+    if rels:
+        by_id = {c.id: c.name for c in chars}
+        rel_lines = []
+        for r in rels:
+            a = by_id.get(r.character_a_id, "unknown")
+            b = by_id.get(r.character_b_id, "unknown")
+            rel_lines.append(f"- {a} is {r.relationship_type} of {b} (intensity {r.intensity}/5): {(r.description or '')[:140]}")
+        parts.append("RELATIONSHIPS:\n" + "\n".join(rel_lines))
 
     # World elements
     result = await db.execute(
@@ -122,6 +172,49 @@ FICTION_PROMPT_TEMPLATES = {
     "scene_ideas": "Generate 5 scene ideas that could work for this story. Each should be 1-2 sentences and fit the premise and tone.",
     "what_happens_next": "Suggest 3 compelling directions for what could happen next in this story. Each should be 2-3 sentences.",
     "dialogue_helper": "Help me write dialogue for this situation. The characters are {characters}. The context is: {context}",
+    # --- Book Bible: interrogation prompts. These are craft questions, not generic
+    # "improve this" prompts; each one names the failure mode it is hunting for. ---
+    "character_interrogate": (
+        "You are a demanding developmental editor interviewing a character before the book is written. "
+        "Using the character sheet in the context, answer as the character in first person, then step out of voice. "
+        "Structure the response exactly like this:\n"
+        "IN THEIR OWN WORDS — 150 words, first person, no summary.\n"
+        "WHAT THEY WANT AND WHY IT IS NOT ENOUGH — 80 words.\n"
+        "THE THING THEY WILL NOT SAY — one paragraph naming the secret or admission they are protecting.\n"
+        "THREE QUESTIONS THE AUTHOR MUST ANSWER — a numbered list of three specific questions this character "
+        "exposes in the book's premise. No generic advice."
+    ),
+    "character_contradiction": (
+        "You are a story editor hunting for the contradiction that makes a character feel alive. "
+        "Using the character sheet in the context, name the single strongest contradiction in this person: "
+        "the want that fights the need, the virtue that is really a defence, the belief contradicted by their behaviour. "
+        "Then explain in 120 words how that contradiction should show up in a scene, not in exposition. "
+        "End with one line of dialogue this character would say that reveals the contradiction without stating it."
+    ),
+    "character_lie": (
+        "You are a story editor. Using the character sheet in the context, identify the lie this character "
+        "believes about themselves and the lie they tell other people. For each: state the lie in one sentence, "
+        "name the scene type where it should be exposed, and write the moment of exposure in 100 words of prose. "
+        "Then say what it costs them to keep believing it. Do not compliment the character."
+    ),
+    "arc_beats": (
+        "You are a story editor breaking a character arc. Using the character sheet and existing arc beats in the context, "
+        "propose exactly three new beats that would break or complicate this arc — not complete it comfortably. "
+        "For each beat use this exact format:\n"
+        "BEAT: <short label>\n"
+        "WHAT CHANGES: <one sentence, a change in belief or allegiance, not an event>\n"
+        "CHAPTER: <suggested chapter number or range>\n"
+        "EMOTIONAL TURN: <the feeling they move from and to>\n"
+        "Then add one line explaining what the three beats cost the character across the book."
+    ),
+    "premise_scope": (
+        "You are a developmental editor deciding whether a premise can carry a novel. Using the premise, logline, "
+        "central question and target length in the context, answer plainly and without encouragement:\n"
+        "VERDICT: NOVEL / NOVELLA / SHORT STORY — one of these three, with a one-sentence reason.\n"
+        "WHY IT MIGHT NOT HOLD A NOVEL — the two most likely failure points, specific to this premise.\n"
+        "WHAT WOULD MAKE IT A NOVEL — the complication, stake or relationship that must exist and does not yet.\n"
+        "FIRST THREE SCENES — three scenes that would prove the premise works, one line each."
+    ),
 }
 
 

@@ -790,6 +790,8 @@ async def create_timeline_event(
         event_type=data.event_type,
         event_date=data.event_date,
         date_label=data.date_label,
+        chapter_id=data.chapter_id,
+        character_ids=data.character_ids or [],
         sequence_order=data.sequence_order,
         storyline=data.storyline,
         time_period=data.time_period,

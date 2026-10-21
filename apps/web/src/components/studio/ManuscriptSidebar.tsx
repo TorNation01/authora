@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import Link from 'next/link';
-import { Map, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft, Upload } from 'lucide-react';
+import { Map, BookOpen, GripVertical, Plus, Sparkles, Bot, Flag, MoreHorizontal, Copy, Trash2, Pencil, Tag, Layers, PanelLeftClose, PanelLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -250,6 +250,20 @@ export function ManuscriptSidebar({
             <TooltipContent side="right">{getTooltip('plan_link') ?? 'Plan'}</TooltipContent>
           </Tooltip>
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/dashboard/projects/${projectId}/books/${bookId}/bible`}
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Book Bible
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            Characters, relationships, arcs, world and timeline
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="flex-1 overflow-auto p-2">

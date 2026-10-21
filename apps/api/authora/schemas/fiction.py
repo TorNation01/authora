@@ -9,7 +9,15 @@ from pydantic import BaseModel, Field
 
 class FictionWorkspaceCreate(BaseModel):
     premise: str | None = None
+    logline: str | None = None
     genre: str | None = None
+    subgenre: str | None = None
+    audience: str | None = None
+    pov: str | None = None
+    tense: str | None = None
+    target_word_count: int | None = Field(None, ge=0)
+    comparable_titles: list[str] | None = None
+    central_question: str | None = None
     tone: str | None = None
     themes: list[str] | None = None
     pacing_notes: str | None = None
@@ -17,7 +25,15 @@ class FictionWorkspaceCreate(BaseModel):
 
 class FictionWorkspaceUpdate(BaseModel):
     premise: str | None = None
+    logline: str | None = None
     genre: str | None = None
+    subgenre: str | None = None
+    audience: str | None = None
+    pov: str | None = None
+    tense: str | None = None
+    target_word_count: int | None = Field(None, ge=0)
+    comparable_titles: list[str] | None = None
+    central_question: str | None = None
     tone: str | None = None
     themes: list[str] | None = None
     pacing_notes: str | None = None
@@ -29,7 +45,15 @@ class FictionWorkspaceResponse(BaseModel):
     id: UUID
     book_id: UUID
     premise: str | None
+    logline: str | None
     genre: str | None
+    subgenre: str | None
+    audience: str | None
+    pov: str | None
+    tense: str | None
+    target_word_count: int | None
+    comparable_titles: list[str] | None
+    central_question: str | None
     tone: str | None
     themes: list[str] | None
     pacing_notes: str | None
@@ -41,23 +65,44 @@ class FictionWorkspaceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+CHARACTER_ROLE_PATTERN = "^(protagonist|antagonist|love_interest|mentor|foil|minor|supporting)$"
+
+
 class FictionCharacterCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    role: str = Field(default="supporting", pattern="^(protagonist|antagonist|supporting)$")
+    role: str = Field(default="supporting", pattern=CHARACTER_ROLE_PATTERN)
     description: str | None = None
+    age: str | None = Field(None, max_length=100)
+    appearance: str | None = None
+    voice: str | None = None
     backstory: str | None = None
     goals: str | None = None
+    need: str | None = None
+    wound: str | None = None
     flaws: str | None = None
+    secret: str | None = None
+    arc_summary: str | None = None
+    first_appearance: str | None = Field(None, max_length=255)
+    status: str = Field(default="active", max_length=50)
     traits: dict[str, Any] | None = None
 
 
 class FictionCharacterUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
-    role: str | None = Field(None, pattern="^(protagonist|antagonist|supporting)$")
+    role: str | None = Field(None, pattern=CHARACTER_ROLE_PATTERN)
     description: str | None = None
+    age: str | None = Field(None, max_length=100)
+    appearance: str | None = None
+    voice: str | None = None
     backstory: str | None = None
     goals: str | None = None
+    need: str | None = None
+    wound: str | None = None
     flaws: str | None = None
+    secret: str | None = None
+    arc_summary: str | None = None
+    first_appearance: str | None = Field(None, max_length=255)
+    status: str | None = Field(None, max_length=50)
     traits: dict[str, Any] | None = None
 
 
@@ -67,9 +112,18 @@ class FictionCharacterResponse(BaseModel):
     name: str
     role: str
     description: str | None
+    age: str | None
+    appearance: str | None
+    voice: str | None
     backstory: str | None
     goals: str | None
+    need: str | None
+    wound: str | None
     flaws: str | None
+    secret: str | None
+    arc_summary: str | None
+    first_appearance: str | None
+    status: str
     traits: dict[str, Any] | None
     sort_order: int
     created_at: datetime
@@ -84,12 +138,14 @@ class CharacterRelationshipCreate(BaseModel):
     relationship_type: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
     arc_notes: str | None = None
+    intensity: int = Field(default=3, ge=1, le=5)
 
 
 class CharacterRelationshipUpdate(BaseModel):
     relationship_type: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = None
     arc_notes: str | None = None
+    intensity: int | None = Field(None, ge=1, le=5)
 
 
 class CharacterRelationshipResponse(BaseModel):
@@ -100,10 +156,12 @@ class CharacterRelationshipResponse(BaseModel):
     relationship_type: str
     description: str | None
     arc_notes: str | None
+    intensity: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
 
 
 class WorldElementCreate(BaseModel):
@@ -137,12 +195,14 @@ class WorldElementResponse(BaseModel):
 class PlotArcCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     structure: str = Field(default="three_act", max_length=100)
+    character_id: UUID | None = None
     beats: list[dict[str, Any]] | None = None
 
 
 class PlotArcUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
     structure: str | None = Field(None, max_length=100)
+    character_id: UUID | None = None
     beats: list[dict[str, Any]] | None = None
 
 
@@ -151,6 +211,7 @@ class PlotArcResponse(BaseModel):
     book_id: UUID
     name: str
     structure: str
+    character_id: UUID | None
     beats: list[dict[str, Any]] | None
     sort_order: int
     created_at: datetime

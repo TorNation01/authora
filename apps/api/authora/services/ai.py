@@ -33,7 +33,7 @@ async def _openai_complete(
     from openai import AsyncOpenAI
 
     settings = get_settings()
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    client = AsyncOpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url or None)
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
