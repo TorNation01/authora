@@ -14,13 +14,19 @@ _redis_available: bool | None = None
 
 
 def _get_client_ip(request: Request) -> str:
-    """Get client IP, considering X-Forwarded-For and CF-Connecting-IP (Cloudflare tunnel)."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Get the real client IP.
+
+    Order matters: behind the Cloudflare tunnel every request arrives from the
+    tunnel's own address, and a client can freely forge X-Forwarded-For. So
+    CF-Connecting-IP (set by Cloudflare, not client-controllable) is the only
+    trustworthy source when present. X-Forwarded-For is a last resort only.
+    """
     cf_ip = request.headers.get("cf-connecting-ip")
     if cf_ip:
         return cf_ip.strip()
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "127.0.0.1"
 
 
@@ -38,8 +44,8 @@ def _rate_limit_key(request: Request) -> str:
 
 
 def _is_auth_path(path: str) -> bool:
-    """True for login/register (stricter rate limit)."""
-    return False  # Disabled — Cloudflare tunnel shares IP for all users
+    """True for credential endpoints, which get the stricter limit."""
+    return any(p in path for p in ("/auth/login", "/auth/register", "/auth/forgot", "/auth/reset"))
 
 
 def _cleanup_expired_entries():
@@ -120,17 +126,39 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         self.rate_limit_auth_attempts = rate_limit_auth_attempts
         self.rate_limit_auth_window = rate_limit_auth_window
         self.hsts_max_age = hsts_max_age
-        self.skip_paths = skip_paths or {"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json", "/api/v1/auth/login", "/api/v1/auth/register"}
+        self.skip_paths = skip_paths or {"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json"}
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # Add request ID
         request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
         request.state.request_id = request_id
 
-        # Rate limiting (skip health/docs)
+        # Rate limiting (skip health/docs). Uses CF-Connecting-IP so the shared
+        # Cloudflare tunnel address does not collapse every visitor into one bucket.
         if request.url.path not in self.skip_paths:
-            # Rate limiting temporarily disabled — Cloudflare tunnel shares IP for all users
-            pass
+            key = _rate_limit_key(request)
+            if _is_auth_path(request.url.path):
+                limit, window = self.rate_limit_auth_attempts, self.rate_limit_auth_window
+            else:
+                limit, window = self.rate_limit_requests, self.rate_limit_window
+
+            allowed, used_redis = await _check_rate_limit_redis(key, limit, window)
+            if not used_redis:
+                _cleanup_expired_entries()
+                now = time.monotonic()
+                count, start = _rate_limit_store.get(key, (0, now))
+                if now - start >= window:
+                    count, start = 0, now
+                count += 1
+                _rate_limit_store[key] = (count, start)
+                allowed = count <= limit
+
+            if not allowed:
+                return JSONResponse(
+                    {"detail": "Too many requests. Please slow down."},
+                    status_code=429,
+                    headers={"Retry-After": str(int(window)), "X-Request-ID": request_id},
+                )
 
         response = await call_next(request)
 

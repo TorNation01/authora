@@ -125,15 +125,16 @@ app.add_exception_handler(Exception, _unhandled_exception_handler)
 # HTTPException before Exception so HTTP errors get request_id
 app.add_exception_handler(HTTPException, _http_exception_handler)
 
-# SecurityMiddleware temporarily removed — Cloudflare tunnel shares IP for all users
-# app.add_middleware(
-#     SecurityMiddleware,
-#     rate_limit_requests=settings.rate_limit_requests_per_minute or 100,
-#     rate_limit_auth_attempts=settings.rate_limit_auth_attempts or 5,
-#     rate_limit_auth_window=settings.rate_limit_auth_window_seconds,
-#     hsts_max_age=settings.hsts_max_age,
-#     skip_paths={"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json", "/api/v1/auth/login", "/api/v1/auth/register"},
-# )  # First: rate limit, headers, request ID
+# Rate limiting, security headers, request ID.
+# Auth endpoints are intentionally NOT skipped so login/register get brute-force protection.
+app.add_middleware(
+    SecurityMiddleware,
+    rate_limit_requests=settings.rate_limit_requests_per_minute or 100,
+    rate_limit_auth_attempts=settings.rate_limit_auth_attempts or 5,
+    rate_limit_auth_window=settings.rate_limit_auth_window_seconds,
+    hsts_max_age=settings.hsts_max_age,
+    skip_paths={"/health", "/health/ready", "/health/ai", "/", "/api/docs", "/api/redoc", "/openapi.json"},
+)
 app.add_middleware(GZipMiddleware, minimum_size=500)  # Compress responses > 500 bytes
 app.add_middleware(AuditMiddleware)  # Second: audit log (needs request_id from Security)
 app.add_middleware(IntegrationAuditForwardingMiddleware)  # Optional: forward to Anakatech when enabled

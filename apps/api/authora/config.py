@@ -73,8 +73,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Rate limiting (global and auth)
-    rate_limit_requests_per_minute: Optional[int] = 1000  # Bumped for tunnel testing
-    rate_limit_auth_attempts: Optional[int] = 100  # Login/register; bumped for testing
+    rate_limit_requests_per_minute: Optional[int] = 100
+    rate_limit_auth_attempts: Optional[int] = 5  # Login/register brute-force protection (5 per 15 min)
     rate_limit_auth_window_seconds: int = 900  # 15 min for auth
 
     # Security headers
