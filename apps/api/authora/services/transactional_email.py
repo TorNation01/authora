@@ -41,25 +41,56 @@ def app_url(path: str = "") -> str:
     return f"{base}/{path.lstrip('/')}"
 
 
+# ---------------------------------------------------------------------------
+# Brand — mirrors apps/web/src/styles/design-tokens.css so every message the
+# public receives looks like the product they signed up for.
+# ---------------------------------------------------------------------------
+_BRAND_ORANGE = "#FF6A2B"          # --primary
+_BRAND_ORANGE_DEEP = "#E2551B"     # links on cream (AA-safe on light ground)
+_BRAND_CREAM = "#F6F2EC"           # page ground
+_BRAND_CREAM_SOFT = "#FAF9F7"      # --background
+_BRAND_CARD = "#FFFFFF"            # --card
+_BRAND_INK = "#1A1A1A"             # --foreground
+_BRAND_BODY = "#403A34"
+_BRAND_MUTED = "#8C857D"           # --muted-foreground
+_BRAND_BORDER = "#E6E0D8"          # --border
+_BRAND_FONT = (
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, "
+    "'Helvetica Neue', Arial, sans-serif"
+)
+
+
 def _layout(heading: str, body_html: str) -> str:
     return f"""<!doctype html>
-<html><body style="margin:0;padding:0;background:#0d0f12;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0d0f12;padding:32px 16px;">
+<html lang="en" style="color-scheme:light;">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>{escape(heading)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  a {{ color:{_BRAND_ORANGE_DEEP}; }}
+</style>
+</head>
+<body style="margin:0;padding:0;background:{_BRAND_CREAM};font-family:{_BRAND_FONT};-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{_BRAND_CREAM};padding:36px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#14171c;border:1px solid #232830;border-radius:12px;overflow:hidden;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">
-        <tr><td style="padding:28px 32px 8px 32px;">
-          <div style="font-size:12px;letter-spacing:3px;color:#c9a227;font-weight:700;">AUTHORA</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:{_BRAND_CARD};border:1px solid {_BRAND_BORDER};border-radius:14px;overflow:hidden;font-family:{_BRAND_FONT};">
+        <tr><td style="height:4px;background:{_BRAND_ORANGE};font-size:0;line-height:0;">&nbsp;</td></tr>
+        <tr><td style="padding:30px 34px 0 34px;">
+          <div style="font-size:12px;letter-spacing:3.2px;color:{_BRAND_ORANGE};font-weight:700;">AUTHORA</div>
         </td></tr>
-        <tr><td style="padding:8px 32px 0 32px;">
-          <h1 style="margin:0;font-family:Georgia,serif;font-size:26px;line-height:1.25;color:#f5f2ea;font-weight:400;">{escape(heading)}</h1>
+        <tr><td style="padding:10px 34px 0 34px;">
+          <h1 style="margin:0;font-size:26px;line-height:1.28;color:{_BRAND_INK};font-weight:600;letter-spacing:-0.4px;">{escape(heading)}</h1>
         </td></tr>
-        <tr><td style="padding:18px 32px 28px 32px;color:#c3c7cf;font-size:15px;line-height:1.65;">
+        <tr><td style="padding:18px 34px 30px 34px;color:{_BRAND_BODY};font-size:15px;line-height:1.68;">
           {body_html}
         </td></tr>
-        <tr><td style="padding:18px 32px 26px 32px;border-top:1px solid #232830;color:#7c828d;font-size:12px;line-height:1.6;">
+        <tr><td style="padding:20px 34px 26px 34px;background:{_BRAND_CREAM_SOFT};border-top:1px solid {_BRAND_BORDER};color:{_BRAND_MUTED};font-size:12px;line-height:1.6;">
           You are receiving this because you have an Authora account.<br>
           Need a human? Reply to this email or write to
-          <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a> — we answer within one business day.
+          <a href="mailto:{support_email()}" style="color:{_BRAND_ORANGE_DEEP};text-decoration:none;font-weight:500;">{support_email()}</a> — we answer within one business day.
         </td></tr>
       </table>
     </td></tr>
@@ -69,10 +100,10 @@ def _layout(heading: str, body_html: str) -> str:
 
 def _button(label: str, href: str) -> str:
     return (
-        f'<p style="margin:26px 0;"><a href="{escape(href)}" '
-        'style="display:inline-block;background:#c9a227;color:#0d0f12;text-decoration:none;'
-        'font-weight:700;padding:13px 22px;border-radius:8px;font-size:15px;">'
-        f"{escape(label)}</a></p>"
+        f'<p style="margin:28px 0;"><a href="{escape(href)}" '
+        f'style="display:inline-block;background:{_BRAND_ORANGE};color:#FFFFFF;text-decoration:none;'
+        'font-weight:600;padding:14px 26px;border-radius:10px;font-size:15px;'
+        f'letter-spacing:0.1px;">{escape(label)}</a></p>'
     )
 
 
@@ -127,10 +158,10 @@ If anything is unclear, reply to this email and a person will answer.
           <li><strong>Publish.</strong> Publish &amp; release sends the finished manuscript to Anema House Publishing and returns a reference number.</li>
         </ol>
         {_button("Open my dashboard", app_url('/dashboard'))}
-        <p style="margin:0 0 8px 0;">Questions: <a href="{escape(app_url('/help'))}" style="color:#c9a227;text-decoration:none;">the help centre</a> ·
-        <a href="{escape(app_url('/contact'))}" style="color:#c9a227;text-decoration:none;">contact us</a> ·
-        <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a></p>
-        <p style="margin:14px 0 0 0;color:#8b909a;font-size:13px;">A person reads every reply. If something is broken or missing, tell us and we will fix it.</p>""",
+        <p style="margin:0 0 8px 0;">Questions: <a href="{escape(app_url('/help'))}" style="color:#E2551B;text-decoration:none;">the help centre</a> ·
+        <a href="{escape(app_url('/contact'))}" style="color:#E2551B;text-decoration:none;">contact us</a> ·
+        <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a></p>
+        <p style="margin:14px 0 0 0;color:#8C857D;font-size:13px;">A person reads every reply. If something is broken or missing, tell us and we will fix it.</p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -158,8 +189,8 @@ Need help? {support_email()}
         f"""<p style="margin:0 0 14px 0;">Hi {escape(name)},</p>
         <p style="margin:0 0 4px 0;">Someone asked to reset the password for this account. If that was you, the link below works for the next hour and can be used once.</p>
         {_button("Choose a new password", reset_url)}
-        <p style="margin:0 0 8px 0;color:#8b909a;font-size:13px;">If you did not ask for this, ignore this email. Your password has not changed.</p>
-        <p style="margin:0;color:#8b909a;font-size:13px;">Link not working? Write to <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a>.</p>""",
+        <p style="margin:0 0 8px 0;color:#8C857D;font-size:13px;">If you did not ask for this, ignore this email. Your password has not changed.</p>
+        <p style="margin:0;color:#8C857D;font-size:13px;">Link not working? Write to <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a>.</p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -197,8 +228,8 @@ Need help? {support_email()}
         "You have been invited",
         f"""<p style="margin:0 0 14px 0;"><strong>{escape(inviter_name)}</strong> invited you to work on <strong>{escape(project_title)}</strong> as a {escape(role_words)}.</p>
         {_button("Accept the invitation", accept_url)}
-        <p style="margin:0 0 8px 0;color:#8b909a;font-size:13px;">{escape(when.strip()) or 'Sign in, or create a free account, and the project opens.'}</p>
-        <p style="margin:0;color:#8b909a;font-size:13px;">If you were not expecting this, ignore this email and nothing will happen.</p>""",
+        <p style="margin:0 0 8px 0;color:#8C857D;font-size:13px;">{escape(when.strip()) or 'Sign in, or create a free account, and the project opens.'}</p>
+        <p style="margin:0;color:#8C857D;font-size:13px;">If you were not expecting this, ignore this email and nothing will happen.</p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -236,13 +267,13 @@ Questions about a charge? {support_email()} — we answer within one business da
         "Payment received",
         f"""<p style="margin:0 0 16px 0;">Thank you — your payment went through.</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
-          <tr><td style="padding:9px 0;border-bottom:1px solid #232830;color:#8b909a;">Item</td><td align="right" style="padding:9px 0;border-bottom:1px solid #232830;color:#f5f2ea;">{escape(description)}</td></tr>
-          <tr><td style="padding:9px 0;border-bottom:1px solid #232830;color:#8b909a;">Amount</td><td align="right" style="padding:9px 0;border-bottom:1px solid #232830;color:#f5f2ea;">{escape(amount)}</td></tr>
-          {f'<tr><td style="padding:9px 0;border-bottom:1px solid #232830;color:#8b909a;">Invoice</td><td align="right" style="padding:9px 0;border-bottom:1px solid #232830;color:#f5f2ea;">{escape(invoice_number)}</td></tr>' if invoice_number else ''}
-          <tr><td style="padding:9px 0;color:#8b909a;">Date</td><td align="right" style="padding:9px 0;color:#f5f2ea;">{datetime.now(timezone.utc).strftime('%d %B %Y')}</td></tr>
+          <tr><td style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#8C857D;">Item</td><td align="right" style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#1A1A1A;">{escape(description)}</td></tr>
+          <tr><td style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#8C857D;">Amount</td><td align="right" style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#1A1A1A;">{escape(amount)}</td></tr>
+          {f'<tr><td style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#8C857D;">Invoice</td><td align="right" style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#1A1A1A;">{escape(invoice_number)}</td></tr>' if invoice_number else ''}
+          <tr><td style="padding:9px 0;color:#8C857D;">Date</td><td align="right" style="padding:9px 0;color:#1A1A1A;">{datetime.now(timezone.utc).strftime('%d %B %Y')}</td></tr>
         </table>
         {_button("Manage billing", app_url('/dashboard/billing'))}
-        <p style="margin:0;color:#8b909a;font-size:13px;">Questions about a charge? <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a></p>""",
+        <p style="margin:0;color:#8C857D;font-size:13px;">Questions about a charge? <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a></p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -269,8 +300,8 @@ If you think this is a mistake, or you need more time, write to {support_email()
         f"""<p style="margin:0 0 14px 0;">We could not take your last payment. Your account still works, and your work is untouched.</p>
         <p style="margin:0 0 4px 0;">Update the card on file before the grace period ends and nothing interrupts.</p>
         {_button("Update payment details", link)}
-        <p style="margin:0 0 8px 0;color:#8b909a;font-size:13px;">If nothing changes, the plan returns to free. Your books and exports stay yours and stay downloadable.</p>
-        <p style="margin:0;color:#8b909a;font-size:13px;">Need more time? <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a></p>""",
+        <p style="margin:0 0 8px 0;color:#8C857D;font-size:13px;">If nothing changes, the plan returns to free. Your books and exports stay yours and stay downloadable.</p>
+        <p style="margin:0;color:#8C857D;font-size:13px;">Need more time? <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a></p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -309,12 +340,12 @@ Questions about the submission: {support_email()}
         "Delivered to the house",
         f"""<p style="margin:0 0 14px 0;">Your manuscript has been delivered to <strong>{escape(house)}</strong>.</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
-          <tr><td style="padding:9px 0;border-bottom:1px solid #232830;color:#8b909a;">Book</td><td align="right" style="padding:9px 0;border-bottom:1px solid #232830;color:#f5f2ea;">{escape(book_title)}</td></tr>
-          <tr><td style="padding:9px 0;color:#8b909a;">Reference</td><td align="right" style="padding:9px 0;color:#c9a227;font-weight:700;">{escape(reference)}</td></tr>
+          <tr><td style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#8C857D;">Book</td><td align="right" style="padding:9px 0;border-bottom:1px solid #E6E0D8;color:#1A1A1A;">{escape(book_title)}</td></tr>
+          <tr><td style="padding:9px 0;color:#8C857D;">Reference</td><td align="right" style="padding:9px 0;color:#E2551B;font-weight:700;">{escape(reference)}</td></tr>
         </table>
         <p style="margin:16px 0 8px 0;">Keep this reference — it identifies your submission from here on. The house reads the pack you sent; a decision usually arrives within four to six weeks.</p>
         {_button("Check the submission", app_url('/dashboard/export'))}
-        <p style="margin:0;color:#8b909a;font-size:13px;">Questions about the submission? <a href="mailto:{support_email()}" style="color:#c9a227;text-decoration:none;">{support_email()}</a></p>""",
+        <p style="margin:0;color:#8C857D;font-size:13px;">Questions about the submission? <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a></p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -342,8 +373,8 @@ If your question is about a book, include the book title in a reply and we will 
         "We have your message",
         f"""<p style="margin:0 0 14px 0;">Hi {escape((name or 'there').strip())},</p>
         <p style="margin:0 0 14px 0;">Your message reached us and a person will read it. We answer within one business day, usually sooner.</p>
-        <blockquote style="margin:0 0 14px 0;padding:12px 16px;border-left:3px solid #c9a227;background:#0d0f12;color:#a9aeb8;font-size:14px;white-space:pre-wrap;">{escape(message.strip()[:1200])}</blockquote>
-        <p style="margin:0;color:#8b909a;font-size:13px;">If it is about a specific book, reply with the title and we will look at the project itself.</p>""",
+        <blockquote style="margin:0 0 14px 0;padding:12px 16px;border-left:3px solid #FF6A2B;background:#FAF9F7;color:#403A34;font-size:14px;white-space:pre-wrap;">{escape(message.strip()[:1200])}</blockquote>
+        <p style="margin:0;color:#8C857D;font-size:13px;">If it is about a specific book, reply with the title and we will look at the project itself.</p>""",
     )
     return await _send(to, subject, text, html)
 
@@ -378,8 +409,8 @@ Reply directly to this email to answer the sender.
     html = _layout(
         "New support message",
         f"""<p style="margin:0 0 14px 0;"><strong>{escape(name or 'Unknown')}</strong> &lt;{escape(from_email)}&gt;</p>
-        <p style="margin:0 0 8px 0;color:#8b909a;font-size:13px;">Type: {escape(lead_type)} · Subject: {escape(subject or '-')}</p>
-        <blockquote style="margin:14px 0;padding:12px 16px;border-left:3px solid #c9a227;background:#0d0f12;color:#d5d9e0;font-size:14px;white-space:pre-wrap;">{escape(message)}</blockquote>
-        <p style="margin:0;color:#8b909a;font-size:13px;">Reply to this email to answer the sender directly.</p>""",
+        <p style="margin:0 0 8px 0;color:#8C857D;font-size:13px;">Type: {escape(lead_type)} · Subject: {escape(subject or '-')}</p>
+        <blockquote style="margin:14px 0;padding:12px 16px;border-left:3px solid #FF6A2B;background:#FAF9F7;color:#403A34;font-size:14px;white-space:pre-wrap;">{escape(message)}</blockquote>
+        <p style="margin:0;color:#8C857D;font-size:13px;">Reply to this email to answer the sender directly.</p>""",
     )
     return await _send(admin_email(), subject_line, text, html)
