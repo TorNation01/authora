@@ -40,6 +40,7 @@ from authora.services.submission import (
     fetch_status,
     guess_type,
     submit_pack,
+    word_count,
 )
 
 router = APIRouter(prefix="/publish", tags=["publish"])
@@ -544,7 +545,9 @@ async def create_submission(
         "title": body.title.strip()[:200],
         "series": body.series.strip()[:160],
         "genre": body.genre.strip()[:80],
-        "word_count": str(body.word_count or 0),
+        # An author who leaves the word-count box blank still has a manuscript
+        # with a length. Send the manuscript's own count, never a bare zero.
+        "word_count": str(body.word_count or word_count(chapters) or 0),
         "pitch": body.pitch.strip()[:4000],
         "source": "authora",
     }
