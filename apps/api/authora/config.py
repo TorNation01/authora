@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # 0 days disables the trial (account lands on Free immediately).
     signup_trial_days: int = 14
     signup_trial_plan: str = "starter"
+    # Lifecycle ladder: seven messages from signup to the first published book.
+    # Off by default so deploying it never mails the existing customer base before
+    # an operator says so; the cron route refuses to run while it is false.
+    lifecycle_emails_enabled: bool = False
+    lifecycle_emails_batch_limit: int = 500
     feature_standalone_landing: bool = True
     feature_standalone_setup_wizard: bool = True
     feature_local_admin_creation: bool = True

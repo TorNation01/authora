@@ -20,6 +20,7 @@ from authora.models.chapter_brief_sheet import ChapterBriefSheet
 from authora.models.book import Book, Chapter, ChapterVersion
 from authora.models.notification import Notification
 from authora.models.notification_delivery_log import NotificationDeliveryLog
+from authora.models.lifecycle_email import LifecycleEmailLog
 from authora.models.gamification import (
     Achievement,
     BadgeDefinition,
@@ -178,6 +179,7 @@ __all__ = [
     "NoteAttachment",
     "Notification",
     "NotificationDeliveryLog",
+    "LifecycleEmailLog",
     "UserStats",
     "Achievement",
     "BadgeDefinition",

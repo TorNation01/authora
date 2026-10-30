@@ -208,10 +208,12 @@ async def register(
 
     # The welcome email carries the whole start-to-finish path, so a new
     # customer is never left guessing what to do first. It is queued after the
-    # commit so a mail failure cannot roll back the account.
-    from authora.services.transactional_email import send_welcome
+    # commit so a mail failure cannot roll back the account. It is also step 1
+    # of the lifecycle ladder, so the ledger is stamped here — otherwise the
+    # hourly sweep would send a second welcome an hour later.
+    from authora.services.lifecycle_email import send_welcome_and_record
 
-    background.add_task(send_welcome, user.email, user.display_name)
+    background.add_task(send_welcome_and_record, user.id, user.email, user.display_name)
 
     return Token(
         access_token=access_token,

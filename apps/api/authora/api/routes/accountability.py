@@ -805,3 +805,39 @@ async def run_reminder_jobs(
         },
     )
     return result
+
+
+@router.post("/cron/lifecycle-emails")
+async def run_lifecycle_emails(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    only: str | None = None,
+):
+    """Advance the seven-message lifecycle ladder (signup -> first published book).
+
+    Call from cron hourly. ``only`` takes a comma-separated list of user ids so an
+    operator can exercise the ladder against a probe account without touching a
+    real customer. Disabled until ``LIFECYCLE_EMAILS_ENABLED=true``.
+    """
+    _require_cron_secret(request)
+
+    from uuid import UUID
+
+    from authora.config import get_settings
+
+    settings = get_settings()
+    if not settings.lifecycle_emails_enabled:
+        return {"enabled": False, "reason": "LIFECYCLE_EMAILS_ENABLED is false"}
+
+    from authora.services.lifecycle_email import run_lifecycle_sweep
+
+    user_ids = None
+    if only:
+        try:
+            user_ids = [UUID(part.strip()) for part in only.split(",") if part.strip()]
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="only must be UUIDs")
+
+    result = await run_lifecycle_sweep(db, limit=settings.lifecycle_emails_batch_limit, user_ids=user_ids)
+    await db.commit()
+    return {"enabled": True, **result}
