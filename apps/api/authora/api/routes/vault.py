@@ -16,6 +16,12 @@ from authora.api.resolvers import (
     get_project_with_access_or_404,
 )
 from authora.database import get_db
+from authora.services.knowledge_mode import (
+    KNOWLEDGE_MODULE_DEFAULTS,
+    KNOWLEDGE_MODULE_LABELS,
+    get_enabled_modules,
+    get_module_label,
+)
 from authora.models import (
     Book,
     Chapter,

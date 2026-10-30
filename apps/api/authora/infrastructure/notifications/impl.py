@@ -1,6 +1,8 @@
 """Notification service implementation with delivery logging and retry."""
 
+import logging
 import smtplib
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
@@ -16,6 +18,8 @@ from authora.infrastructure.notifications.email_templates import (
 )
 from authora.models import Notification, NotificationDeliveryLog, User
 
+
+logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 
@@ -81,18 +85,39 @@ class DefaultNotificationService(NotificationService):
             try:
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = subject
-                msg["From"] = cfg.email_from
+                msg["From"] = (
+                    cfg.email_from if "<" in (cfg.email_from or "") else f"Authora <{cfg.email_from}>"
+                )
                 msg["To"] = to
+                # Replies must come back to the brand inbox (a routable alias that
+                # lands in Proton), not to the outbound sending address.
+                msg["Reply-To"] = cfg.email_reply_to or cfg.smtp_from_email or cfg.from_email or cfg.email_from
                 msg.attach(MIMEText(body, "plain"))
+
                 if html:
                     msg.attach(MIMEText(html, "html"))
-                with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as smtp:
-                    smtp.starttls()
-                    if cfg.smtp_user and cfg.smtp_password:
-                        smtp.login(cfg.smtp_user, cfg.smtp_password)
-                    smtp.sendmail(msg["From"], to, msg.as_string())
+
+                # Port 465 is implicit TLS; 587 is STARTTLS. Cloudflare's sending
+                # endpoint only speaks 465, so the transport has to follow the port.
+                if int(cfg.smtp_port or 587) == 465:
+                    with smtplib.SMTP_SSL(
+                        cfg.smtp_host,
+                        465,
+                        timeout=20,
+                        context=ssl.create_default_context(),
+                    ) as smtp:
+                        if cfg.smtp_user and cfg.smtp_password:
+                            smtp.login(cfg.smtp_user, cfg.smtp_password)
+                        smtp.sendmail(cfg.smtp_from_email or cfg.from_email or cfg.email_from, to, msg.as_string())
+                else:
+                    with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port, timeout=20) as smtp:
+                        smtp.starttls(context=ssl.create_default_context())
+                        if cfg.smtp_user and cfg.smtp_password:
+                            smtp.login(cfg.smtp_user, cfg.smtp_password)
+                        smtp.sendmail(cfg.smtp_from_email or cfg.from_email or cfg.email_from, to, msg.as_string())
                 return True
             except Exception:
+                logger.exception("SMTP send failed (%s via %s:%s)", to, cfg.smtp_host, cfg.smtp_port)
                 return False
         if cfg.notification_email_provider == "sendgrid" and cfg.sendgrid_api_key:
             try:

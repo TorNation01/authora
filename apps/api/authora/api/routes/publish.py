@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ from sqlalchemy.orm import selectinload
 from authora.api.dependencies import CurrentUser
 from authora.database import get_db
 from authora.infrastructure.storage import get_storage_provider
-from authora.models import Book, BookPublication, Project, PublishingAsset
+from authora.models import Book, BookPublication, Project, PublishingAsset, PublisherSubmission
 from authora.models.publication import DEFAULT_IMPRINT
 from authora.schemas.publication import (
     CoverInfo,
@@ -29,8 +29,18 @@ from authora.schemas.publication import (
     ReleaseRecord,
     ReleaseRequest,
 )
-from authora.services.imprint import ANEMA_HOUSE_NAME, build_imprint_page
+from authora.services.imprint import ANEMA_HOUSE_NAME, ANEMA_HOUSE_URL, build_imprint_page
 from authora.services.publishing import build_readiness, normalise_isbn
+from authora.config import get_settings
+from authora.schemas.submission import SubmissionRequest
+from authora.services.submission import (
+    PackFile,
+    SubmissionError,
+    build_manuscript,
+    fetch_status,
+    guess_type,
+    submit_pack,
+)
 
 router = APIRouter(prefix="/publish", tags=["publish"])
 
@@ -383,3 +393,240 @@ async def record_release(
     book.publication = publication
     cover = await _latest_cover(db, book_id)
     return _serialise(book, publication, cover)
+
+
+# --------------------------------------------------------------------------- publishing house
+
+
+def _serialise_submission(record: PublisherSubmission) -> dict:
+    return {
+        "id": record.id,
+        "book_id": record.book_id,
+        "publisher_name": record.publisher_name,
+        "publisher_url": record.publisher_url,
+        "ref": record.ref,
+        "status": record.status,
+        "message": record.message,
+        "submitted_at": record.submitted_at,
+        "checked_at": record.checked_at,
+        "files": record.files or [],
+    }
+
+
+async def _latest_submission(db: AsyncSession, book_id: uuid.UUID) -> PublisherSubmission | None:
+    result = await db.execute(
+        select(PublisherSubmission)
+        .where(PublisherSubmission.book_id == book_id)
+        .order_by(PublisherSubmission.submitted_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+@router.get("/publishers")
+async def list_publishers(current_user: CurrentUser):
+    """The houses Authora can actually reach. Anema House is the default."""
+    return {
+        "default": ANEMA_HOUSE_NAME,
+        "publishers": [
+            {
+                "name": ANEMA_HOUSE_NAME,
+                "url": ANEMA_HOUSE_URL,
+                "connected": True,
+                "note": "Submissions arrive in the house's review queue with a reference number.",
+            }
+        ],
+    }
+
+
+async def _cover_is_readable(db: AsyncSession, book_id: uuid.UUID) -> bool:
+    """True only when a cover row exists *and* its bytes are still in storage."""
+    asset = await _latest_cover(db, book_id)
+    if asset is None or not asset.file_key:
+        return False
+    try:
+        await get_storage_provider().get(asset.file_key)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@router.get("/books/{book_id}/submission")
+async def get_submission(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """The last pack sent for this book, plus the values to prefill the form."""
+    book = await get_book_for_user(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    record = await _latest_submission(db, book_id)
+    publication = book.publication
+    chapters = [c for c in book.chapters if c.deleted_at is None]
+    pitch = (publication.blurb if publication else None) or (publication.short_description if publication else None) or ""
+
+    return {
+        "submission": _serialise_submission(record) if record else None,
+        "defaults": {
+            "publisher_name": ANEMA_HOUSE_NAME,
+            "author_name": (publication.author_name if publication and publication.author_name else current_user.display_name) or "",
+            "email": current_user.email,
+            "title": (publication.title if publication and publication.title else book.title) or "",
+            "series": "",
+            "genre": (book.genre or ""),
+            "word_count": sum(int(c.word_count or 0) for c in chapters),
+            "pitch": pitch,
+        },
+        "pack": {
+            "chapters": len(chapters),
+            "has_cover": await _cover_is_readable(db, book_id),
+        },
+    }
+
+
+@router.post("/books/{book_id}/submission", status_code=status.HTTP_201_CREATED)
+async def create_submission(
+    book_id: uuid.UUID,
+    body: SubmissionRequest,
+    background: BackgroundTasks,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Pack the book and hand it to the publishing house.
+
+    The author sees exactly what was sent and the reference the house returned.
+    A refusal from the house is reported as-is; nothing is retried silently.
+    """
+    book = await get_book_for_user(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    if body.publisher_name.strip() != ANEMA_HOUSE_NAME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only {ANEMA_HOUSE_NAME} is connected. Other houses have no submission channel yet.",
+        )
+
+    chapters = [c for c in book.chapters if c.deleted_at is None]
+    if not chapters:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This book has no chapters to send.")
+
+    pack = build_manuscript(book, chapters, body.author_name)
+    if len(pack.content) < 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The manuscript is empty — write something before sending it to a house.",
+        )
+
+    files = [pack]
+    attached = [{"name": pack.filename, "kind": "manuscript", "bytes": len(pack.content)}]
+
+    cover_asset = await _latest_cover(db, book_id) if body.include_cover else None
+    cover_skipped = False
+    if cover_asset and cover_asset.file_key:
+        try:
+            cover_bytes = await get_storage_provider().get(cover_asset.file_key)
+            cover_type = (cover_asset.asset_metadata or {}).get("content_type") or guess_type(cover_asset.file_key)
+            suffix = "." + cover_asset.file_key.rsplit(".", 1)[-1] if "." in cover_asset.file_key else ".jpg"
+            cover_name = pack.filename.rsplit(" - manuscript.md", 1)[0] + " - cover" + suffix
+            files.append(PackFile(filename=cover_name, content=cover_bytes, content_type=cover_type))
+            attached.append({"name": cover_name, "kind": "cover", "bytes": len(cover_bytes)})
+        except Exception:  # noqa: BLE001 - a missing cover must not block the submission
+            # The record in the database points at a file that is no longer in
+            # storage. Send the manuscript alone and tell the author plainly.
+            cover_skipped = True
+
+    payload = {
+        "name": body.author_name.strip()[:120],
+        "email": body.email.strip()[:200],
+        "title": body.title.strip()[:200],
+        "series": body.series.strip()[:160],
+        "genre": body.genre.strip()[:80],
+        "word_count": str(body.word_count or 0),
+        "pitch": body.pitch.strip()[:4000],
+        "source": "authora",
+    }
+
+    received = None
+    try:
+        received = await submit_pack(
+            base_url=get_settings().anema_intake_url,
+            payload=payload,
+            files=files,
+        )
+    except SubmissionError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    ref = (received or {}).get("ref") or ""
+    if not ref:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The house did not return a reference number — the pack may not have been stored.",
+        )
+
+    record = PublisherSubmission(
+        book_id=book.id,
+        user_id=current_user.id,
+        publisher_name=ANEMA_HOUSE_NAME,
+        publisher_url=ANEMA_HOUSE_URL,
+        ref=ref,
+        status=(received or {}).get("status") or "received",
+        message=(received or {}).get("message"),
+        payload=payload,
+        files=attached,
+    )
+    db.add(record)
+    await db.commit()
+    await db.refresh(record)
+
+    # The house reference is the customer's only handle on the submission.
+    # Send it to them; do not make them hunt for it in the UI.
+    from authora.services.transactional_email import send_submission_received
+
+    background.add_task(
+        send_submission_received,
+        current_user.email,
+        book_title=book.title,
+        reference=ref,
+    )
+
+    return {
+        "submission": _serialise_submission(record),
+        "receipt": received,
+        "sent": attached,
+        "cover_skipped": cover_skipped,
+    }
+
+
+@router.post("/books/{book_id}/submission/refresh")
+async def refresh_submission(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Ask the house what it thinks of the pack now."""
+    book = await get_book_for_user(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    record = await _latest_submission(db, book_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nothing has been sent for this book yet.")
+
+    try:
+        answer = await fetch_status(
+            base_url=get_settings().anema_intake_url,
+            ref=record.ref,
+            email=(record.payload or {}).get("email") or current_user.email,
+        )
+    except SubmissionError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    record.status = answer.get("status") or record.status
+    record.checked_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(record)
+
+    return {"submission": _serialise_submission(record), "answer": answer}

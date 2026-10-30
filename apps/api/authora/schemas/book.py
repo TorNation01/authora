@@ -13,6 +13,7 @@ class ChapterCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     sort_order: int = 0
     content: dict[str, Any] = Field(default_factory=dict)
+    summary: str | None = None
 
 
 class ChapterUpdate(BaseModel):
@@ -21,6 +22,7 @@ class ChapterUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=500)
     sort_order: int | None = None
     content: dict[str, Any] | None = None
+    summary: str | None = None
     section_status: str | None = Field(None, pattern="^(draft|revising|review|done)$")
     section_group: str | None = Field(None, max_length=255)
     tags: list[str] | None = None
@@ -55,6 +57,7 @@ class ChapterResponse(BaseModel):
     title: str
     sort_order: int
     content: dict[str, Any]
+    summary: str | None = None
     word_count: int
     section_status: str | None = None
     section_group: str | None = None

@@ -187,6 +187,22 @@ app.include_router(density.router, prefix="/api/v1")
 app.include_router(rag.router, prefix="/api/v1")
 app.include_router(leads.router, prefix="/api/v1")
 app.include_router(vault.router, prefix="/api/v1")
+from authora.api.routes import bible  # noqa: E402
+from authora.api.routes import book_idea  # noqa: E402
+from authora.api.routes import outline  # noqa: E402
+from authora.api.routes import chapter_outline  # noqa: E402
+from authora.api.routes import chapter_brief  # noqa: E402
+from authora.api.routes import media  # noqa: E402
+from authora.api.routes import process  # noqa: E402
+from authora.api.routes import series  # noqa: E402
+from authora.api.routes import saga  # noqa: E402
+app.include_router(bible.router, prefix="/api/v1")
+app.include_router(book_idea.router, prefix="/api/v1")
+app.include_router(outline.router, prefix="/api/v1")
+app.include_router(process.router, prefix="/api/v1/projects")
+app.include_router(chapter_outline.router, prefix="/api/v1")
+app.include_router(chapter_brief.router, prefix="/api/v1")
+app.include_router(media.router, prefix="/api/v1")
 app.include_router(references.router, prefix="/api/v1")
 app.include_router(import_document.router, prefix="/api/v1")
 
@@ -247,3 +263,6 @@ async def health_ready():
 async def root():
     """Root."""
     return {"app": settings.app_name, "docs": "/api/docs"}
+
+app.include_router(series.router, prefix="/api/v1")
+app.include_router(saga.router, prefix="/api/v1")

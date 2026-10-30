@@ -145,7 +145,7 @@ async def get_trending_templates(
     # Purchases
     r_purch = await db.execute(
         select(TemplatePurchase.template_id, func.count(TemplatePurchase.id).label("cnt"))
-        .where(TemplatePurchase.created_at >= since)
+        .where(TemplatePurchase.purchased_at >= since)
         .group_by(TemplatePurchase.template_id)
     )
     for tid, c in r_purch.all():

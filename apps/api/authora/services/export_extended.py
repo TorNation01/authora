@@ -231,7 +231,15 @@ def export_outline(chapters: list[dict]) -> bytes:
         title = ch.get("title", "Untitled")
         content = ch.get("content", {})
         text = tiptap_to_plain_text(content)
-        summary = text[:200] + "..." if len(text) > 200 else text
+        # Templates seed a per-chapter brief (the real guidance) into
+        # chapters.summary. Prefer it over the manuscript body, which is empty
+        # until the author writes — otherwise every templated book exports
+        # "(no content)" against a chapter that does have a brief.
+        stored = (ch.get("summary") or "").strip()
+        if stored:
+            summary = stored[:200] + "..." if len(stored) > 200 else stored
+        else:
+            summary = text[:200] + "..." if len(text) > 200 else text
         parts.append(f"{i}. {title}\n   {summary.strip() or '(no content)'}")
     return "\n\n".join(parts).encode("utf-8")
 

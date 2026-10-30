@@ -8,6 +8,15 @@ from authora.models.accountability import (
     WritingPlan,
 )
 from authora.models.audit import AuditLog
+from authora.models.book_idea import BookIdea
+from authora.models.outline import OutlineTurningPoint
+from authora.models.chapter_outline import ChapterOutline
+from authora.models.outline_act import OutlineActSheet
+from authora.models.manuscript_review import ManuscriptReview
+from authora.models.saga import Saga, SagaOutline, SagaThread, SagaTruth, SeriesPlan
+from authora.models.outline_check import OutlineCheckRun
+from authora.models.bible import Act, BookBible, BookCharacter, Character, CharacterBond, SeriesBible
+from authora.models.chapter_brief_sheet import ChapterBriefSheet
 from authora.models.book import Book, Chapter, ChapterVersion
 from authora.models.notification import Notification
 from authora.models.notification_delivery_log import NotificationDeliveryLog
@@ -108,6 +117,7 @@ from authora.models.reminder import Reminder
 from authora.models.analytics_event import AnalyticsEvent
 from authora.models.publishing_asset import PublishingAsset
 from authora.models.publication import BookPublication
+from authora.models.publisher_submission import PublisherSubmission
 from authora.models.feature_flag import FeatureFlag
 from authora.models.setup_state import SetupState
 from authora.models.plan import Plan
@@ -308,4 +318,22 @@ __all__ = [
     "AffiliateAttribution",
     "AffiliateConversion",
     "AffiliatePayout",
+    "PublisherSubmission",
+    "BookBible",
+    "Character",
+    "BookCharacter",
+    "Act",
+    "ChapterBriefSheet",
+    "CharacterBond",
+    "BookIdea",
+    "OutlineTurningPoint",
+    "ChapterOutline",
+    "OutlineActSheet",
+    "OutlineCheckRun",
+    "ManuscriptReview",
+    "Saga",
+    "SagaOutline",
+    "SeriesPlan",
+    "SagaThread",
+    "SagaTruth",
 ]

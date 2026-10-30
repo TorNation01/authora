@@ -221,6 +221,8 @@ async def update_chapter(
 
     if data.title is not None:
         chapter.title = data.title
+    if data.summary is not None:
+        chapter.summary = data.summary
     if data.sort_order is not None:
         chapter.sort_order = data.sort_order
     if data.section_status is not None:
@@ -439,7 +441,7 @@ async def get_ai_preferences(
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     result = await db.execute(select(BookSettings).where(BookSettings.book_id == book_id))
     bs = result.scalar_one_or_none()
-    prefs = (bs.settings or {}).get("ai_prefs") or {}
+    prefs = (bs.settings or {}).get("ai_prefs") or {} if bs else {}
     return {"ai_prefs": prefs}
 
 

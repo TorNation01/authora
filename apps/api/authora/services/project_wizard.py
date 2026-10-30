@@ -36,6 +36,7 @@ async def create_project_from_wizard(
     target_date: str | None = None,
     guidance_mode: str = "guided",
     knowledge_mode: str | None = None,
+    chapter_count: int | None = None,
 ) -> tuple[Project, Book]:
     """Create project and book from template (or blank)."""
     from authora.services.billing_service import check_book_limit, check_project_limit
@@ -68,8 +69,10 @@ async def create_project_from_wizard(
     bt = template.book_type if template and template.book_type else book_type
     gn = genre or (template.genre if template else None)
     # User-provided genre_tags/themes override template defaults
-    gt = genre_tags if genre_tags else (template.genre_tags if template and template.genre_tags else ([gn.lower()] if gn else []))
-    th = themes if themes else (template.themes if template and template.themes else [])
+    gt = genre_tags if genre_tags else (
+        getattr(template, "genre_tags", None) or ([gn.lower()] if gn else [])
+    )
+    th = themes if themes else (getattr(template, "themes", None) or [])
 
     book_title_str = book_title or project_name
 
@@ -142,13 +145,23 @@ async def create_project_from_wizard(
     # Create chapters: guided/flexible use skeletons; freeform gets one blank chapter
     chapter_skeletons: list[dict[str, Any]] = []
     if guidance_mode == "freeform":
-        chapter_skeletons = [{"title": "Chapter 1", "summary": ""}]
+        # No template structure — the user's explicit chapter_count decides,
+        # and the fallback below still guarantees one chapter.
+        chapter_skeletons = []
     elif template and template.chapter_skeletons:
         chapter_skeletons = template.chapter_skeletons
         if guidance_mode == "flexible" and len(chapter_skeletons) > 10:
             chapter_skeletons = chapter_skeletons[:5]  # Lighter structure
     if not chapter_skeletons and framework and framework.chapter_skeletons and guidance_mode == "guided":
         chapter_skeletons = framework.chapter_skeletons
+
+    # A book with zero chapters is a dead end: the onboarding promise is
+    # "start writing", and the editor has nothing to open. Honour an explicit
+    # count, and always fall back to one real chapter.
+    if not chapter_skeletons and chapter_count:
+        chapter_skeletons = [{"title": f"Chapter {i + 1}", "summary": ""} for i in range(int(chapter_count))]
+    if not chapter_skeletons:
+        chapter_skeletons = [{"title": "Chapter 1", "summary": ""}]
 
     if chapter_skeletons:
         for i, skel in enumerate(chapter_skeletons):
@@ -157,6 +170,7 @@ async def create_project_from_wizard(
                 book_id=book.id,
                 title=title,
                 sort_order=i,
+                summary=(skel.get("summary") or None),
                 content={"type": "doc", "content": [{"type": "paragraph", "content": []}]},
                 word_count=0,
             )

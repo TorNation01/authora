@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
@@ -52,6 +52,14 @@ class PlanPriceResponse(BaseModel):
     lifetime_cents: int | None = None
 
 
+class LifetimeOfferResponse(BaseModel):
+    """Limited-time lifetime offer state. Closed unless an end date is set."""
+
+    available: bool = False
+    starts_at: str | None = None
+    ends_at: str | None = None
+
+
 class PlanResponse(BaseModel):
     id: str
     slug: str
@@ -59,6 +67,26 @@ class PlanResponse(BaseModel):
     limits: dict
     features: list[str]
     price: PlanPriceResponse | None = None
+    lifetime_offer: LifetimeOfferResponse | None = None
+
+
+def lifetime_offer_state(plan: Any) -> LifetimeOfferResponse:
+    """Resolve whether a plan's lifetime price is on sale right now.
+
+    A lifetime price with no ``lifetime_available_to`` is deliberately NOT
+    sellable: the offer is a window, not a permanent product.
+    """
+    end = getattr(plan, "lifetime_available_to", None)
+    start = getattr(plan, "lifetime_available_from", None)
+    if end is None:
+        return LifetimeOfferResponse(available=False)
+    now = datetime.now(end.tzinfo) if end.tzinfo else datetime.utcnow()
+    available = (start is None or now >= start) and now <= end
+    return LifetimeOfferResponse(
+        available=available,
+        starts_at=start.isoformat() if start else None,
+        ends_at=end.isoformat(),
+    )
 
 
 class UsageResponse(BaseModel):
@@ -196,6 +224,7 @@ async def get_billing_status(
                 yearly_cents=getattr(plan, "price_yearly_cents", None),
                 lifetime_cents=getattr(plan, "price_lifetime_cents", None),
             ) if any([getattr(plan, "price_monthly_cents", None), getattr(plan, "price_yearly_cents", None), getattr(plan, "price_lifetime_cents", None)]) else None,
+            lifetime_offer=lifetime_offer_state(plan) if getattr(plan, "price_lifetime_cents", None) else None,
         ),
         usage=UsageResponse(**usage),
         billing_exempt=billing_exempt,
@@ -213,21 +242,29 @@ async def list_plans(
     """List available plans (public)."""
     r = await db.execute(select(Plan).order_by(asc(Plan.sort_order)))
     plans = r.scalars().all()
-    return [
-        PlanResponse(
-            id=str(p.id),
-            slug=p.slug,
-            name=p.name,
-            limits=p.limits or {},
-            features=p.features or [],
-            price=PlanPriceResponse(
-                monthly_cents=getattr(p, "price_monthly_cents", None),
-                yearly_cents=getattr(p, "price_yearly_cents", None),
-                lifetime_cents=getattr(p, "price_lifetime_cents", None),
-            ) if any([getattr(p, "price_monthly_cents", None), getattr(p, "price_yearly_cents", None), getattr(p, "price_lifetime_cents", None)]) else None,
+    out: list[PlanResponse] = []
+    for p in plans:
+        offer = lifetime_offer_state(p) if getattr(p, "price_lifetime_cents", None) else None
+        lifetime_cents = getattr(p, "price_lifetime_cents", None)
+        # Never advertise a lifetime price the checkout will refuse.
+        if offer is not None and not offer.available:
+            lifetime_cents = None
+        out.append(
+            PlanResponse(
+                id=str(p.id),
+                slug=p.slug,
+                name=p.name,
+                limits=p.limits or {},
+                features=p.features or [],
+                price=PlanPriceResponse(
+                    monthly_cents=getattr(p, "price_monthly_cents", None),
+                    yearly_cents=getattr(p, "price_yearly_cents", None),
+                    lifetime_cents=lifetime_cents,
+                ) if any([getattr(p, "price_monthly_cents", None), getattr(p, "price_yearly_cents", None), lifetime_cents]) else None,
+                lifetime_offer=offer,
+            )
         )
-        for p in plans
-    ]
+    return out
 
 
 # --- Admin override ---
@@ -747,6 +784,23 @@ async def create_checkout(
 ):
     """Create Stripe Checkout session. Returns url and session_id when Stripe configured."""
     from authora.services.stripe_service import create_checkout_session
+
+    # Lifetime is a limited-time offer. Enforce the window server-side so a
+    # stale page or a hand-made request cannot buy it outside the window.
+    if data.billing_interval == "lifetime":
+        pr = await db.execute(select(Plan).where(Plan.slug == data.plan_slug))
+        offer_plan = pr.scalar_one_or_none()
+        if offer_plan is not None and getattr(offer_plan, "price_lifetime_cents", None):
+            offer = lifetime_offer_state(offer_plan)
+            if not offer.available:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "lifetime_offer_closed",
+                        "message": "Lifetime Access is not currently on sale. It reopens in limited windows.",
+                        "ends_at": offer.ends_at,
+                    },
+                )
 
     result = await create_checkout_session(
         db,

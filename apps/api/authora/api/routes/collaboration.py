@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -168,6 +168,7 @@ async def list_invites(
 async def create_invite(
     project_id: uuid.UUID,
     data: ProjectInviteCreate,
+    background: BackgroundTasks,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -226,7 +227,23 @@ async def create_invite(
     )
     db.add(activity)
 
+    await db.commit()
     await db.refresh(invite)
+
+    # The invite email is the only way the invitee learns the project exists —
+    # a token in the database with no message is a dropped end.
+    from authora.services.transactional_email import send_project_invite
+
+    background.add_task(
+        send_project_invite,
+        invite.email,
+        inviter_name=current_user.display_name or current_user.email,
+        project_title=project.title,
+        role=invite.role,
+        invite_token=invite.token,
+        expires_at=invite.expires_at,
+    )
+
     return ProjectInviteResponse.model_validate(invite)
 
 
@@ -234,6 +251,7 @@ async def create_invite(
 async def resend_invite(
     project_id: uuid.UUID,
     invite_id: uuid.UUID,
+    background: BackgroundTasks,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -258,8 +276,20 @@ async def resend_invite(
 
     invite.token = secrets.token_urlsafe(32)
     invite.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    await db.flush()
+    await db.commit()
     await db.refresh(invite)
+
+    from authora.services.transactional_email import send_project_invite
+
+    background.add_task(
+        send_project_invite,
+        invite.email,
+        inviter_name=current_user.display_name or current_user.email,
+        project_title=project.title,
+        role=invite.role,
+        invite_token=invite.token,
+        expires_at=invite.expires_at,
+    )
     return ProjectInviteResponse.model_validate(invite)
 
 

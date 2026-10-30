@@ -1,5 +1,6 @@
 """Security middleware: rate limiting, secure headers, request ID."""
 
+import hashlib
 import time
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -31,12 +32,21 @@ def _get_client_ip(request: Request) -> str:
 
 
 def _rate_limit_key(request: Request) -> str:
-    """Key for rate limiting: IP + path prefix."""
+    """Key for rate limiting.
+
+    Authenticated traffic is bucketed per token, not per IP: a single user
+    clicking through the dashboard fires dozens of API calls, and behind the
+    tunnel many users share one egress IP. Anonymous traffic stays per-IP.
+    """
     ip = _get_client_ip(request)
     path = request.url.path
     # Stricter key for auth endpoints (login/register brute-force protection)
     if "/auth/login" in path or "/auth/register" in path:
         return f"auth:{ip}"
+    auth = request.headers.get("authorization") or ""
+    if auth.startswith("Bearer ") and len(auth) > 20:
+        digest = hashlib.sha256(auth[7:].encode()).hexdigest()[:16]
+        return f"user:{digest}"
     # Group by /api/v1 prefix for API routes
     if path.startswith("/api/"):
         return f"{ip}:api"
@@ -63,7 +73,7 @@ def _cleanup_expired_entries():
 
 
 # Defaults: 100 req/min general; 5/15min for auth
-RATE_LIMIT_REQUESTS = 100
+RATE_LIMIT_REQUESTS = 600
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_AUTH_ATTEMPTS = 5
 RATE_LIMIT_AUTH_WINDOW = 900  # 15 min
@@ -139,8 +149,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             key = _rate_limit_key(request)
             if _is_auth_path(request.url.path):
                 limit, window = self.rate_limit_auth_attempts, self.rate_limit_auth_window
+                # Separate budgets per credential flow. Sharing one bucket meant
+                # four mistyped passwords locked a user out of "Forgot password"
+                # for the rest of the window — a support ticket we caused.
+                if "/auth/forgot" in request.url.path or "/auth/reset" in request.url.path:
+                    key = f"{key}:recovery"
+                else:
+                    key = f"{key}:login"
             else:
                 limit, window = self.rate_limit_requests, self.rate_limit_window
+                key = f"{key}:api"
 
             allowed, used_redis = await _check_rate_limit_redis(key, limit, window)
             if not used_redis:

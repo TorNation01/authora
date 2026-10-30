@@ -47,7 +47,12 @@ async def get_or_create_workspace(db: AsyncSession, book_id: uuid.UUID) -> Ghost
         ws = GhostwriterWorkspace(book_id=book_id)
         db.add(ws)
         await db.flush()
-        await db.refresh(ws)
+        result = await db.execute(
+            select(GhostwriterWorkspace)
+            .options(selectinload(GhostwriterWorkspace.chapter_briefs))
+            .where(GhostwriterWorkspace.book_id == book_id)
+        )
+        ws = result.scalar_one()
     return ws
 
 
@@ -61,6 +66,7 @@ async def get_workspace(
     """Get or create ghostwriter workspace."""
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
     ws = await get_or_create_workspace(db, book_id)
+    await db.refresh(ws, attribute_names=["chapter_briefs"])
     return GhostwriterWorkspaceResponse.model_validate(ws)
 
 
@@ -80,7 +86,9 @@ async def submit_intake(
     ws.voice_tone = data.voice_tone
     ws.target_audience = data.target_audience
     ws.desired_outcome = data.desired_outcome
-    ws.word_count_target = data.word_count_target
+    ws.word_count_target = (
+        str(data.word_count_target) if data.word_count_target is not None else None
+    )
     ws.deadline = data.deadline
     ws.author_background = data.author_background
     ws.sample_text = data.sample_text
@@ -89,6 +97,7 @@ async def submit_intake(
     ws.workflow_step = "outline"
     await db.flush()
     await db.refresh(ws)
+    await db.refresh(ws, attribute_names=["chapter_briefs"])
     return GhostwriterWorkspaceResponse.model_validate(ws)
 
 
@@ -171,6 +180,7 @@ async def approve_outline(
             await db.flush()
     await db.flush()
     await db.refresh(ws)
+    await db.refresh(ws, attribute_names=["chapter_briefs"])
     return GhostwriterWorkspaceResponse.model_validate(ws)
 
 

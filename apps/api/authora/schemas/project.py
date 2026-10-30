@@ -20,6 +20,11 @@ class ProjectCreate(BaseModel):
         pattern="^(fiction|nonfiction|memoir|workbook|hybrid)$",
         description="Knowledge vault mode: fiction, nonfiction, memoir, workbook, hybrid",
     )
+    scope: str = Field(
+        default="series",
+        pattern="^(standalone|series)$",
+        description="Shape of the project: one book, a series, or a saga container",
+    )
     knowledge_modules: list[str] | None = Field(
         default=None,
         description="Override enabled modules (null = use mode defaults)",
@@ -40,6 +45,11 @@ class ProjectUpdate(BaseModel):
         pattern="^(fiction|nonfiction|memoir|workbook|hybrid)$",
         description="Knowledge vault mode: fiction, nonfiction, memoir, workbook, hybrid",
     )
+    scope: str | None = Field(
+        None,
+        pattern="^(standalone|series)$",
+        description="Shape of the project: one book, a series, or a saga container",
+    )
     knowledge_modules: list[str] | None = Field(
         default=None,
         description="Override enabled modules (null = use mode defaults, [] = clear override)",
@@ -53,6 +63,8 @@ class ProjectResponse(BaseModel):
     user_id: UUID
     name: str
     guidance_mode: str
+    scope: str = "series"
+    saga_id: UUID | None = None
     template_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
@@ -85,6 +97,9 @@ class ProjectWizardRequest(BaseModel):
     themes: list[str] | None = Field(None, description="Thematic overlays, e.g. ['dystopian','post-apocalyptic']")
     core_idea: str | None = Field(None, max_length=2000)
     wizard_answers: dict[str, str | int | list] | None = None
+    # How many chapters to scaffold. "Not sure yet" sends 1, and the service
+    # always guarantees at least one chapter so a new book is never empty.
+    chapter_count: int | None = Field(None, ge=1, le=200)
     structure_framework: str | None = None
     framework_id: UUID | None = Field(None, description="Writing framework ID (overrides template)")
     target_words: int | None = Field(None, ge=0)

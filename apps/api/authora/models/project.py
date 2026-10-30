@@ -47,6 +47,10 @@ class Project(Base):
     )
     guidance_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="guided")
     knowledge_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="fiction")
+    scope: Mapped[str] = mapped_column(String(20), nullable=False, default="series")
+    saga_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sagas.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     knowledge_modules: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

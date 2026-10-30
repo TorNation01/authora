@@ -1,6 +1,7 @@
 """Billing plan model."""
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, Integer, String, func
@@ -24,6 +25,10 @@ class Plan(Base):
     price_monthly_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_yearly_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_lifetime_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Lifetime is a limited-time offer: it is only purchasable inside an
+    # explicit window. No end date => not on sale at all.
+    lifetime_available_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lifetime_available_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     stripe_price_id_monthly: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stripe_price_id_yearly: Mapped[str | None] = mapped_column(String(255), nullable=True)
     stripe_price_id_lifetime: Mapped[str | None] = mapped_column(String(255), nullable=True)

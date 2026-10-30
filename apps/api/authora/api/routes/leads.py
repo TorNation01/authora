@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, EmailStr, Field
 
 from authora.database import async_session_factory
@@ -24,7 +24,7 @@ class LeadCreate(BaseModel):
 
 
 @router.post("", status_code=201)
-async def create_lead(body: LeadCreate):
+async def create_lead(body: LeadCreate, background: BackgroundTasks):
     """Capture a lead (newsletter, contact, demo request). No auth required."""
     lead_id = str(uuid.uuid4())
     email = body.email.strip().lower()
@@ -53,5 +53,23 @@ async def create_lead(body: LeadCreate):
             },
         )
         await db.commit()
+
+    # Answer the sender, and alert the support inbox. Both are queued after the
+    # row is stored so a mail problem never loses the request itself.
+    from authora.services.transactional_email import (
+        send_contact_ack,
+        send_support_notification,
+    )
+
+    if lead_type in ("contact", "support", "demo"):
+        background.add_task(send_contact_ack, email, name=name, message=message or subject or "(no message)")
+        background.add_task(
+            send_support_notification,
+            from_email=email,
+            name=name,
+            lead_type=lead_type,
+            subject=subject,
+            message=message or "(no message body)",
+        )
 
     return {"success": True, "id": lead_id}

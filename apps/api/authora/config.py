@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     app_name: str = "AUTHORA"
     debug: bool = False
 
+    # Publishing house submissions. This is the same intake Fliss posts to.
+    anema_intake_url: str = "https://anemahouse.com/intake"
+
     # Deployment mode: standalone | anakatech | white_label
     deployment_mode: str = "standalone"
 
@@ -73,7 +76,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Rate limiting (global and auth)
-    rate_limit_requests_per_minute: Optional[int] = 100
+    rate_limit_requests_per_minute: Optional[int] = 600
     rate_limit_auth_attempts: Optional[int] = 5  # Login/register brute-force protection (5 per 15 min)
     rate_limit_auth_window_seconds: int = 900  # 15 min for auth
 
@@ -166,6 +169,19 @@ class Settings(BaseSettings):
     smtp_from_email: Optional[str] = None
     from_email: Optional[str] = None  # Alias used by setup wizard; fallback for smtp_from_email
     sendgrid_api_key: Optional[str] = None
+
+    # Brand inboxes. All of these are live Cloudflare Email Routing rules that
+    # forward to Nathan's Proton mailbox, so a reply from a customer lands in a
+    # real inbox instead of a black hole.
+    support_email: str = "support@authora.studio"
+    admin_email: str = "admin@authora.studio"
+    sales_email: str = "sales@authora.studio"
+    # Where replies to automated mail should go; defaults to the support inbox.
+    notification_reply_to: Optional[str] = None
+
+    @property
+    def email_reply_to(self) -> str:
+        return self.notification_reply_to or self.support_email
 
     @property
     def email_from(self) -> str:

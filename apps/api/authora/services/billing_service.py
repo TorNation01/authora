@@ -230,9 +230,16 @@ async def check_limit(
 
 
 async def has_feature(db: AsyncSession, user_id: UUID, feature: str) -> bool:
-    """Check if user's plan includes feature."""
+    """Check if user's plan includes feature.
+
+    Plans list granular ai_assist_* features (basic/enhanced/full/unlimited)
+    rather than a single "ai" key, so the umbrella name has to resolve against
+    any of them. Without this, turning billing on locked every plan out of AI.
+    """
     plan = await get_user_plan(db, user_id)
     features = plan.features or []
+    if feature == "ai":
+        return any(f == "ai" or f.startswith("ai_assist") for f in features)
     return feature in features
 
 

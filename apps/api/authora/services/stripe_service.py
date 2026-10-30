@@ -4,6 +4,7 @@ Stripe-ready abstraction. When STRIPE_SECRET_KEY is not set, all operations
 return None or raise with clear messages. Product/price IDs are stored on Plan.
 """
 
+import logging
 import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.config import get_settings
+logger = logging.getLogger(__name__)
+
 from authora.models import Plan, ProjectTemplate, StripeWebhookEvent, Subscription, TemplatePack, TemplatePackPurchase, TemplatePurchase, User
 from authora.services.creator_payout_service import create_earning_from_purchase
 
@@ -64,8 +67,32 @@ async def create_checkout_session(
     elif billing_interval == "lifetime":
         price_id = getattr(plan, "stripe_price_id_lifetime", None)
 
+    # No pre-created Stripe price? Build the line item inline from the plan's own
+    # price columns so a plan with a price can always be bought. Without this a
+    # priced plan silently refuses checkout until someone visits the dashboard.
+    inline_price: dict | None = None
     if not price_id:
-        return None
+        cents = None
+        if billing_interval == "monthly":
+            cents = plan.price_monthly_cents
+        elif billing_interval == "yearly":
+            cents = plan.price_yearly_cents
+        elif billing_interval == "lifetime":
+            cents = plan.price_lifetime_cents
+        if not cents or cents <= 0:
+            return None
+        product_data: dict = {"name": f"Authora {plan.name} ({billing_interval})"}
+        if plan.features:
+            product_data["description"] = f"{plan.name} plan for Authora"
+        inline_price = {
+            "currency": "usd",
+            "product_data": product_data,
+            "unit_amount": int(cents),
+        }
+        if billing_interval in ("monthly", "yearly"):
+            inline_price["recurring"] = {
+                "interval": "month" if billing_interval == "monthly" else "year"
+            }
 
     r2 = await db.execute(select(User).where(User.id == user_id))
     user = r2.scalar_one_or_none()
@@ -90,7 +117,9 @@ async def create_checkout_session(
     mode = "subscription" if billing_interval in ("monthly", "yearly") else "payment"
     params = {
         "mode": mode,
-        "line_items": [{"price": price_id, "quantity": 1}],
+        "line_items": [
+            {"price": price_id, "quantity": 1} if price_id else {"price_data": inline_price, "quantity": 1}
+        ],
         "success_url": success,
         "cancel_url": cancel,
         "metadata": {
@@ -640,6 +669,17 @@ async def _handle_invoice_payment_failed(db: AsyncSession, event: dict) -> None:
     sub.grace_period_end = grace_end
     sub.status = "past_due"  # Retain access during grace period
 
+    # Tell the customer before the grace period runs out. Silence here is how
+    # a paying customer quietly loses access and never comes back.
+    try:
+        user = (await db.execute(select(User).where(User.id == sub.user_id))).scalar_one_or_none()
+        if user and user.email:
+            from authora.services.transactional_email import send_payment_failed
+
+            await send_payment_failed(user.email)
+    except Exception:  # noqa: BLE001 - never fail the webhook on email
+        logger.exception("payment-failed email failed for subscription %s", subscription_id)
+
 
 async def _handle_invoice_paid(db: AsyncSession, event: dict) -> None:
     """Clear grace period when payment succeeds. Record affiliate conversion."""
@@ -655,6 +695,29 @@ async def _handle_invoice_paid(db: AsyncSession, event: dict) -> None:
     if sub:
         sub.grace_period_end = None
         sub.status = "active"
+
+        # A receipt is the record the customer keeps. Queued after the status
+        # change so a mail failure cannot undo a paid subscription.
+        try:
+            user = (await db.execute(select(User).where(User.id == sub.user_id))).scalar_one_or_none()
+            if user and user.email:
+                from authora.services.transactional_email import send_receipt
+
+                amount = int(invoice.get("amount_paid") or 0)
+                description = (
+                    invoice.get("lines", {}).get("data", [{}])[0].get("description")
+                    if isinstance(invoice.get("lines"), dict)
+                    else None
+                ) or "Authora subscription"
+                await send_receipt(
+                    user.email,
+                    description=description,
+                    amount_cents=amount,
+                    currency=(invoice.get("currency") or "usd"),
+                    invoice_number=invoice.get("number"),
+                )
+        except Exception:  # noqa: BLE001 - never fail the webhook on email
+            logger.exception("receipt email failed for subscription %s", subscription_id)
 
         if get_settings().feature_affiliate:
             from authora.services.affiliate_service import record_conversion_on_payment

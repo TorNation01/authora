@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -44,6 +44,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=Token)
 async def register(
     data: UserCreate,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """Register new user. Standalone mode only."""
@@ -92,6 +93,13 @@ async def register(
         await attribute_signup(db, user.id, data.affiliate_code)
 
     await db.commit()
+
+    # The welcome email carries the whole start-to-finish path, so a new
+    # customer is never left guessing what to do first. It is queued after the
+    # commit so a mail failure cannot roll back the account.
+    from authora.services.transactional_email import send_welcome
+
+    background.add_task(send_welcome, user.email, user.display_name)
 
     return Token(
         access_token=access_token,
@@ -455,3 +463,124 @@ async def reset_ai_personalization(
     await db.commit()
     await db.refresh(pref)
     return _to_response(p)
+
+
+# ---------------------------------------------------------------------------
+# Password reset
+# ---------------------------------------------------------------------------
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+def _reset_fingerprint(hashed_password: str) -> str:
+    """Short digest of the current hash.
+
+    Putting it in the token makes the link single-use without a token table:
+    once the password changes, the embedded fingerprint no longer matches.
+    """
+    import hashlib
+
+    return hashlib.sha256((hashed_password or "").encode()).hexdigest()[:16]
+
+
+def _make_reset_token(user: User) -> str:
+    from datetime import datetime, timedelta, timezone
+
+    from jose import jwt
+
+    settings = get_settings()
+    payload = {
+        "sub": str(user.id),
+        "purpose": "password_reset",
+        "pwf": _reset_fingerprint(user.hashed_password),
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start a password reset.
+
+    Always answers the same way, whether or not the address has an account —
+    otherwise this endpoint becomes a way to test which emails are registered.
+    """
+    email = (data.email or "").strip().lower()
+    if email:
+        user = await get_user_by_email(db, email)
+        if user and user.is_active:
+            from authora.services.transactional_email import send_password_reset
+
+            token = _make_reset_token(user)
+            reset_url = f"{get_settings().app_base_url.rstrip('/')}/reset-password?token={token}"
+            background.add_task(send_password_reset, user.email, reset_url, user.display_name)
+
+    return {
+        "message": "If that address has an account, a reset link is on its way. The link works for one hour.",
+    }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Finish a password reset. One use only, one hour to use it."""
+    from jose import JWTError, jwt
+    from sqlalchemy import delete
+
+    from authora.models import Session as SessionModel
+    from authora.services.auth import hash_password
+
+    if len(data.new_password or "") < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Choose a password of at least 8 characters.",
+        )
+
+    settings = get_settings()
+    try:
+        payload = jwt.decode(data.token or "", settings.secret_key, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That reset link is not valid. Request a new one.",
+        ) from None
+
+    if payload.get("purpose") != "password_reset":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That reset link is not valid.")
+
+    try:
+        user_id = uuid.UUID(str(payload.get("sub")))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That reset link is not valid.") from None
+
+    user = await get_user_by_id(db, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That reset link is not valid.")
+
+    if payload.get("pwf") != _reset_fingerprint(user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That reset link has already been used. Request a new one.",
+        )
+
+    user.hashed_password = hash_password(data.new_password)
+    # A reset is a security event: every existing session is revoked.
+    await db.execute(delete(SessionModel).where(SessionModel.user_id == user.id))
+    await db.commit()
+
+    audit = AuditLogger(db)
+    await audit.log("password_reset", "user", str(user.id), user.id, {"via": "email_link"})
+    await db.commit()
+
+    return {"message": "Password updated. You can sign in now."}

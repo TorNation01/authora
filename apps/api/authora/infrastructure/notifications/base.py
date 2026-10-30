@@ -28,6 +28,6 @@ class NotificationService(ABC):
         """Send in-app notification."""
         ...
 
-    async def send_email(self, to: str, subject: str, body: str) -> bool:
-        """Send email."""
+    async def send_email(self, to: str, subject: str, body: str, html: str | None = None) -> bool:
+        """Send email. `html` is optional; plain text is always required."""
         ...

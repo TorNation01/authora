@@ -111,7 +111,10 @@ async def create_project_note(
     db.add(note)
     await db.flush()
     await db.refresh(note)
-    await db.run_sync(lambda s: selectinload(Note.attachments).load(note))
+    refreshed = await db.execute(
+        select(Note).options(selectinload(Note.attachments)).where(Note.id == note.id)
+    )
+    note = refreshed.scalar_one()
     return _note_to_response(note)
 
 
@@ -383,9 +386,8 @@ async def create_book_note(
 ):
     """Create note for book."""
     await get_book_with_access_or_404(db, book_id, project_id, current_user.id)
-    create_data = NoteCreate(
-        **data.model_dump(),
-        book_id=book_id,
-        chapter_id=data.chapter_id,
-    )
+    payload = data.model_dump()
+    payload["book_id"] = book_id
+    payload["chapter_id"] = data.chapter_id
+    create_data = NoteCreate(**payload)
     return await create_project_note(project_id, create_data, current_user, db)

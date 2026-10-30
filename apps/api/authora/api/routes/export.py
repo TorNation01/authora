@@ -1,10 +1,13 @@
 """Export API routes - book, outline, notes, chapter, publishing prep."""
 
+import asyncio
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,7 +73,7 @@ def _chapters_data(book: Book, include_meta: bool = False) -> list[dict]:
     """Build chapters data for export. include_meta adds id, sort_order, section_status, deleted_at for compile."""
     out = []
     for c in sorted(book.chapters, key=lambda x: x.sort_order):
-        d = {"title": c.title, "content": c.content}
+        d = {"title": c.title, "content": c.content, "summary": getattr(c, "summary", None)}
         if include_meta:
             d["id"] = str(c.id)
             d["sort_order"] = c.sort_order
@@ -353,11 +356,15 @@ async def export_book(
 
     settings = get_settings()
     if settings.feature_billing:
-        allowed, used, limit = await check_export_limit(db, current_user.id, format)
+        # Say which wall the author hit. "Limit reached or format not in plan"
+        # is two different problems in one sentence and reads like a bug.
+        from authora.services.entitlements import check_can_export
+
+        allowed, reason = await check_can_export(db, current_user.id, format)
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Export limit reached ({used}/{limit} this month) or format not in plan. Upgrade for more.",
+                detail=reason or "This export is not included in your plan.",
             )
 
     book = await get_book_with_chapters(db, book_id, current_user.id)
@@ -711,6 +718,45 @@ class PublishingPrepRequest(BaseModel):
     extra_context: str | None = None
 
 
+
+def _prep_markdown(prep_type: str, value) -> str:
+    """Publishing prep always leaves the API as readable text, never as a Python object.
+
+    The prep page renders a single text block, so a dict or list here becomes
+    "[object Object]" on screen or a React crash. Structure is formatted, not dumped.
+    """
+    if isinstance(value, str):
+        return value
+    if prep_type == "chapter_summaries" and isinstance(value, list):
+        lines = []
+        for index, item in enumerate(value, start=1):
+            title = (item.get("title") if isinstance(item, dict) else None) or f"Chapter {index}"
+            summary = (item.get("summary") if isinstance(item, dict) else None) or "(no summary produced)"
+            lines.append(f"{index}. {title}\n   {summary}")
+        return "\n\n".join(lines)
+    if isinstance(value, dict):
+        blocks: list[str] = []
+        heading = {
+            "beta_pack": "Beta reader pack",
+            "handoff_pack": "Manuscript handoff pack",
+        }.get(prep_type, prep_type.replace("_", " ").title())
+        blocks.append(heading.upper())
+        for key in ("synopsis", "blurb", "author_bio"):
+            if value.get(key):
+                blocks.append(f"{key.replace('_', ' ').title()}\n{'=' * len(key)}\n{str(value[key]).strip()}")
+        summaries = value.get("chapter_summaries")
+        if isinstance(summaries, list) and summaries:
+            blocks.append("CHAPTER SUMMARIES\n" + _prep_markdown("chapter_summaries", summaries))
+        questions = value.get("feedback_questions")
+        if isinstance(questions, list) and questions:
+            blocks.append("READER QUESTIONS\n" + "\n".join(f"- {q}" for q in questions))
+        notes = value.get("handoff_notes")
+        if isinstance(notes, list) and notes:
+            blocks.append("HANDOFF NOTES\n" + "\n".join(f"- {n}" for n in notes))
+        return "\n\n".join(blocks)
+    return str(value)
+
+
 @router.get("/books/{book_id}/publishing-prep/{prep_type}")
 async def get_publishing_prep(
     book_id: uuid.UUID,
@@ -732,25 +778,27 @@ async def get_publishing_prep(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
-    if prep_type == "synopsis":
-        text = await generate_synopsis(db, book_id, extra_context)
-        return {"type": "synopsis", "content": text}
-    if prep_type == "blurb":
-        text = await generate_back_cover_blurb(db, book_id, extra_context)
-        return {"type": "blurb", "content": text}
-    if prep_type == "chapter_summaries":
-        summaries = await generate_chapter_summaries(db, book_id)
-        return {"type": "chapter_summaries", "content": summaries}
-    if prep_type == "beta_pack":
-        pack = await generate_beta_reader_pack(db, book_id)
-        return {"type": "beta_pack", "content": pack}
-    if prep_type == "author_bio":
-        text = await generate_author_bio_draft(db, book_id, extra_context)
-        return {"type": "author_bio", "content": text}
-    if prep_type == "handoff_pack":
-        pack = await generate_handoff_pack(db, book_id)
-        return {"type": "handoff_pack", "content": pack}
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid prep type")
+    try:
+        if prep_type == "synopsis":
+            value = await generate_synopsis(db, book_id, extra_context)
+        elif prep_type == "blurb":
+            value = await generate_back_cover_blurb(db, book_id, extra_context)
+        elif prep_type == "chapter_summaries":
+            value = await generate_chapter_summaries(db, book_id)
+        elif prep_type == "beta_pack":
+            value = await generate_beta_reader_pack(db, book_id)
+        elif prep_type == "author_bio":
+            value = await generate_author_bio_draft(db, book_id, extra_context)
+        elif prep_type == "handoff_pack":
+            value = await generate_handoff_pack(db, book_id)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid prep type")
+    except HTTPException:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    return {"type": prep_type, "content": _prep_markdown(prep_type, value)}
 
 
 @router.get("/books/{book_id}/packages/beta-reader")
@@ -815,6 +863,182 @@ async def export_ghostwriter_handoff_route(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# --- Async package jobs -------------------------------------------------
+# Pack generation calls the model once per chapter: 15-60s on a real book.
+# Running that inside the HTTP request makes every proxy in the chain a
+# failure point (Next's rewrite proxy drops at ~30s). The request now only
+# enqueues; generation runs detached and the client polls the job.
+
+_PACK_JOBS = {
+    "beta-reader": "pkg_beta_reader",
+    "ghostwriter-handoff": "pkg_handoff",
+}
+_PACK_JOB_DIR = Path("/var/lib/authora/exports")
+
+
+async def _build_package(
+    kind: str,
+    db: AsyncSession,
+    book: Book,
+    author_name: str | None,
+) -> tuple[bytes, str]:
+    """Generate the requested pack and return (zip bytes, download filename)."""
+    params = ExportParams(
+        book_title=book.title,
+        author_name=author_name or "Author",
+        include_title_page=True,
+        include_toc=True,
+    )
+    chapters_data = _chapters_data(book)
+
+    if kind == "beta-reader":
+        pack = await generate_beta_reader_pack(db, book.id)
+        content = export_beta_reader_package(chapters_data, pack, params)
+        filename = get_export_filename(book.title, "zip", suffix="_beta_package")
+    elif kind == "ghostwriter-handoff":
+        pack = await generate_handoff_pack(db, book.id)
+        content = export_ghostwriter_handoff(
+            chapters_data, pack, params, has_ghostwriter_content=False
+        )
+        filename = get_export_filename(book.title, "zip", suffix="_handoff")
+    else:  # pragma: no cover - guarded by the route
+        raise ValueError(f"Unknown package kind: {kind}")
+    return content, filename
+
+
+async def _run_package_job(
+    job_id: uuid.UUID,
+    kind: str,
+    book_id: uuid.UUID,
+    user_id: uuid.UUID,
+    author_name: str | None,
+) -> None:
+    """Detached worker: generate the pack, persist the zip, record the outcome."""
+    from authora.database import async_session_factory
+
+    async with async_session_factory() as db:
+        job = await db.get(ExportJob, job_id)
+        if job is None:
+            return
+        try:
+            job.status = "processing"
+            await db.commit()
+
+            book = await get_book_with_chapters(db, book_id, user_id)
+            if book is None:
+                raise RuntimeError("Book not found")
+
+            content, filename = await _build_package(kind, db, book, author_name)
+
+            _PACK_JOB_DIR.mkdir(parents=True, exist_ok=True)
+            (_PACK_JOB_DIR / f"{job_id}.zip").write_bytes(content)
+
+            job.status = "completed"
+            job.file_key = f"{job_id}.zip"
+            job.options = {**(job.options or {}), "filename": filename, "bytes": len(content)}
+            job.completed_at = datetime.now(timezone.utc)
+        except Exception as exc:  # noqa: BLE001 - any failure must land on the job
+            job.status = "failed"
+            job.error_message = str(exc)[:500]
+            job.completed_at = datetime.now(timezone.utc)
+        await db.commit()
+
+
+@router.post("/books/{book_id}/packages/{kind}/jobs", status_code=status.HTTP_202_ACCEPTED)
+async def start_package_job(
+    book_id: uuid.UUID,
+    kind: str,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    author_name: str | None = Query(None),
+):
+    """Enqueue a beta-reader or ghostwriter-handoff pack. Returns immediately."""
+    if kind not in _PACK_JOBS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown package kind")
+
+    book = await get_book_with_chapters(db, book_id, current_user.id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+    settings = get_settings()
+    if not settings.openai_api_key and not settings.anthropic_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI not configured"
+        )
+
+    job = ExportJob(
+        user_id=current_user.id,
+        book_id=book_id,
+        format=_PACK_JOBS[kind],
+        status="pending",
+        options={"kind": kind, "author_name": author_name},
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+
+    asyncio.create_task(
+        _run_package_job(job.id, kind, book_id, current_user.id, author_name)
+    )
+    return {"job_id": str(job.id), "status": "pending"}
+
+
+@router.get("/packages/jobs/{job_id}")
+async def get_package_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Poll a package job."""
+    job = await db.get(ExportJob, job_id)
+    if job is None or job.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    # A job orphaned by a restart would otherwise sit in "processing" forever.
+    if job.status in ("pending", "processing") and job.created_at:
+        age = (datetime.now(timezone.utc) - job.created_at).total_seconds()
+        if age > 900:
+            job.status = "failed"
+            job.error_message = "Job timed out — please try again."
+            job.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+
+    return {
+        "job_id": str(job.id),
+        "kind": (job.options or {}).get("kind"),
+        "status": job.status,
+        "error": job.error_message,
+        "filename": (job.options or {}).get("filename"),
+        "bytes": (job.options or {}).get("bytes"),
+        "download_url": (
+            f"/api/v1/export/packages/jobs/{job.id}/download"
+            if job.status == "completed"
+            else None
+        ),
+    }
+
+
+@router.get("/packages/jobs/{job_id}/download")
+async def download_package_job(
+    job_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Download a completed package job."""
+    job = await db.get(ExportJob, job_id)
+    if job is None or job.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.status != "completed" or not job.file_key:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Job is not ready")
+
+    path = _PACK_JOB_DIR / job.file_key
+    if not path.exists():
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Package file expired")
+
+    filename = (job.options or {}).get("filename") or f"{job_id}.zip"
+    return FileResponse(path, media_type="application/zip", filename=filename)
 
 
 @router.get("/books/{book_id}/packages/chapter-summary-sheet")
@@ -1140,3 +1364,22 @@ async def export_synopsis_package_route(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+# --- Route order guard -------------------------------------------------------
+# The generic "/books/{book_id}/{format}" export route is declared above several
+# literal single-segment routes (/outline, /chapters). Starlette matches in
+# declaration order, so those literals were being swallowed as format="chapters"
+# and answered "Invalid format". Register the generic route last.
+def _move_catchall_export_route_last() -> None:
+    generic = None
+    ordered = []
+    for route in router.routes:
+        if getattr(route, "path", "").endswith("/books/{book_id}/{format}"):
+            generic = route
+        else:
+            ordered.append(route)
+    if generic is not None:
+        router.routes[:] = ordered + [generic]
+
+
+_move_catchall_export_route_last()

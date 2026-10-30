@@ -53,7 +53,7 @@ def _get_community_prefs(prefs: UserPreference | None) -> dict:
 
 @router.get("/settings", response_model=CommunitySettingsResponse)
 async def get_community_settings(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get current user's community settings. All optional, defaults private."""
@@ -70,7 +70,7 @@ async def get_community_settings(
 @router.patch("/settings", response_model=CommunitySettingsResponse)
 async def update_community_settings(
     data: CommunitySettingsUpdate,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update community settings. All optional."""
@@ -116,7 +116,7 @@ async def update_community_settings(
 @router.get("/profiles/{slug}", response_model=PublicProfileResponse)
 async def get_public_profile(
     slug: str,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get public profile by slug. Returns 404 if profile is private."""
@@ -141,7 +141,7 @@ async def get_public_profile(
 @router.get("/profiles/{slug}/progress", response_model=ProgressShareResponse)
 async def get_shared_progress(
     slug: str,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get shared progress by profile slug. Only when user opts in."""
@@ -187,7 +187,7 @@ async def get_shared_progress(
 
 @router.get("/groups", response_model=list[WritingGroupResponse])
 async def list_my_groups(
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List writing groups the current user is a member of."""
@@ -215,7 +215,7 @@ async def list_my_groups(
 @router.post("/groups", response_model=WritingGroupResponse, status_code=status.HTTP_201_CREATED)
 async def create_writing_group(
     data: WritingGroupCreate,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a writing group."""
@@ -246,7 +246,7 @@ async def create_writing_group(
 async def invite_to_group(
     group_id: uuid.UUID,
     data: WritingGroupInviteCreate,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Invite user to writing group by email."""
@@ -280,7 +280,7 @@ async def invite_to_group(
 @router.get("/projects/{project_id}/feedback", response_model=list[FeedbackThreadResponse])
 async def list_feedback_threads(
     project_id: uuid.UUID,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List feedback threads for a project."""
@@ -312,7 +312,7 @@ async def list_feedback_threads(
 async def create_feedback_thread(
     project_id: uuid.UUID,
     data: FeedbackThreadCreate,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create feedback thread on project content."""
@@ -345,7 +345,7 @@ async def create_feedback_thread(
 async def list_feedback_comments(
     project_id: uuid.UUID,
     thread_id: uuid.UUID,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List comments in a feedback thread."""
@@ -368,7 +368,7 @@ async def create_feedback_comment(
     project_id: uuid.UUID,
     thread_id: uuid.UUID,
     data: FeedbackCommentCreate,
-    current_user: Annotated[dict, Depends(CurrentUser)],
+    current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Add comment to feedback thread."""
