@@ -4,6 +4,7 @@ Stripe-ready abstraction. When STRIPE_SECRET_KEY is not set, all operations
 return None or raise with clear messages. Product/price IDs are stored on Plan.
 """
 
+import json
 import logging
 import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
@@ -398,6 +399,14 @@ async def handle_webhook(db: AsyncSession, payload: bytes, sig_header: str) -> d
         return {"error": "Invalid payload"}
     except stripe.SignatureVerificationError:
         return {"error": "Invalid signature"}
+
+    # stripe.Event is a StripeObject, not a dict: it has no .get(), so every
+    # event.get("id") below raised KeyError('get') and Stripe retried forever.
+    # Flatten once, here, so the handlers can keep treating the event as data.
+    # The verified payload is already the exact JSON Stripe sent; parsing it is
+    # the reliable way to get plain dicts out of stripe 16 (Event objects expose
+    # neither .get() nor to_dict_recursive(), and .get() raised KeyError('get')).
+    event = json.loads(payload.decode("utf-8"))
 
     event_id = event.get("id", "")
     event_type = event.get("type", "")
