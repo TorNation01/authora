@@ -23,6 +23,7 @@ class UserCreate(BaseModel):
     referral_code: str | None = None
     affiliate_code: str | None = None
     invite_code: str | None = None
+    turnstile_token: str | None = None
 
     @field_validator("email")
     @classmethod

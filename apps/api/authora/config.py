@@ -44,6 +44,12 @@ class Settings(BaseSettings):
 
     # Invite-only registration. Comma-separated list; empty = open signup.
     signup_invite_codes: str = ""
+    # Bot protection for signup (Cloudflare Turnstile). Empty secret = off.
+    # The pair is configured together; the site key is published to the browser
+    # through GET /auth/signup-config so lifting the beta gate needs no rebuild.
+    turnstile_secret_key: str = ""
+    turnstile_site_key: str = ""
+    turnstile_verify_url: str = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
     # Signup funnel: every new account starts on a trial of signup_trial_plan.
     # 0 days disables the trial (account lands on Free immediately).
     signup_trial_days: int = 14

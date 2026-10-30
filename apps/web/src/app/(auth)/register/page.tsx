@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,71 @@ function RegisterForm() {
   const { toast } = useToast();
   const config = useConfig();
 
+  // What the server says signup needs right now: an invite code while the beta
+  // gate is closed, a Turnstile challenge once bot protection is armed. Asking
+  // the API means lifting the gate needs no rebuild of this page.
+  const [signup, setSignup] = useState<{
+    invite_required: boolean;
+    turnstile: { enabled: boolean; site_key: string };
+  } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const widgetRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api<{ invite_required: boolean; turnstile: { enabled: boolean; site_key: string } }>(
+      '/api/v1/auth/signup-config'
+    )
+      .then((cfg) => {
+        if (!cancelled) setSignup(cfg);
+      })
+      .catch(() => {
+        // Never widen signup because a config read failed: fall back to what
+        // the gate has always been.
+        if (!cancelled) setSignup({ invite_required: true, turnstile: { enabled: false, site_key: '' } });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const cfg = signup?.turnstile;
+    if (!cfg?.enabled || !cfg.site_key) return;
+
+    const renderWidget = () => {
+      const turnstile = (window as unknown as {
+        turnstile?: {
+          render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+        };
+      }).turnstile;
+      if (!turnstile || !widgetRef.current) return;
+      widgetRef.current.innerHTML = '';
+      turnstile.render(widgetRef.current, {
+        sitekey: cfg.site_key,
+        callback: (token: string) => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+      });
+    };
+
+    const existing = document.querySelector<HTMLScriptElement>('script[data-turnstile]');
+    if (existing) {
+      if ((window as unknown as { turnstile?: unknown }).turnstile) renderWidget();
+      else existing.addEventListener('load', renderWidget);
+      return () => existing.removeEventListener('load', renderWidget);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.dataset.turnstile = 'true';
+    script.addEventListener('load', renderWidget);
+    document.head.appendChild(script);
+    return () => script.removeEventListener('load', renderWidget);
+  }, [signup]);
+
   useEffect(() => {
     if (!config.feature_flags.standalone_auth) {
       router.replace(config.feature_flags.sso_ready ? '/sso' : '/login');
@@ -33,6 +98,14 @@ function RegisterForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (signup?.turnstile.enabled && !turnstileToken) {
+      toast({
+        title: 'One more step',
+        description: 'Please complete the bot check below the form.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setLoading(true);
     try {
       const res = await api<{ access_token: string; refresh_token: string }>(
@@ -45,6 +118,7 @@ function RegisterForm() {
             display_name: displayName || undefined,
             referral_code: referralCode,
             invite_code: inviteCode.trim() || undefined,
+            turnstile_token: turnstileToken || undefined,
           }),
         }
       );
@@ -53,6 +127,13 @@ function RegisterForm() {
       router.push('/onboarding');
       router.refresh();
     } catch (err) {
+      // Turnstile tokens are single-use: a retry needs a fresh one, or the
+      // second attempt is rejected for a token that already spent itself.
+      setTurnstileToken('');
+      const turnstile = (window as unknown as {
+        turnstile?: { reset: (el?: HTMLElement) => void };
+      }).turnstile;
+      if (turnstile && widgetRef.current) turnstile.reset(widgetRef.current);
       toast({
         title: 'Registration failed',
         description: err instanceof Error ? err.message : 'Please try again.',
@@ -113,18 +194,32 @@ function RegisterForm() {
                   className="h-11"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="inviteCode">Invite code</Label>
-                <Input
-                  id="inviteCode"
-                  placeholder="Required — Authora is invite-only"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  required
-                  className="h-11"
-                />
-              </div>
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              {signup?.invite_required && (
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode">Invite code</Label>
+                  <Input
+                    id="inviteCode"
+                    placeholder="Required — Authora is invite-only"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+              )}
+              {signup?.turnstile.enabled && (
+                <div className="space-y-2">
+                  <div ref={widgetRef} data-testid="turnstile-widget" />
+                  <p className="text-xs text-muted-foreground">
+                    Protected by Cloudflare Turnstile.
+                  </p>
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full h-11"
+                disabled={loading}
+              >
                 {loading ? 'Creating account...' : 'Create account'}
               </Button>
             </form>

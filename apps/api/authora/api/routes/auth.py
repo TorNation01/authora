@@ -4,7 +4,7 @@ import uuid
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -27,6 +27,11 @@ from authora.schemas.auth import (
     UserUpdate,
 )
 from authora.core.audit import AuditLogger
+from authora.services.turnstile import (
+    TurnstileUnavailable,
+    site_key_for_browser,
+    verify_turnstile_token,
+)
 from authora.services.auth import (
     change_password,
     create_access_token,
@@ -43,9 +48,44 @@ from authora.services.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _signup_invite_codes(settings) -> list[str]:
+    return [c.strip() for c in (settings.signup_invite_codes or "").split(",") if c.strip()]
+
+
+def _request_ip(request: Request) -> str | None:
+    """Client IP for Cloudflare, preferring the header the tunnel sets."""
+    for header in ("cf-connecting-ip", "x-forwarded-for"):
+        value = request.headers.get(header)
+        if value:
+            return value.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+@router.get("/signup-config")
+async def signup_config() -> dict:
+    """What the register page must render, decided by the server.
+
+    Declared ahead of the parameterised routes so the literal path is not
+    swallowed by a `/{...}` match, and public because the page needs it before
+    the visitor has an account.
+    """
+    settings = get_settings()
+    return {
+        "invite_required": bool(_signup_invite_codes(settings)),
+        "turnstile": {
+            "enabled": bool(settings.turnstile_secret_key and settings.turnstile_site_key),
+            "site_key": site_key_for_browser(
+                settings.turnstile_secret_key, settings.turnstile_site_key
+            ),
+        },
+        "standalone_auth": settings.feature_standalone_auth,
+    }
+
+
 @router.post("/register", response_model=Token)
 async def register(
     data: UserCreate,
+    request: Request,
     background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
@@ -58,13 +98,42 @@ async def register(
         )
 
     # Invite-only gate: when codes are configured, no account exists without one.
-    invite_codes = [c.strip() for c in (settings.signup_invite_codes or "").split(",") if c.strip()]
+    invite_codes = _signup_invite_codes(settings)
     if invite_codes:
         supplied = (data.invite_code or "").strip()
         if not supplied or not any(secrets.compare_digest(supplied, code) for code in invite_codes):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Authora is invite-only. A valid invite code is required.",
+            )
+
+    # Bot protection: when Turnstile is configured it guards every registration,
+    # so lifting the beta gate (empty invite codes) cannot silently open signup to
+    # scripts. Checked before the email lookup so probing costs a challenge.
+    if settings.turnstile_secret_key:
+        token = (data.turnstile_token or "").strip()
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bot verification required. Please complete the challenge and try again.",
+            )
+        try:
+            passed = await verify_turnstile_token(
+                token,
+                settings.turnstile_secret_key,
+                remote_ip=_request_ip(request),
+                verify_url=settings.turnstile_verify_url,
+            )
+        except TurnstileUnavailable:
+            # Fail closed, but say so: a Cloudflare blip must not read as a bad code.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Bot verification is temporarily unavailable. Please retry in a moment.",
+            )
+        if not passed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bot verification failed. Please complete the challenge again.",
             )
 
     existing = await get_user_by_email(db, data.email)

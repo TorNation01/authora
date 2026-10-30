@@ -46,6 +46,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+# Tests must share the fixtures' event loop: the session-scoped engine pools
+# connections bound to the loop that created them, so a function-scoped test
+# loop hands the route a connection from a dead loop ("attached to a different loop").
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["."]
 filterwarnings = ["ignore::DeprecationWarning"]
