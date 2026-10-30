@@ -3,14 +3,15 @@
 Entitlement precedence (highest first):
 1. billing_exempt / legacy plan_override
 2. Active admin grant with override_stripe=True
-3. Active Stripe subscription
-4. Active admin grant (override_stripe=False, no Stripe)
-5. Lifetime subscription
-6. Expired grant fallback (revert_previous → Stripe/free, revert_free, prompt_billing)
-7. Free plan
+3. Active signup trial (users.trial_ends_at in the future)
+4. Active Stripe subscription
+5. Active admin grant (override_stripe=False, no Stripe)
+6. Lifetime subscription
+7. Expired grant fallback (revert_previous → Stripe/free, revert_free, prompt_billing)
+8. Free plan
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select
@@ -98,6 +99,39 @@ async def _get_active_subscription(db: AsyncSession, user_id: UUID) -> Subscript
     return r.scalar_one_or_none()
 
 
+async def _active_trial_plan(db: AsyncSession, user: User) -> Plan | None:
+    """Return the plan a running signup trial entitles this user to, else None.
+
+    Time-boxed on the row itself so an expired trial needs no sweeper: the
+    comparison simply stops matching and the account falls to its paid plan or
+    Free. A missing plan row (slug retired) also returns None rather than
+    charging entitlements to a plan that no longer exists.
+    """
+    ends_at = getattr(user, "trial_ends_at", None)
+    slug = getattr(user, "trial_plan_slug", None)
+    if not ends_at or not slug:
+        return None
+    if ends_at <= _now_utc():
+        return None
+    return await get_plan_by_slug(db, slug)
+
+
+def start_signup_trial(user: User, days: int, plan_slug: str) -> bool:
+    """Stamp a trial on a freshly created user. Returns True when one started.
+
+    Called at registration, before the first commit, so the account is never
+    briefly Free and then upgraded — a new customer sees the trial plan on the
+    very first authenticated request.
+    """
+    if days <= 0 or not plan_slug:
+        return False
+    now = _now_utc()
+    user.trial_started_at = now
+    user.trial_ends_at = now + timedelta(days=days)
+    user.trial_plan_slug = plan_slug
+    return True
+
+
 async def get_user_plan(db: AsyncSession, user_id: UUID) -> Plan:
     """Resolve user's effective plan. See module docstring for precedence."""
     settings = get_settings()
@@ -129,7 +163,13 @@ async def get_user_plan(db: AsyncSession, user_id: UUID) -> Plan:
         await db.refresh(grant_override, ["plan"])
         return grant_override.plan
 
-    # 3. Active Stripe subscription
+    # 3. Active signup trial — the account gets the trial plan's entitlements
+    #    until trial_ends_at, then falls through to whatever it pays for.
+    trial_plan = await _active_trial_plan(db, user)
+    if trial_plan:
+        return trial_plan
+
+    # 4. Active Stripe subscription
     sub = await _get_active_subscription(db, user_id)
     if sub and sub.stripe_subscription_id:
         await db.refresh(sub, ["plan"])

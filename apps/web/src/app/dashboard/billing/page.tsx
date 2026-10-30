@@ -133,6 +133,7 @@ export default function BillingPage() {
   }
 
   const sub = status.subscription;
+  const trial = status.trial;
   const isLifetime =
     sub?.is_lifetime ?? status.plan.slug === 'founder_lifetime';
   const renewalDate = sub?.period_end ? new Date(sub.period_end) : null;
@@ -155,10 +156,30 @@ export default function BillingPage() {
             {status.access_source === 'grant' && 'Complimentary Access'}
             {status.access_source === 'override' && 'Plan Override'}
             {status.access_source === 'stripe' && 'Stripe subscription'}
+            {status.access_source === 'trial' && 'Free trial'}
             {status.access_source === 'free' && 'Free plan'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {trial?.active && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {trial.days_left === 1 ? '1 day left' : `${trial.days_left} days left`} in your free trial
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    You have {status.plan.name} access until{' '}
+                    {trial.ends_at ? new Date(trial.ends_at).toLocaleDateString() : 'your trial ends'}.
+                    Pick a plan to keep it.
+                  </p>
+                </div>
+                <Button asChild size="sm">
+                  <Link href="/pricing">Choose a plan</Link>
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xl font-semibold text-foreground">{status.plan.name}</p>

@@ -45,6 +45,10 @@ class User(Base):
     billing_exempt: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
     referral_code: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True, index=True)
+    # Signup trial: active while now() < trial_ends_at. Null = never trialled.
+    trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    trial_plan_slug: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -2106,6 +2106,99 @@ async def admin_reorder_templates(
 # --- Activation analytics dashboard ---
 
 
+@router.get("/funnel")
+async def admin_signup_funnel(
+    current_user: AdminUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    days: int = Query(30, ge=7, le=365),
+):
+    """Signup → trial → paid funnel, plus churn signals.
+
+    One endpoint so the paid-launch question ("what converts, what leaks") has
+    a number instead of a guess: trials started, converted, expired without
+    converting, conversion rate, paying accounts by plan with MRR, and the
+    churn events written by the Stripe webhook.
+    """
+    from authora.models import Subscription
+    from authora.models.analytics_event import AnalyticsEvent
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    signups = (await db.execute(
+        select(func.count(User.id)).where(User.created_at >= since)
+    )).scalar_one() or 0
+
+    trials_started = (await db.execute(
+        select(func.count(User.id)).where(User.trial_started_at.isnot(None), User.trial_started_at >= since)
+    )).scalar_one() or 0
+
+    def _event_count(etype: str):
+        return select(func.count(AnalyticsEvent.id)).where(
+            AnalyticsEvent.event_type == etype, AnalyticsEvent.created_at >= since
+        )
+
+    converted = (await db.execute(_event_count("trial_converted"))).scalar_one() or 0
+    canceled = (await db.execute(_event_count("subscription_canceled"))).scalar_one() or 0
+    canceling = (await db.execute(_event_count("subscription_canceling"))).scalar_one() or 0
+    payment_failed = (await db.execute(_event_count("payment_failed"))).scalar_one() or 0
+
+    # Trials whose clock ran out and who still have no paid subscription.
+    expired_unconverted = (await db.execute(
+        select(func.count(User.id)).where(
+            User.trial_ends_at.isnot(None),
+            User.trial_ends_at <= datetime.now(timezone.utc),
+            ~select(Subscription.id)
+            .where(Subscription.user_id == User.id, Subscription.status == "active")
+            .exists(),
+        )
+    )).scalar_one() or 0
+
+    trials_running = (await db.execute(
+        select(func.count(User.id)).where(User.trial_ends_at > datetime.now(timezone.utc))
+    )).scalar_one() or 0
+
+    paying = (await db.execute(
+        select(Plan.slug, Subscription.billing_interval, func.count(Subscription.id))
+        .join(Plan, Plan.id == Subscription.plan_id)
+        .where(Subscription.status == "active", Subscription.stripe_subscription_id.isnot(None))
+        .group_by(Plan.slug, Subscription.billing_interval)
+    )).all()
+
+    # MRR normalised to monthly so monthly and annual plans are comparable.
+    mrr_rows = (await db.execute(
+        select(Plan.slug, Plan.price_monthly_cents, Plan.price_yearly_cents,
+               Subscription.billing_interval, func.count(Subscription.id))
+        .join(Plan, Plan.id == Subscription.plan_id)
+        .where(Subscription.status == "active", Subscription.stripe_subscription_id.isnot(None))
+        .group_by(Plan.slug, Plan.price_monthly_cents, Plan.price_yearly_cents, Subscription.billing_interval)
+    )).all()
+    mrr_cents = 0
+    for _slug, monthly, yearly, interval, count in mrr_rows:
+        unit = monthly if interval != "yearly" else int((yearly or 0) / 12)
+        mrr_cents += (unit or 0) * count
+
+    accounts = sum(row[2] for row in paying)
+    return {
+        "period_days": days,
+        "signups": signups,
+        "trials_started": trials_started,
+        "trials_running": trials_running,
+        "trials_converted": converted,
+        "trials_expired_unconverted": expired_unconverted,
+        "trial_conversion_rate_pct": round(converted / trials_started * 100, 1) if trials_started else None,
+        "paying_accounts": accounts,
+        "paying_by_plan": [
+            {"plan": slug, "interval": interval, "count": count} for slug, interval, count in paying
+        ],
+        "mrr": {"cents": mrr_cents, "currency": "USD", "formatted": f"${mrr_cents / 100:,.0f}"},
+        "churn_signals": {
+            "canceled": canceled,
+            "canceling_at_period_end": canceling,
+            "payment_failed": payment_failed,
+        },
+    }
+
+
 @router.get("/activation")
 async def admin_activation_dashboard(
     current_user: AdminUser,

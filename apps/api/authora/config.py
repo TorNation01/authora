@@ -44,6 +44,10 @@ class Settings(BaseSettings):
 
     # Invite-only registration. Comma-separated list; empty = open signup.
     signup_invite_codes: str = ""
+    # Signup funnel: every new account starts on a trial of signup_trial_plan.
+    # 0 days disables the trial (account lands on Free immediately).
+    signup_trial_days: int = 14
+    signup_trial_plan: str = "starter"
     feature_standalone_landing: bool = True
     feature_standalone_setup_wizard: bool = True
     feature_local_admin_creation: bool = True

@@ -44,6 +44,14 @@ export interface SubscriptionInfo {
   has_stripe_customer: boolean;
 }
 
+export interface TrialInfo {
+  active: boolean;
+  plan_slug: string | null;
+  started_at: string | null;
+  ends_at: string | null;
+  days_left: number | null;
+}
+
 export interface BillingStatus {
   plan: BillingPlan;
   usage: BillingUsage;
@@ -52,6 +60,7 @@ export interface BillingStatus {
   feature_billing_enabled?: boolean;
   subscription?: SubscriptionInfo | null;
   access_source?: string;
+  trial?: TrialInfo | null;
 }
 
 let cachedStatus: BillingStatus | null = null;

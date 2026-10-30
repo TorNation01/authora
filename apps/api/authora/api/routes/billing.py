@@ -112,6 +112,16 @@ class SubscriptionInfoResponse(BaseModel):
     has_stripe_customer: bool = False
 
 
+class TrialInfoResponse(BaseModel):
+    """Signup trial state, as the account sees it."""
+
+    active: bool
+    plan_slug: str | None = None
+    started_at: str | None = None
+    ends_at: str | None = None
+    days_left: int | None = None
+
+
 class BillingStatusResponse(BaseModel):
     plan: PlanResponse
     usage: UsageResponse
@@ -119,7 +129,8 @@ class BillingStatusResponse(BaseModel):
     can_upgrade: bool
     feature_billing_enabled: bool = False
     subscription: SubscriptionInfoResponse | None = None
-    access_source: str = "free"  # stripe | grant | override | free
+    access_source: str = "free"  # stripe | grant | override | trial | free
+    trial: TrialInfoResponse | None = None
 
 
 async def _get_usage_summary(db: AsyncSession, user_id: uuid.UUID, plan: Plan) -> dict:
@@ -165,6 +176,22 @@ async def get_billing_status(
     billing_exempt = getattr(user, "billing_exempt", False) or bool(getattr(user, "plan_override_id", None))
     settings = get_settings()
 
+    # Signup trial state: active while trial_ends_at is in the future. Reported
+    # separately from the plan so the UI can show a countdown and a convert CTA
+    # instead of only the entitlements the account currently enjoys.
+    trial_ends_at = getattr(user, "trial_ends_at", None)
+    trial_active = bool(trial_ends_at and trial_ends_at > datetime.now(trial_ends_at.tzinfo))
+    trial_info = None
+    if trial_ends_at and getattr(user, "trial_plan_slug", None):
+        remaining = trial_ends_at - datetime.now(trial_ends_at.tzinfo)
+        trial_info = TrialInfoResponse(
+            active=trial_active,
+            plan_slug=user.trial_plan_slug,
+            started_at=user.trial_started_at.isoformat() if getattr(user, "trial_started_at", None) else None,
+            ends_at=trial_ends_at.isoformat(),
+            days_left=max(0, -(-int(remaining.total_seconds()) // 86400)) if trial_active else 0,
+        )
+
     # Resolve access source and subscription info (match get_user_plan precedence)
     access_source = "free"
     subscription_info = None
@@ -182,6 +209,15 @@ async def get_billing_status(
             cancel_at_period_end=False,
             billing_interval=None,
             is_lifetime=grant_override.expires_at is None,
+            has_stripe_customer=False,
+        )
+    elif trial_active:
+        access_source = "trial"
+        subscription_info = SubscriptionInfoResponse(
+            period_end=user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+            cancel_at_period_end=False,
+            billing_interval=None,
+            is_lifetime=False,
             has_stripe_customer=False,
         )
     elif sub and sub.stripe_subscription_id:
@@ -232,6 +268,7 @@ async def get_billing_status(
         feature_billing_enabled=getattr(settings, "feature_billing", False),
         subscription=subscription_info,
         access_source=access_source,
+        trial=trial_info,
     )
 
 

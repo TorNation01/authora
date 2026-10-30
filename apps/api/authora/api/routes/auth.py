@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from authora.models import User
+from authora.models.analytics_event import AnalyticsEvent
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from authora.api.dependencies import CurrentUser
@@ -71,6 +72,35 @@ async def register(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     user = await create_user(db, data.email, data.password, data.display_name)
+
+    # Signup funnel: a new account starts on a trial (Starter by default), so
+    # the first chapter is written with real entitlements instead of Free-plan
+    # walls. Stamped before the commit so the very first /billing/status read
+    # already reports the trial.
+    trial_started = False
+    if getattr(settings, "feature_billing", False):
+        from authora.services.billing_service import start_signup_trial
+
+        trial_started = start_signup_trial(
+            user,
+            int(getattr(settings, "signup_trial_days", 0) or 0),
+            str(getattr(settings, "signup_trial_plan", "") or ""),
+        )
+        if trial_started:
+            db.add(
+                AnalyticsEvent(
+                    user_id=user.id,
+                    event_type="trial_started",
+                    resource_type="user",
+                    resource_id=str(user.id),
+                    properties={
+                        "plan_slug": user.trial_plan_slug,
+                        "days": int(getattr(settings, "signup_trial_days", 0) or 0),
+                        "ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+                        "invite_gated": bool([c for c in (settings.signup_invite_codes or "").split(",") if c.strip()]),
+                    },
+                )
+            )
     refresh_token, _, _ = await create_session(db, user.id)
     access_token, expires = create_access_token(user.id)
 

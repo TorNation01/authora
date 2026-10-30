@@ -17,7 +17,52 @@ from authora.config import get_settings
 logger = logging.getLogger(__name__)
 
 from authora.models import Plan, ProjectTemplate, StripeWebhookEvent, Subscription, TemplatePack, TemplatePackPurchase, TemplatePurchase, User
+from authora.models.analytics_event import AnalyticsEvent
 from authora.services.creator_payout_service import create_earning_from_purchase
+
+
+async def _record_billing_event(
+    db: AsyncSession,
+    user_id: UUID | None,
+    event_type: str,
+    properties: dict | None = None,
+) -> None:
+    """Record a funnel/churn event. Never let analytics break a webhook.
+
+    Stripe retries a webhook when the handler raises, so a bookkeeping failure
+    here would replay a real billing change. Analytics is best-effort by
+    design: it is logged and dropped, and the money side stands.
+    """
+    if not user_id:
+        return
+    try:
+        db.add(
+            AnalyticsEvent(
+                user_id=user_id,
+                event_type=event_type,
+                resource_type="billing",
+                resource_id=str(user_id),
+                properties=properties or {},
+            )
+        )
+        await db.flush()
+    except Exception:
+        logger.warning("analytics event %s failed for user %s", event_type, user_id, exc_info=True)
+
+
+def _consume_trial(user: User | None) -> bool:
+    """End a signup trial because the account converted.
+
+    The trial row must not outlive the conversion: plan resolution prefers a
+    running trial over a Stripe subscription, so leaving trial_ends_at set
+    would pin a customer who upgraded to Studio onto the Starter trial plan
+    until the trial clock ran out. started_at/slug are kept as history.
+    """
+    if not user or not getattr(user, "trial_ends_at", None):
+        return False
+    was_running = user.trial_ends_at > datetime.now(timezone.utc)
+    user.trial_ends_at = None
+    return was_running
 
 
 def _stripe_available() -> bool:
@@ -512,6 +557,23 @@ async def _handle_checkout_completed(db: AsyncSession, event: dict) -> None:
                 is_lifetime=False,
             )
             db.add(sub)
+
+        # Conversion: a trial that just became a paying subscription is the one
+        # event the whole funnel is judged on, so it is recorded here (Stripe's
+        # own confirmation) and the trial clock is stopped.
+        user_row = await db.get(User, user_id)
+        converted_from_trial = _consume_trial(user_row)
+        await _record_billing_event(
+            db,
+            user_id,
+            "trial_converted" if converted_from_trial else "subscription_started",
+            {
+                "plan_slug": plan.slug,
+                "billing_interval": billing_interval,
+                "amount_cents": session.get("amount_total"),
+                "stripe_subscription_id": subscription_id,
+            },
+        )
     else:
         # One-time payment (lifetime)
         r2 = await db.execute(
@@ -596,12 +658,40 @@ async def _handle_subscription_created_or_updated(db: AsyncSession, event: dict)
     billing_interval = "yearly" if interval == "year" else "monthly"
 
     if sub:
+        prev_cancel_at_period_end = sub.cancel_at_period_end
+        prev_plan_id = sub.plan_id
         sub.plan_id = plan.id
         sub.status = status
         sub.period_start = period_start
         sub.period_end = period_end
         sub.cancel_at_period_end = cancel_at_period_end
         sub.billing_interval = billing_interval
+
+        # A card that flipped to "cancel at period end" is churn with a date
+        # attached — the last realistic window to save the account. Record the
+        # flip once, not on every subsequent update.
+        if cancel_at_period_end and not prev_cancel_at_period_end:
+            await _record_billing_event(
+                db,
+                user_id,
+                "subscription_canceling",
+                {
+                    "plan_slug": plan.slug,
+                    "period_end": period_end.isoformat(),
+                },
+            )
+        if prev_plan_id != plan.id:
+            await _record_billing_event(
+                db,
+                user_id,
+                "plan_changed",
+                {
+                    "to_plan_slug": plan.slug,
+                    "billing_interval": billing_interval,
+                },
+            )
+        # Upgrade path: a trial that bought while its clock still ran.
+        _consume_trial(await db.get(User, user_id))
     else:
         sub = Subscription(
             user_id=user_id,
@@ -634,6 +724,19 @@ async def _handle_subscription_deleted(db: AsyncSession, event: dict) -> None:
         # Keep period_end so user retains access until end of period
         if not sub.period_end and sub_obj.get("current_period_end"):
             sub.period_end = datetime.fromtimestamp(sub_obj["current_period_end"], tz=timezone.utc)
+
+        # Churn is the number a paid launch lives or dies on: record the loss
+        # with the plan and tenure attached so it can be sliced later.
+        await _record_billing_event(
+            db,
+            sub.user_id,
+            "subscription_canceled",
+            {
+                "plan_id": str(sub.plan_id),
+                "period_end": sub.period_end.isoformat() if sub.period_end else None,
+                "started_at": sub.created_at.isoformat() if sub.created_at else None,
+            },
+        )
 
 
 def _get_subscription_id(invoice: dict) -> str | None:
@@ -668,6 +771,20 @@ async def _handle_invoice_payment_failed(db: AsyncSession, event: dict) -> None:
     grace_end = period_end + timedelta(days=7)
     sub.grace_period_end = grace_end
     sub.status = "past_due"  # Retain access during grace period
+
+    # Involuntary churn starts here: a failed card that is never recovered is
+    # a cancellation three weeks later. Record the first failure so dunning
+    # and the churn report can see it coming.
+    await _record_billing_event(
+        db,
+        sub.user_id,
+        "payment_failed",
+        {
+            "amount_due": invoice.get("amount_due"),
+            "attempt_count": invoice.get("attempt_count"),
+            "grace_period_end": grace_end.isoformat(),
+        },
+    )
 
     # Tell the customer before the grace period runs out. Silence here is how
     # a paying customer quietly loses access and never comes back.

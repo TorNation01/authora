@@ -25,6 +25,9 @@ export function PricingHero({ billingInterval, onBillingIntervalChange }: Pricin
         <p className="mt-4 font-serif text-base font-medium text-foreground">
           Write with clarity. Stay accountable. Finish what you start.
         </p>
+        <p className="mt-2 text-sm normal-case tracking-normal text-muted-foreground">
+          Every new account starts with a 14-day free trial of Starter. No card required to begin.
+        </p>
 
         {/* Monthly / Yearly toggle */}
         <div className="mt-10 flex justify-center">
