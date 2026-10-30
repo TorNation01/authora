@@ -48,6 +48,9 @@ interface OnboardingData {
   projectDescription: string;
   projectGoal: string;
   structure: StructureChoice;
+  /** null = use the genre recommendation */
+  chapterCount?: number | null;
+  chapterChoice?: 'recommend' | 'custom' | 'unsure';
   templateId: string | null;
   firstAction: FirstAction;
 }
@@ -123,6 +126,14 @@ const GUIDED_STEPS = [
   { id: 'first_action', title: 'First action', icon: FileText },
 ];
 
+const RECOMMENDED_CHAPTERS: Record<string, number> = {
+  fiction: 24,
+  nonfiction: 12,
+  memoir: 16,
+  workbook: 10,
+  not_sure: 20,
+};
+
 export default function OnboardingPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [data, setData] = useState<Partial<OnboardingData>>({
@@ -148,6 +159,8 @@ export default function OnboardingPage() {
   const currentStep = steps[stepIndex];
   const totalSteps = steps.length;
   const progress = ((stepIndex + 1) / totalSteps) * 100;
+  const recommendedChapters = RECOMMENDED_CHAPTERS[data.intent || 'fiction'] ?? 20;
+  const chapterCount = data.chapterCount ?? recommendedChapters;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -264,6 +277,7 @@ export default function OnboardingPage() {
           knowledge_mode: knowledgeMode,
           core_idea: data.projectDescription?.trim() || null,
           guidance_mode: guidanceMode,
+          chapter_count: chapterCount,
         }),
       });
 
@@ -273,7 +287,7 @@ export default function OnboardingPage() {
           : `/dashboard/projects/${res.project.id}/books/${res.book_id}/plan`;
       return url;
     },
-    [data]
+    [data, chapterCount]
   );
 
   const handleComplete = async () => {
@@ -326,6 +340,7 @@ export default function OnboardingPage() {
           book_title: name,
           book_type: 'fiction',
           guidance_mode: 'freeform',
+          chapter_count: 1,
           knowledge_mode: 'fiction',
         }),
       });
@@ -579,6 +594,63 @@ export default function OnboardingPage() {
                   >
                     <span className="font-medium">{ONBOARDING_STRUCTURE.startBlank.label}</span>
                     <p className="text-sm text-muted-foreground mt-1">{ONBOARDING_STRUCTURE.startBlank.desc}</p>
+                  </button>
+                </div>
+                <div className="space-y-3 rounded-xl border p-4">
+                  <div>
+                    <Label>How many chapters?</Label>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      A rough number is plenty — add, split or delete chapters whenever you like.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setData((d) => ({ ...d, chapterCount: recommendedChapters, chapterChoice: 'recommend' }))}
+                      className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                        data.chapterChoice === 'recommend' ? 'border-primary bg-primary/5 font-medium' : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      Use our recommendation — {recommendedChapters}
+                    </button>
+                    {[12, 24, 40].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setData((d) => ({ ...d, chapterCount: n, chapterChoice: 'custom' }))}
+                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          data.chapterCount === n && data.chapterChoice === 'custom' ? 'border-primary bg-primary/5 font-medium' : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={200}
+                      className="h-10 w-28"
+                      value={data.chapterCount ?? recommendedChapters}
+                      onChange={(e) =>
+                        setData((d) => ({
+                          ...d,
+                          chapterCount: Math.max(1, Math.min(200, Number(e.target.value) || 1)),
+                          chapterChoice: 'custom',
+                        }))
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">chapters</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setData((d) => ({ ...d, chapterCount: 1, chapterChoice: 'unsure' }))}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                      data.chapterChoice === 'unsure' ? 'border-primary bg-primary/5 font-medium' : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    Not sure yet — start me with 1 chapter and I&apos;ll add more as I go
                   </button>
                 </div>
                 {data.structure === 'template' && (

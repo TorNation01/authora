@@ -97,9 +97,16 @@ export default function ProjectNotesPage() {
     if (search) params.set('q', search);
     if (activeTab === 'research') params.set('note_type', 'research');
     if (activeTab === 'inspiration') params.set('is_inspiration', 'true');
+    // Notebook holds everything except the inspiration board, so inspiration
+    // notes don't appear in two places at once.
+    if (activeTab === 'notebook') params.set('is_inspiration', 'false');
     const qs = params.toString();
     return api<Note[]>(`/api/v1/projects/${projectId}/notes${qs ? `?${qs}` : ''}`)
-      .then(setNotes)
+      .then((rows) => {
+        // Keep the three sections disjoint: the notebook shows general notes,
+        // research has its own tab, inspiration has its own board.
+        setNotes(activeTab === 'notebook' ? rows.filter((n) => n.note_type !== 'research') : rows);
+      })
       .catch(() => setNotes([]));
   }, [projectId, search, activeTab]);
 
@@ -116,17 +123,27 @@ export default function ProjectNotesPage() {
     if (!quickCapture.trim()) return;
     setSaving(true);
     try {
+      // Capture into the section you are standing in, not always the notebook.
+      const isResearch = activeTab === 'research';
+      const isInspiration = activeTab === 'inspiration';
       await api(`/api/v1/projects/${projectId}/notes`, {
         method: 'POST',
         body: JSON.stringify({
           title: quickCapture.slice(0, 100) + (quickCapture.length > 100 ? '...' : ''),
           content: quickCapture,
-          note_type: 'idea',
+          note_type: isResearch ? 'research' : 'idea',
+          is_inspiration: isInspiration,
         }),
       });
       setQuickCapture('');
       fetchNotes();
-      toast({ title: 'Note captured' });
+      toast({
+        title: isResearch
+          ? 'Saved to Research'
+          : isInspiration
+            ? 'Saved to Inspiration'
+            : 'Note captured',
+      });
     } catch (e) {
       toast({
         title: 'Failed to save',
@@ -251,7 +268,13 @@ export default function ProjectNotesPage() {
         <CardContent className="pt-6">
           <div className="flex gap-2">
             <Input
-              placeholder="Quick idea capture..."
+              placeholder={
+                activeTab === 'research'
+                  ? 'Add a research note — source, finding, quote…'
+                  : activeTab === 'inspiration'
+                    ? 'Capture a spark for the inspiration board…'
+                    : 'Quick idea capture…'
+              }
               value={quickCapture}
               onChange={(e) => setQuickCapture(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuickCapture()}
@@ -312,6 +335,7 @@ export default function ProjectNotesPage() {
           <NoteList
             notes={notes}
             loading={loading}
+            tab={activeTab}
             onSelect={setSelectedNote}
             onPin={handlePin}
             onInspiration={handleInspiration}
@@ -321,6 +345,7 @@ export default function ProjectNotesPage() {
           <NoteList
             notes={notes}
             loading={loading}
+            tab={activeTab}
             onSelect={setSelectedNote}
             onPin={handlePin}
             onInspiration={handleInspiration}
@@ -330,6 +355,7 @@ export default function ProjectNotesPage() {
           <NoteList
             notes={notes}
             loading={loading}
+            tab={activeTab}
             onSelect={setSelectedNote}
             onPin={handlePin}
             onInspiration={handleInspiration}
@@ -356,12 +382,14 @@ export default function ProjectNotesPage() {
 function NoteList({
   notes,
   loading,
+  tab,
   onSelect,
   onPin,
   onInspiration,
 }: {
   notes: Note[];
   loading: boolean;
+  tab: string;
   onSelect: (n: Note) => void;
   onPin: (n: Note) => void;
   onInspiration: (n: Note) => void;
@@ -374,12 +402,25 @@ function NoteList({
     );
   }
   if (notes.length === 0) {
-    const config = getEmptyStateConfig('no_notes')!;
+    const empty = {
+      research: {
+        title: 'No research yet',
+        description: 'Capture sources, findings and quotes here — type in the bar above and press Enter.',
+      },
+      inspiration: {
+        title: 'Nothing on the inspiration board yet',
+        description: 'Capture the sparks here, or tap the ✦ on any note to move it onto this board.',
+      },
+      notebook: {
+        title: 'Your notebook is empty',
+        description: 'Quick-capture an idea above. Research and inspiration live in their own tabs.',
+      },
+    }[tab] ?? getEmptyStateConfig('no_notes')!;
     return (
       <Card variant="soft" className="p-12 text-center">
         <StickyNote className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="font-semibold mb-2">{config.title}</h3>
-        <p className="text-muted-foreground text-sm max-w-sm mx-auto">{config.description}</p>
+        <h3 className="font-semibold mb-2">{empty.title}</h3>
+        <p className="text-muted-foreground text-sm max-w-sm mx-auto">{empty.description}</p>
       </Card>
     );
   }

@@ -147,42 +147,60 @@ export default function BookStudioPage() {
     }
   }, [projectId, bookId, activeChapter?.id, book?.id]);
 
+  // The chapter the text came from is carried in every save payload, and its
+  // last known server timestamp lives here, so a debounced save that fires
+  // after the user switches chapters still writes to the right row.
+  const activeChapterRef = useRef<Chapter | null>(null);
+  const chapterTimestampRef = useRef<Record<string, string | undefined>>({});
+  useEffect(() => {
+    activeChapterRef.current = activeChapter;
+    if (activeChapter?.id) {
+      chapterTimestampRef.current[activeChapter.id] = activeChapter.updated_at;
+    }
+  }, [activeChapter]);
+
   const saveChapter = useCallback(
-    async (data: { content: Record<string, unknown>; wordCount: number }) => {
-      if (!activeChapter) throw new Error('No chapter');
+    async (data: { chapterId: string; content: Record<string, unknown>; wordCount: number }) => {
       const body: Record<string, unknown> = { content: data.content };
-      if (activeChapter.updated_at) {
-        body.if_unchanged_since = activeChapter.updated_at;
+      const base = chapterTimestampRef.current[data.chapterId];
+      if (base) {
+        body.if_unchanged_since = base;
       }
       const updated = await api<{ updated_at?: string }>(
-        `/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}`,
+        `/api/v1/projects/${projectId}/books/${bookId}/chapters/${data.chapterId}`,
         {
           method: 'PATCH',
           body: JSON.stringify(body),
         }
       );
-      const merged = { content: data.content, word_count: data.wordCount, updated_at: updated?.updated_at };
-      setActiveChapter((prev) =>
-        prev ? { ...prev, ...merged } : null
+      if (updated?.updated_at) chapterTimestampRef.current[data.chapterId] = updated.updated_at;
+      const merged = {
+        content: data.content,
+        word_count: data.wordCount,
+        updated_at: updated?.updated_at,
+      };
+      setActiveChapter((prev) => (prev && prev.id === data.chapterId ? { ...prev, ...merged } : prev));
+      setBook((prev) =>
+        prev
+          ? {
+              ...prev,
+              chapters: prev.chapters.map((c) =>
+                c.id === data.chapterId ? { ...c, ...merged } : c
+              ),
+            }
+          : prev
       );
-      if (book) {
-        setBook({
-          ...book,
-          chapters: book.chapters.map((c) =>
-            c.id === activeChapter.id ? { ...c, ...merged } : c
-          ),
-        });
-      }
     },
-    [activeChapter, book, projectId, bookId]
+    [projectId, bookId]
   );
 
   const { scheduleSave, saveNow, status, lastSaved, hasPending, retry, flushPending } = useAutosave<{
+    chapterId: string;
     content: Record<string, unknown>;
     wordCount: number;
   }>({
     onSave: saveChapter,
-    delayMs: 2000,
+    delayMs: 1500,
     onError: (err) => {
       const isConflict = err instanceof ApiError && err.status === 409;
       toast({
@@ -193,11 +211,29 @@ export default function BookStudioPage() {
       });
     },
     maxRetries: 5,
+    // A 409/401/422 will never succeed on retry; retrying just spams toasts.
+    isRetryable: (err) => {
+      const code = (err as { status?: number })?.status;
+      if (typeof code !== 'number') return true;
+      return code >= 500 || code === 408 || code === 429;
+    },
     draftKey: activeChapter?.id,
     getDraftPayload: (d) => ({ content: d.content, wordCount: d.wordCount }),
   });
 
   useUnsavedChangesGuard(hasPending);
+
+  // Ctrl/Cmd+S forces an immediate save instead of waiting for the debounce.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void flushPending();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [flushPending]);
 
   const [recoveryDraft, setRecoveryDraft] = useState<{ content: Record<string, unknown>; wordCount: number } | null>(null);
   const [showSyncFailedBanner, setShowSyncFailedBanner] = useState(false);
@@ -213,12 +249,21 @@ export default function BookStudioPage() {
       setRecoveryDraft(null);
       return;
     }
-    const serverContent = activeChapter.content;
-    const draftContent = draft.content;
-    const serverJson = JSON.stringify(serverContent ?? {});
-    const draftJson = JSON.stringify(draftContent ?? {});
-    if (draftJson !== serverJson) {
-      setRecoveryDraft({ content: draftContent, wordCount: draft.wordCount });
+    // Compare visible text, not raw JSON: an empty document can serialise with
+    // or without an empty paragraph depending on which editor wrote it, which
+    // made "Unsaved draft found" reappear forever on a blank chapter.
+    const textOf = (node: unknown): string => {
+      if (!node) return '';
+      if (typeof node === 'string') return node;
+      if (Array.isArray(node)) return node.map(textOf).join('');
+      const n = node as { type?: string; text?: string; content?: unknown };
+      if (n.type === 'text') return n.text ?? '';
+      return textOf(n.content);
+    };
+    const draftText = textOf(draft.content).trim();
+    const serverText = textOf(activeChapter.content).trim();
+    if (draftText !== serverText) {
+      setRecoveryDraft({ content: draft.content, wordCount: draft.wordCount });
     } else {
       clearDraft(activeChapter.id);
       setRecoveryDraft(null);
@@ -244,7 +289,7 @@ export default function BookStudioPage() {
         ),
       });
     }
-    saveNow({ content: recoveryDraft.content, wordCount: recoveryDraft.wordCount });
+    saveNow({ chapterId: activeChapter.id, content: recoveryDraft.content, wordCount: recoveryDraft.wordCount });
     clearDraft(activeChapter.id);
     setRecoveryDraft(null);
     toast({ title: 'Draft restored' });
@@ -262,7 +307,7 @@ export default function BookStudioPage() {
       if (!activeChapter) return;
       setLiveWordCount(wordCount);
       if (wordCount > 0) markFirstWriteDone();
-      scheduleSave({ content, wordCount });
+      scheduleSave({ chapterId: activeChapter.id, content, wordCount });
     },
     [activeChapter, scheduleSave]
   );
@@ -538,7 +583,7 @@ export default function BookStudioPage() {
         ...book,
         chapters: book.chapters.map((c) => (c.id === chapterId ? updated : c)),
       });
-      saveNow({ content, wordCount });
+      saveNow({ chapterId, content, wordCount });
       setRecoveryDraft(null);
       toast({ title: 'Draft restored' });
     },
@@ -557,7 +602,7 @@ export default function BookStudioPage() {
           ),
         });
       }
-      await saveChapter({ content: version.content, wordCount: version.word_count });
+      await saveChapter({ chapterId: activeChapter.id, content: version.content, wordCount: version.word_count });
       clearDraft(activeChapter.id);
       setShowHistory(false);
       toast({ title: 'Version restored' });
@@ -585,7 +630,7 @@ export default function BookStudioPage() {
     if (content && typeof content === 'object') {
       const plain = tiptapToPlainText(content as Record<string, unknown>);
       const wordCount = plain.split(/\s+/).filter(Boolean).length;
-      await saveChapter({ content: content as Record<string, unknown>, wordCount });
+      await saveChapter({ chapterId: activeChapter.id, content: content as Record<string, unknown>, wordCount });
     }
     await api(`/api/v1/projects/${projectId}/books/${bookId}/chapters/${activeChapter.id}/snapshot`, {
       method: 'POST',
@@ -648,7 +693,7 @@ export default function BookStudioPage() {
         });
         const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
         markFirstWriteDone();
-        scheduleSave({ content: editorRef.current.getJSON(), wordCount });
+        scheduleSave({ chapterId: activeChapter.id, content: editorRef.current.getJSON(), wordCount });
       }
     } catch {
       toast({ title: 'AI not available', variant: 'destructive' });

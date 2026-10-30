@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BookOpen, Plus, PenLine, Map, Sparkles, Search, Archive, ArchiveRestore, Copy, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Map, Sparkles, Search, Archive, ArchiveRestore, Copy, Trash2, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -345,64 +345,76 @@ export default function DashboardPage() {
               <Card
                 key={p.id}
                 variant="sanctuary"
-                className="group relative block p-6 hover:shadow-md transition-shadow h-full"
+                className="group relative h-full overflow-hidden p-0 hover:shadow-md hover:border-primary/40 transition-all"
               >
-                <Link href={`/dashboard/projects/${p.id}`} className="block absolute inset-0 z-0" />
-                <div className="relative z-10">
-                  <div className="flex items-start justify-between gap-2">
-                    <BookOpen className="h-8 w-8 text-primary mb-3 shrink-0" />
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {p.deleted_at ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => { e.preventDefault(); handleRestore(p); }}
-                          title="Restore"
-                        >
-                          <ArchiveRestore className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.preventDefault(); handleArchive(p); }}
-                            title="Archive"
-                          >
-                            <Archive className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.preventDefault(); handleDuplicate(p); }}
-                            title="Duplicate"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={(e) => { e.preventDefault(); setDeleteTarget(p); }}
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                {/* Whole card is the link — clicking anywhere opens the project. */}
+                <Link
+                  href={`/dashboard/projects/${p.id}`}
+                  aria-label={`Open project ${p.name}`}
+                  className="flex h-full flex-col justify-between p-6"
+                >
+                  <div className="flex items-start gap-3 pr-20">
+                    <BookOpen className="h-8 w-8 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground truncate">{p.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {p.deleted_at ? 'Archived' : 'Created'}{' '}
+                        {new Date(p.deleted_at || p.created_at).toLocaleDateString()}
+                      </p>
+                      {p.last_accessed_at && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Opened {new Date(p.last_accessed_at).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                   </div>
-                  <h3 className="font-semibold text-foreground">{p.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {p.deleted_at ? 'Archived' : 'Created'} {new Date(p.deleted_at || p.created_at).toLocaleDateString()}
-                  </p>
-                  <p className="text-sm text-primary font-medium mt-3 flex items-center gap-1">
+                  <span className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 px-3 py-2.5 text-sm font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     Open and write
-                    <PenLine className="h-3 w-3" />
-                  </p>
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </Link>
+                <div className="absolute right-2 top-2 z-20 flex gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100">
+                  {p.deleted_at ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRestore(p); }}
+                      title="Restore"
+                    >
+                      <ArchiveRestore className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleArchive(p); }}
+                        title="Archive"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDuplicate(p); }}
+                        title="Duplicate"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(p); }}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </Card>
             ))}

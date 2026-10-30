@@ -19,7 +19,23 @@ interface ProjectData {
   id: string;
   name: string;
   guidance_mode: string;
+  scope?: string;
 }
+
+type ProjectScope = 'standalone' | 'series';
+
+const SCOPE_OPTIONS: { value: ProjectScope; label: string; description: string }[] = [
+  {
+    value: 'standalone',
+    label: 'Standalone',
+    description: 'One book, told once. The bible drops the series-only sections.',
+  },
+  {
+    value: 'series',
+    label: 'Series',
+    description: 'Books that share canon. Keeps the series connection section and continuity tracking.',
+  },
+];
 
 export default function ProjectSettingsPage() {
   const params = useParams();
@@ -28,6 +44,7 @@ export default function ProjectSettingsPage() {
   const projectId = params.id as string;
   const [project, setProject] = useState<ProjectData | null>(null);
   const [guidanceMode, setGuidanceMode] = useState<GuidanceMode>('guided');
+  const [scope, setScope] = useState<ProjectScope>('series');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +53,7 @@ export default function ProjectSettingsPage() {
       .then((p) => {
         setProject(p);
         setGuidanceMode((p.guidance_mode as GuidanceMode) || 'guided');
+        setScope((p.scope as ProjectScope) || 'series');
       })
       .catch(() => router.push('/dashboard'))
       .finally(() => setLoading(false));
@@ -46,10 +64,10 @@ export default function ProjectSettingsPage() {
     try {
       await api(`/api/v1/projects/${projectId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ guidance_mode: guidanceMode }),
+        body: JSON.stringify({ guidance_mode: guidanceMode, scope }),
       });
       toast({ title: 'Settings saved' });
-      setProject((p) => (p ? { ...p, guidance_mode: guidanceMode } : null));
+      setProject((p) => (p ? { ...p, guidance_mode: guidanceMode, scope } : null));
     } catch (err) {
       toast({
         title: 'Failed to save',

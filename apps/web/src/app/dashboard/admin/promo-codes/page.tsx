@@ -120,7 +120,7 @@ export default function AdminPromoCodesPage() {
               <Input
                 value={createCode}
                 onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
-                placeholder="e.g. FOUNDER50"
+                placeholder="e.g. LIFETIME50"
               />
             </div>
             <div>

@@ -32,7 +32,7 @@ const PLAN_OPTIONS = [
   { value: 'starter', label: 'Starter' },
   { value: 'pro', label: 'Pro' },
   { value: 'studio', label: 'Studio' },
-  { value: 'founder_lifetime', label: 'Founder Lifetime' },
+  { value: 'founder_lifetime', label: 'Lifetime Access' },
 ];
 
 export default function AdminUsersPage() {

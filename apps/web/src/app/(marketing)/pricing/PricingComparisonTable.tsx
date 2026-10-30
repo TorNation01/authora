@@ -167,13 +167,13 @@ export function PricingComparisonTable() {
       </div>
 
       <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-        {(Object.entries(DEFAULT_PLANS) as [PlanSlug, (typeof DEFAULT_PLANS)[PlanSlug]][]).map(
-          ([slug, def]) => (
+        {(Object.entries(DEFAULT_PLANS) as [PlanSlug, (typeof DEFAULT_PLANS)[PlanSlug]][])
+          .filter(([slug]) => slug !== 'founder_lifetime')
+          .map(([slug, def]) => (
             <span key={slug}>
               <strong className="text-foreground">{def.name}</strong> — {def.valueNote}
             </span>
-          )
-        )}
+          ))}
       </div>
     </section>
   );

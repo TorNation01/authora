@@ -89,6 +89,12 @@ export default function ProjectPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${projectId}/characters`}>
+                <Users className="h-4 w-4 mr-2" />
+                Characters
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href={`/dashboard/projects/${projectId}/vault`}>
                 <Library className="h-4 w-4 mr-2" />
                 Vault

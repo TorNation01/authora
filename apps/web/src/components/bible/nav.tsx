@@ -12,19 +12,28 @@ const bookBase = (projectId: string, bookId: string) =>
   `/dashboard/projects/${projectId}/books/${bookId}`;
 
 const BOOK_LINKS = [
+  { key: 'process', label: 'Process' },
+  { key: '__series', label: 'Series Bible' },
+  { key: 'idea', label: 'Book Idea' },
   { key: 'bible', label: 'Bible' },
+  { key: 'outline', label: 'Outline' },
+  { key: 'chapter-outline', label: 'Chapter Outline' },
   { key: 'plan', label: 'Plan' },
+  { key: 'brief', label: 'Chapter Briefs' },
+  { key: 'acts', label: 'Acts' },
   { key: 'ghostwriter', label: 'Ghostwriter' },
   { key: 'edit', label: 'Edit & Polish' },
 ];
 
 const BIBLE_LINKS = [
   { key: '', label: 'Overview' },
-  { key: 'characters', label: 'Characters' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'arcs', label: 'Arcs' },
-  { key: 'world', label: 'World & Themes' },
-  { key: 'timeline', label: 'Timeline' },
+  { key: '?section=story_foundation', label: 'Story' },
+  { key: '?section=narrative_format', label: 'Format' },
+  { key: '?section=tone_and_voice', label: 'Voice' },
+  { key: '?section=world_and_setting', label: 'World' },
+  { key: '?section=characters', label: 'Characters' },
+  { key: '?section=structure', label: 'Structure' },
+  { key: '?section=canon_status', label: 'Canon' },
 ];
 
 /**
@@ -41,11 +50,16 @@ export function BookNav({ projectId, bookId, className = '' }: NavProps & { clas
       className={`flex items-center gap-6 overflow-x-auto border-b border-border ${className}`}
     >
       {BOOK_LINKS.map((link) => {
-        const href = `${base}/${link.key}`;
+        const href =
+          link.key === '__series'
+            ? `/dashboard/projects/${projectId}/series`
+            : `${base}/${link.key}`;
         const active =
-          link.key === 'bible'
-            ? pathname.includes(`${base}/bible`)
-            : pathname.startsWith(href);
+          link.key === '__series'
+            ? pathname.includes(`/projects/${projectId}/series`)
+            : link.key === 'bible'
+              ? pathname.includes(`${base}/bible`)
+              : pathname.startsWith(href);
         return (
           <Link
             key={link.key}
@@ -76,9 +90,15 @@ export function BibleNav({ projectId, bookId }: NavProps) {
       className="mb-8 flex items-center gap-5 overflow-x-auto border-b border-border/70"
     >
       {BIBLE_LINKS.map((link) => {
-        const href = link.key ? `${base}/${link.key}` : base;
+        const href = link.key
+          ? link.key.startsWith('?')
+            ? `${base}${link.key}`
+            : `${base}/${link.key}`
+          : base;
         const active = link.key
-          ? pathname.startsWith(href)
+          ? link.key.startsWith('?')
+            ? false
+            : pathname.startsWith(href)
           : pathname === base || pathname === `${base}/`;
         return (
           <Link

@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +43,7 @@ export function RecoveryBanner({
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={onDismiss}>
-            <X className="h-4 w-4" />
+            Discard
           </Button>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function RecoveryBanner({
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={onDismiss}>
-            <X className="h-4 w-4" />
+            Discard
           </Button>
         </div>
       </div>

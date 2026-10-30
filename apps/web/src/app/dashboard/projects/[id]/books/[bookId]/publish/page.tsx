@@ -16,6 +16,8 @@ import {
   Loader2,
   Package,
   RefreshCw,
+  Send,
+  Building2,
   Upload,
   XCircle,
 } from 'lucide-react';
@@ -144,6 +146,46 @@ interface CompilePreview {
   structure?: { label?: string; kind?: string; words?: number }[];
 }
 
+type SubmissionRecord = {
+  id: string;
+  book_id: string;
+  publisher_name: string;
+  publisher_url: string | null;
+  ref: string;
+  status: string;
+  message: string | null;
+  submitted_at: string;
+  checked_at: string | null;
+  files: { name: string; kind: string; bytes: number }[];
+};
+
+type SubmissionDefaults = {
+  publisher_name: string;
+  author_name: string;
+  email: string;
+  title: string;
+  series: string;
+  genre: string;
+  word_count: number;
+  pitch: string;
+};
+
+type SubmissionInfo = {
+  submission: SubmissionRecord | null;
+  defaults: SubmissionDefaults;
+  pack: { chapters: number; has_cover: boolean };
+};
+
+const SUBMISSION_STATUS: Record<string, { label: string; tone: string }> = {
+  received: { label: "Received by the house", tone: "text-warning" },
+  reviewing: { label: "Under review", tone: "text-warning" },
+  accepted: { label: "Accepted", tone: "text-success" },
+  declined: { label: "Declined", tone: "text-destructive" },
+  withdrawn: { label: "Withdrawn", tone: "text-muted-foreground" },
+};
+
+const PUBLISHER_DEFAULT = "Anema House Publishing";
+
 const FORMATS = [
   { id: 'epub', label: 'EPUB', note: 'Reader-facing ebook with contents page and chapter headings.' },
   { id: 'pdf', label: 'PDF', note: 'Fixed-layout proof for print review and reading.' },
@@ -218,6 +260,12 @@ export default function PublishPage() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [releaseFormats, setReleaseFormats] = useState<string[]>(['epub', 'pdf']);
   const [error, setError] = useState<string | null>(null);
+  const [subInfo, setSubInfo] = useState<SubmissionInfo | null>(null);
+  const [subForm, setSubForm] = useState<SubmissionDefaults | null>(null);
+  const [sending, setSending] = useState(false);
+  const [checkingHouse, setCheckingHouse] = useState(false);
+  const [showSubForm, setShowSubForm] = useState(false);
+  const [subNotice, setSubNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const applyPublication = useCallback((pub: Publication) => {
@@ -265,16 +313,19 @@ export default function PublishPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [pub, ready, page, exports] = await Promise.all([
+      const [pub, ready, page, exports, sub] = await Promise.all([
         api<Publication>(`/api/v1/publish/books/${bookId}/publication`),
         api<Readiness>(`/api/v1/publish/books/${bookId}/readiness`),
         api<ImprintPage>(`/api/v1/publish/books/${bookId}/imprint-page`),
         api<{ exports: ExportRecord[] }>(`/api/v1/export/books/${bookId}/export-history?limit=8`),
+        api<SubmissionInfo>(`/api/v1/publish/books/${bookId}/submission`),
       ]);
       applyPublication(pub);
       setReadiness(ready);
       setImprintPage(page);
       setHistory(exports.exports || []);
+      setSubInfo(sub);
+      setSubForm((current) => current ?? sub.defaults);
       if (pub.release?.formats?.length) setReleaseFormats(pub.release.formats);
       await loadCover(pub.cover);
     } catch (err) {
@@ -493,6 +544,55 @@ export default function PublishPage() {
       setReleasing(false);
     }
   }
+
+  async function sendToHouse() {
+    if (!subForm) return;
+    setSending(true);
+    setError(null);
+    setSubNotice(null);
+    try {
+      const result = await api<{ submission: SubmissionRecord; cover_skipped: boolean }>(
+        `/api/v1/publish/books/${bookId}/submission`,
+        { method: "POST", body: JSON.stringify(subForm) }
+      );
+      setSubInfo((prev) => (prev ? { ...prev, submission: result.submission } : prev));
+      setShowSubForm(false);
+      setSubNotice(
+        result.cover_skipped
+          ? `Sent as ${result.submission.ref}. The cover file on record is missing, so the manuscript went without it.`
+          : `Sent as ${result.submission.ref}.`
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Could not reach the publishing house."
+      );
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function checkWithHouse() {
+    setCheckingHouse(true);
+    setError(null);
+    try {
+      const result = await api<{ submission: SubmissionRecord }>(
+        `/api/v1/publish/books/${bookId}/submission/refresh`,
+        { method: "POST" }
+      );
+      setSubInfo((prev) => (prev ? { ...prev, submission: result.submission } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The house could not answer the status check.");
+    } finally {
+      setCheckingHouse(false);
+    }
+  }
+
+  const submission = subInfo?.submission ?? null;
+  const submissionMeta = submission ? SUBMISSION_STATUS[submission.status] : undefined;
 
   if (loading) {
     return (
@@ -1105,9 +1205,199 @@ export default function PublishPage() {
         </Card>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          These are referrals, not integrations. Nothing is submitted automatically and no account is created on your
-          behalf.
+          These links open other platforms. The one live connection is below: Anema House receives submissions
+          straight from this page, and only when you press send.
         </p>
+      </section>
+
+      {/* 07 — Send to a publishing house */}
+      <section className="mt-10">
+        <div className="mb-3 flex items-start gap-3">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+            07
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold">Send to a publishing house</h2>
+            <p className="text-sm text-muted-foreground">
+              Pack the book with the details a house needs to review it, then send it in one click. Anema House is
+              the default: the pack lands in its review queue with a reference number you can quote.
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="space-y-5 p-5">
+            {subNotice && (
+              <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/5 p-3 text-sm">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <span>{subNotice}</span>
+              </div>
+            )}
+
+            {submission && !showSubForm ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Building2 className="h-4 w-4" />
+                      {submission.publisher_name}
+                      <Badge variant={submission.status === "accepted" ? "success" : submission.status === "declined" ? "destructive" : "outline"}>
+                        {submissionMeta?.label ?? submission.status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Reference <span className="font-mono text-foreground">{submission.ref}</span> · sent{" "}
+                      {formatDate(submission.submitted_at)}
+                      {submission.checked_at ? ` · last checked ${formatDate(submission.checked_at)}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={checkWithHouse} disabled={checkingHouse}>
+                      {checkingHouse ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+                      Check for an answer
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowSubForm(true)}>
+                      Send an updated pack
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                  {submission.files.map((file) => (
+                    <div key={file.name} className="flex items-center gap-2">
+                      {file.kind === "cover" ? <ImageIcon className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}
+                      <span className="truncate">{file.name}</span>
+                      <span className="text-xs">({formatBytes(file.bytes)})</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Sending a pack asks the house to review the book. It is not an offer of publication, and the
+                  house answers by email to the address in the pack.
+                </p>
+              </div>
+            ) : subForm ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="sub-publisher">Publishing house</Label>
+                    <select
+                      id="sub-publisher"
+                      className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                      value={subForm.publisher_name}
+                      onChange={(e) => setSubForm({ ...subForm, publisher_name: e.target.value })}
+                    >
+                      <option value={PUBLISHER_DEFAULT}>{PUBLISHER_DEFAULT} — connected</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      Submissions go straight into Anema House&apos;s review queue. Other houses have no channel yet.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-author">Author name</Label>
+                    <Input
+                      id="sub-author"
+                      value={subForm.author_name}
+                      onChange={(e) => setSubForm({ ...subForm, author_name: e.target.value })}
+                      placeholder="Name the house should address"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-email">Email for the reply</Label>
+                    <Input
+                      id="sub-email"
+                      type="email"
+                      value={subForm.email}
+                      onChange={(e) => setSubForm({ ...subForm, email: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-title">Title</Label>
+                    <Input
+                      id="sub-title"
+                      value={subForm.title}
+                      onChange={(e) => setSubForm({ ...subForm, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-series">Series (optional)</Label>
+                    <Input
+                      id="sub-series"
+                      value={subForm.series}
+                      onChange={(e) => setSubForm({ ...subForm, series: e.target.value })}
+                      placeholder="Book one of…"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-genre">Genre</Label>
+                    <Input
+                      id="sub-genre"
+                      value={subForm.genre}
+                      onChange={(e) => setSubForm({ ...subForm, genre: e.target.value })}
+                      placeholder="Historical fiction"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sub-words">Word count</Label>
+                    <Input
+                      id="sub-words"
+                      type="number"
+                      min={0}
+                      value={subForm.word_count}
+                      onChange={(e) => setSubForm({ ...subForm, word_count: Number(e.target.value) || 0 })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="sub-pitch">Pitch — what the book is and who it is for</Label>
+                    <Textarea
+                      id="sub-pitch"
+                      rows={5}
+                      maxLength={4000}
+                      value={subForm.pitch}
+                      onChange={(e) => setSubForm({ ...subForm, pitch: e.target.value })}
+                      placeholder="Two or three paragraphs the acquisitions editor can act on."
+                    />
+                    <p className="text-xs text-muted-foreground">{subForm.pitch.length}/4000 characters</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Package className="h-4 w-4" /> What gets sent
+                  </div>
+                  <ul className="mt-2 space-y-1 text-muted-foreground">
+                    <li>
+                      · The whole manuscript as one file, chapters in reading order
+                      {subInfo ? ` (${subInfo.pack.chapters} chapter${subInfo.pack.chapters === 1 ? "" : "s"}, ~${subForm.word_count.toLocaleString()} words)` : ""}.
+                    </li>
+                    <li>
+                      · {subInfo?.pack.has_cover ? "The cover image on record." : "No cover attached — add one above if the house should see it."}
+                    </li>
+                    <li>· The details in this form, so the house can reply to you directly.</li>
+                  </ul>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Nothing is sent until you press the button. You will get a reference number back.
+                  </p>
+                  <Button onClick={sendToHouse} disabled={sending || !subForm.author_name || !subForm.email || !subForm.title}>
+                    {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    {sending ? "Sending…" : `Send to ${subForm.publisher_name.replace(" Publishing", "")}`}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
       </section>
 
       <div className="mt-10 flex items-center justify-between border-t border-border/60 pt-6 text-xs text-muted-foreground">

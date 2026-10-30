@@ -18,6 +18,7 @@ import {
   CreditCard,
   LayoutTemplate,
   PenLine,
+  Layers,
 } from 'lucide-react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ interface NavItem {
 
 const mainNav: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
+  { href: '/dashboard/sagas', label: 'Sagas', icon: Layers },
   { href: '/dashboard/templates', label: 'Templates', icon: LayoutTemplate },
   { href: '/dashboard/creator', label: 'Creator', icon: PenLine },
   { href: '/dashboard/notes', label: 'Ideas & notes', icon: StickyNote },

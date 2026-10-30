@@ -333,24 +333,67 @@ export default function ExportCenterPage() {
     }
   };
 
+  const saveBlob = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handlePackageExport = async (path: string, filename: string) => {
     if (!selectedBook) return;
     setExporting(path);
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
     try {
       const token = getToken();
+      const auth: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const p = authorName.trim() ? `?author_name=${encodeURIComponent(authorName.trim())}` : '';
+
+      // Long AI packs run as background jobs: POST enqueues, then we poll.
+      // This keeps the request short instead of holding a proxy open for 40s+.
+      const start = await fetch(
+        `${apiBase}/api/v1/export/books/${selectedBook.id}/packages/${path}/jobs${p}`,
+        { method: 'POST', headers: auth }
+      );
+
+      if (start.status === 202) {
+        const { job_id } = (await start.json()) as { job_id: string };
+        const deadline = Date.now() + 10 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2500));
+          const poll = await fetch(`${apiBase}/api/v1/export/packages/jobs/${job_id}`, {
+            headers: auth,
+          });
+          if (!poll.ok) continue;
+          const job = (await poll.json()) as {
+            status: string;
+            error?: string | null;
+            filename?: string | null;
+            download_url?: string | null;
+          };
+          if (job.status === 'failed') {
+            throw new Error(job.error || 'Generation failed');
+          }
+          if (job.status === 'completed' && job.download_url) {
+            const dl = await fetch(`${apiBase}${job.download_url}`, { headers: auth });
+            if (!dl.ok) throw new Error('Download failed');
+            saveBlob(await dl.blob(), job.filename || filename);
+            toast({ title: 'Package downloaded' });
+            return;
+          }
+        }
+        throw new Error('Generation timed out — try again.');
+      }
+
+      // Fallback: older API without job support, or a non-job package.
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1/export/books/${selectedBook.id}/packages/${path}${p}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        `${apiBase}/api/v1/export/books/${selectedBook.id}/packages/${path}${p}`,
+        { headers: auth }
       );
       if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+      saveBlob(await res.blob(), filename);
       toast({ title: 'Package downloaded' });
     } catch (e) {
       toast({ title: 'Failed', description: e instanceof Error ? e.message : 'AI may not be configured.', variant: 'destructive' });

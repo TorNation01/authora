@@ -40,7 +40,7 @@ interface Grant {
 const PLAN_SLUGS = ['free', 'starter', 'pro', 'studio', 'founder_lifetime'];
 const REASON_LABELS: Record<string, string> = {
   family: 'Family',
-  founder: 'Founder',
+  founder: 'Lifetime',
   beta_tester: 'Beta tester',
   partner: 'Partner',
   internal_use: 'Internal use',
