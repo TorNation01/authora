@@ -1,6 +1,7 @@
 """Auth API routes."""
 
 import uuid
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -48,11 +49,23 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ):
     """Register new user. Standalone mode only."""
-    if not get_settings().feature_standalone_auth:
+    settings = get_settings()
+    if not settings.feature_standalone_auth:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Registration is disabled in this deployment",
         )
+
+    # Invite-only gate: when codes are configured, no account exists without one.
+    invite_codes = [c.strip() for c in (settings.signup_invite_codes or "").split(",") if c.strip()]
+    if invite_codes:
+        supplied = (data.invite_code or "").strip()
+        if not supplied or not any(secrets.compare_digest(supplied, code) for code in invite_codes):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Authora is invite-only. A valid invite code is required.",
+            )
+
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")

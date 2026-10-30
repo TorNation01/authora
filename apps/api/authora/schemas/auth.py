@@ -22,6 +22,7 @@ class UserCreate(BaseModel):
     display_name: str | None = None
     referral_code: str | None = None
     affiliate_code: str | None = None
+    invite_code: str | None = None
 
     @field_validator("email")
     @classmethod

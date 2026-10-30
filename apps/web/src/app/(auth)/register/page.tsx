@@ -17,6 +17,7 @@ function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,6 +44,7 @@ function RegisterForm() {
             password,
             display_name: displayName || undefined,
             referral_code: referralCode,
+            invite_code: inviteCode.trim() || undefined,
           }),
         }
       );
@@ -107,6 +109,17 @@ function RegisterForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   minLength={8}
+                  required
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="inviteCode">Invite code</Label>
+                <Input
+                  id="inviteCode"
+                  placeholder="Required — Authora is invite-only"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
                   required
                   className="h-11"
                 />

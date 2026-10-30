@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     # Feature flags (environment-driven)
     feature_standalone_auth: bool = True
+
+    # Invite-only registration. Comma-separated list; empty = open signup.
+    signup_invite_codes: str = ""
     feature_standalone_landing: bool = True
     feature_standalone_setup_wizard: bool = True
     feature_local_admin_creation: bool = True
