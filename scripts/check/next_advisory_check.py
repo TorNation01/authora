@@ -30,9 +30,9 @@ def vt(v: str) -> tuple:
     return tuple(parts + [0] * (3 - len(parts)))
 
 
-def audit_next() -> dict:
+def audit_next(timeout: int = 300) -> dict:
     out = subprocess.run(
-        ["npm", "audit", "--json"], cwd=ROOT, capture_output=True, text=True, timeout=300
+        ["npm", "audit", "--json"], cwd=ROOT, capture_output=True, text=True, timeout=timeout
     ).stdout
     try:
         data = json.loads(out or "{}")
@@ -47,13 +47,20 @@ def audit_next() -> dict:
 
 
 def main() -> int:
+    prestart = "--prestart" in sys.argv
     ver = installed_next()
     problems = []
+    warnings = []
     if vt(ver) < MIN:
         problems.append(f"next {ver} is below the patched backport {'.'.join(map(str, MIN))}")
-    a = audit_next()
+    a = audit_next(25 if prestart else 300)
     if a.get("error"):
-        problems.append(a["error"])
+        # At boot the registry may simply be unreachable. That is not a reason to
+        # keep a working app down — the version floor above is the hard gate.
+        if prestart:
+            warnings.append(a["error"] + " (advisory check skipped)")
+        else:
+            problems.append(a["error"])
     elif a["count"]:
         problems.append(f"{a['count']} critical/high advisory(ies) still reported against next")
 
@@ -62,6 +69,9 @@ def main() -> int:
     if a.get("advisories"):
         for x in a["advisories"]:
             print(f"  - [{x['severity']}] {x['title']}  {x['url']}")
+
+    for w in warnings:
+        print(f"  ~ {w}")
 
     if problems:
         print("\nFAIL")
