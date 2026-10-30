@@ -24,6 +24,9 @@ class UserCreate(BaseModel):
     affiliate_code: str | None = None
     invite_code: str | None = None
     turnstile_token: str | None = None
+    # Anonymous visit id (cookie `av_id`, set by the Next middleware) so a
+    # signup can be attributed to the page view that produced it.
+    visitor_id: str | None = Field(None, max_length=64)
 
     @field_validator("email")
     @classmethod

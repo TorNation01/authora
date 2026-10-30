@@ -96,6 +96,12 @@ function RegisterForm() {
     }
   }, [config.feature_flags.standalone_auth, config.feature_flags.sso_ready, router]);
 
+  function readVisitorId(): string | undefined {
+    if (typeof document === 'undefined') return undefined;
+    const match = document.cookie.match(/(?:^|;\s*)av_id=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (signup?.turnstile.enabled && !turnstileToken) {
@@ -119,6 +125,10 @@ function RegisterForm() {
             referral_code: referralCode,
             invite_code: inviteCode.trim() || undefined,
             turnstile_token: turnstileToken || undefined,
+            // Anonymous visit id from the `av_id` cookie, set by the marketing
+            // site's middleware. This is what ties this account back to the
+            // page view that produced it on the funnel ladder.
+            visitor_id: readVisitorId(),
           }),
         }
       );

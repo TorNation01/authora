@@ -1,5 +1,8 @@
 /**
- * Host-based routing for Option 2 domain architecture:
+ * Host-based routing for Option 2 domain architecture, plus the top of the
+ * funnel: every landing page view is recorded once (anonymous, cookie-scoped)
+ * and the cookie id is handed to the register form so a signup can be
+ * attributed to the visit that produced it.
  * - authora.studio = marketing only
  * - v2.authora.studio = marketing only (v2 preview)
  * - app.authora.studio = logged-in app (dashboard, auth, setup)
@@ -40,7 +43,80 @@ function isAppPath(pathname: string): boolean {
   return APP_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
-export function middleware(request: NextRequest) {
+// --- Funnel instrumentation -------------------------------------------------
+// Where the API lives from inside this container. Same box, loopback port.
+const API_INTERNAL = process.env.API_INTERNAL_URL || 'http://127.0.0.1:8004';
+const VISITOR_COOKIE = 'av_id';
+
+// Only top-of-funnel pages count as a "visit". The dashboard is a logged-in
+// app view, not acquisition traffic, so it stays out of the denominator.
+function shouldTrack(pathname: string): boolean {
+  if (pathname.startsWith('/dashboard')) return false;
+  return isMarketingPath(pathname) || isAppPath(pathname);
+}
+
+function isValidVisitor(id: string | undefined): id is string {
+  return !!id && /^[A-Za-z0-9_-]{8,64}$/.test(id);
+}
+
+async function sendVisit(request: NextRequest, visitorId: string): Promise<void> {
+  const payload = {
+    path: request.nextUrl.pathname,
+    referrer: request.headers.get('referer') || null,
+    visitor_id: visitorId,
+    utm_source: request.nextUrl.searchParams.get('utm_source'),
+    utm_medium: request.nextUrl.searchParams.get('utm_medium'),
+    utm_campaign: request.nextUrl.searchParams.get('utm_campaign'),
+  };
+  try {
+    // Bounded: a slow analytics write must never hold the page. The API is on
+    // loopback, so this is normally single-digit milliseconds.
+    await fetch(`${API_INTERNAL}/api/v1/analytics/visit`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': request.headers.get('user-agent') || '',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(400),
+    });
+  } catch {
+    // Analytics is not allowed to be the reason a page fails.
+  }
+}
+
+async function withVisit(
+  request: NextRequest,
+  response: NextResponse,
+  hostname: string
+): Promise<NextResponse> {
+  const existing = request.cookies.get(VISITOR_COOKIE)?.value;
+  const visitorId = isValidVisitor(existing) ? existing : crypto.randomUUID();
+
+  if (!isValidVisitor(existing)) {
+    response.cookies.set({
+      name: VISITOR_COOKIE,
+      value: visitorId,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+      // Read by the register form to attribute the signup — not a secret.
+      httpOnly: false,
+      secure: request.headers.get('x-forwarded-proto') !== 'http',
+      // Shared across authora.studio and app.authora.studio so a visitor who
+      // lands on marketing and signs up on the app subdomain keeps one id.
+      domain: hostname.endsWith('authora.studio') ? '.authora.studio' : undefined,
+    });
+  }
+
+  if (request.method === 'GET' && shouldTrack(request.nextUrl.pathname)) {
+    await sendVisit(request, visitorId);
+  }
+
+  return response;
+}
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
   const pathname = request.nextUrl.pathname;
@@ -64,7 +140,7 @@ export function middleware(request: NextRequest) {
 
   // Standalone preview hosts: serve everything — no split-domain redirects
   if (STANDALONE_HOSTS.has(hostname)) {
-    return NextResponse.next();
+    return withVisit(request, NextResponse.next(), hostname);
   }
 
   // On marketing host: redirect app paths to app subdomain
@@ -73,7 +149,7 @@ export function middleware(request: NextRequest) {
       const url = new URL(pathname + request.nextUrl.search, `${protocol}://${APP_HOST}`);
       return NextResponse.redirect(url, 301);
     }
-    return NextResponse.next();
+    return withVisit(request, NextResponse.next(), hostname);
   }
 
   // On app host: redirect marketing paths to marketing subdomain; app root -> dashboard
@@ -86,10 +162,10 @@ export function middleware(request: NextRequest) {
       const url = new URL(pathname + request.nextUrl.search, `${protocol}://${MARKETING_HOST}`);
       return NextResponse.redirect(url, 301);
     }
-    return NextResponse.next();
+    return withVisit(request, NextResponse.next(), hostname);
   }
 
-  return NextResponse.next();
+  return withVisit(request, NextResponse.next(), hostname);
 }
 
 export const config = {

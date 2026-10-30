@@ -170,6 +170,24 @@ async def register(
                     },
                 )
             )
+    # Funnel ladder: the signup stage, carrying the anonymous visit id (cookie
+    # `av_id`) so an account can be attributed to the page view that produced
+    # it. Written in the same transaction as the account — no event, no signup.
+    db.add(
+        AnalyticsEvent(
+            user_id=user.id,
+            event_type="signup_completed",
+            resource_type="user",
+            resource_id=str(user.id),
+            properties={
+                "visitor_id": (data.visitor_id or "").strip()[:64] or None,
+                "invite_gated": bool([c for c in (settings.signup_invite_codes or "").split(",") if c.strip()]),
+                "referral_code": data.referral_code,
+                "affiliate_code": data.affiliate_code,
+            },
+        )
+    )
+
     refresh_token, _, _ = await create_session(db, user.id)
     access_token, expires = create_access_token(user.id)
 
