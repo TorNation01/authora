@@ -73,8 +73,13 @@ def http_code(url: str, token: str | None, timeout: float) -> tuple[int | None, 
 def discover(base: str, timeout: float) -> list[str]:
     """Every GET route without a path placeholder, from the live OpenAPI schema."""
     req = urllib.request.Request(base + "/openapi.json", headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        spec = json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            spec = json.load(r)
+    except urllib.error.HTTPError:
+        # No schema at this base (e.g. the web front end, or docs disabled).
+        # That is not a 5xx: fall back to the default path list.
+        return []
     out = []
     for path, ops in (spec.get("paths") or {}).items():
         if "get" not in ops or "{" in path:
