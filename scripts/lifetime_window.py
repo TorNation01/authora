@@ -36,6 +36,11 @@ SLUG = "founder_lifetime"  # internal slug; display name is "Lifetime Access"
 
 
 def database_url() -> str:
+    # An explicit environment variable wins, so one-off ops can target a specific
+    # database without editing .env. Otherwise fall back to the repo .env files.
+    env = os.environ.get("DATABASE_URL")
+    if env:
+        return env.strip().strip('"').strip("'")
     candidates = [ROOT / ".env", ROOT / "apps" / "api" / ".env"]
     for path in candidates:
         if not path.exists():
@@ -43,9 +48,6 @@ def database_url() -> str:
         for line in path.read_text().splitlines():
             if line.startswith("DATABASE_URL="):
                 return line.split("=", 1)[1].strip().strip('"').strip("'")
-    env = os.environ.get("DATABASE_URL")
-    if env:
-        return env
     sys.exit("DATABASE_URL not found in .env or the environment.")
 
 
@@ -58,6 +60,23 @@ def sql(statement: str) -> str:
     if result.returncode != 0:
         sys.exit(f"psql failed: {result.stderr.strip()}")
     return result.stdout.strip()
+
+
+def guard_target(allow_test: bool) -> None:
+    """Never let a window change land on a test database by accident.
+
+    DATABASE_URL lives in .env, and .env has pointed at authora_test before.
+    A silent write to the test DB looks successful and changes nothing real,
+    so refuse unless the operator says --allow-test explicitly.
+    """
+    url = database_url()
+    db = url.rsplit("/", 1)[-1].split("?")[0]
+    if db.endswith("_test") and not allow_test:
+        sys.exit(
+            f"refusing to touch '{db}': that is a test database.\n"
+            f"  DATABASE_URL is {url.rsplit('@', 1)[-1]}\n"
+            "  Point it at production, or re-run with --allow-test."
+        )
 
 
 def show_status() -> int:
@@ -97,22 +116,24 @@ def show_status() -> int:
     return 0
 
 
-def open_window(days: int | None, until: str | None) -> int:
+def open_window(days: int | None, until: str | None, start: str | None) -> int:
     if until:
         end_expr = f"timestamptz '{until}'"
     elif days:
-        end_expr = f"now() + interval '{int(days)} days'"
+        base = f"timestamptz '{start}'" if start else "now()"
+        end_expr = f"({base} + interval '{int(days)} days')"
     else:
         sys.exit("Give --days N or --until <ISO timestamp>.")
+    start_expr = f"timestamptz '{start}'" if start else "now()"
     sql(
         f"""
         update plans
-           set lifetime_available_from = now(),
+           set lifetime_available_from = {start_expr},
                lifetime_available_to   = {end_expr}
          where slug='{SLUG}';
         """
     )
-    print("Lifetime Access is ON SALE.")
+    print("Lifetime Access is ON SALE." if not start else f"Lifetime Access SCHEDULED from {start}.")
     return show_status()
 
 
@@ -141,6 +162,11 @@ def set_price(cents: int) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Open or close the Authora Lifetime Access window.")
+    parser.add_argument(
+        "--allow-test",
+        action="store_true",
+        help="permit the command to hit a *_test database (refused by default)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="show the current window and whether checkout accepts it")
@@ -148,6 +174,7 @@ def main() -> int:
     p_open = sub.add_parser("open", help="put Lifetime Access on sale")
     p_open.add_argument("--days", type=int, help="run the sale for this many days from now")
     p_open.add_argument("--until", help="run until this ISO timestamp, e.g. 2026-11-30T23:59:59+08:00")
+    p_open.add_argument("--start", help="schedule the sale to open at this ISO timestamp (launch day)")
 
     sub.add_parser("close", help="end the sale now")
 
@@ -155,10 +182,11 @@ def main() -> int:
     p_price.add_argument("--cents", type=int, required=True)
 
     args = parser.parse_args()
+    guard_target(args.allow_test)
     if args.command == "status":
         return show_status()
     if args.command == "open":
-        return open_window(args.days, args.until)
+        return open_window(args.days, args.until, args.start)
     if args.command == "close":
         return close_window()
     if args.command == "price":
