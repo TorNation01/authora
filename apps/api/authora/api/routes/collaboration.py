@@ -76,7 +76,11 @@ async def accept_invite(
         )
     if invite.expires_at < now:
         invite.status = "expired"
-        await db.flush()
+        # Commit, not flush: the 400 below travels up through get_db(), whose
+        # except branch rolls the request back. Flushing here discarded the
+        # status change, so an expired invite stayed "pending" in the owner's
+        # sharing list forever and was re-judged dead on every attempt.
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invite has expired",

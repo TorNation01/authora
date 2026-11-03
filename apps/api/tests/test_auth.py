@@ -10,7 +10,7 @@ async def test_register(client: AsyncClient):
     res = await client.post(
         "/api/v1/auth/register",
         json={
-            "email": "test@example.com",
+            "email": "register@example.com",
             "password": "password123",
             "display_name": "Test User",
         },

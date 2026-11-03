@@ -93,7 +93,13 @@ async def test_delete_project(auth_client):
     assert create_resp.status_code == 201
     project_id = create_resp.json()["id"]
 
-    resp = await auth_client.delete(f"/api/v1/projects/{project_id}")
+    # Deletion is deliberately guarded: a bare DELETE is refused, so a stray
+    # click or a retried request cannot destroy a manuscript.
+    refused = await auth_client.delete(f"/api/v1/projects/{project_id}")
+    assert refused.status_code == 400
+    assert "confirm" in refused.json()["detail"].lower()
+
+    resp = await auth_client.delete(f"/api/v1/projects/{project_id}?confirm=true")
     assert resp.status_code == 204
 
     get_resp = await auth_client.get(f"/api/v1/projects/{project_id}")

@@ -31,9 +31,16 @@ def vt(v: str) -> tuple:
 
 
 def audit_next(timeout: int = 300) -> dict:
-    out = subprocess.run(
-        ["npm", "audit", "--json"], cwd=ROOT, capture_output=True, text=True, timeout=timeout
-    ).stdout
+    try:
+        out = subprocess.run(
+            ["npm", "audit", "--json"], cwd=ROOT, capture_output=True, text=True, timeout=timeout
+        ).stdout
+    except subprocess.TimeoutExpired:
+        # A slow registry must not keep the site down. main() downgrades this to a
+        # prestart warning; the installed-version floor remains the hard gate.
+        return {"error": f"npm audit timed out after {timeout}s (registry slow)"}
+    except (FileNotFoundError, OSError) as e:
+        return {"error": f"npm audit could not run: {e}"}
     try:
         data = json.loads(out or "{}")
     except json.JSONDecodeError:

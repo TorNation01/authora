@@ -934,6 +934,7 @@ async def create_customer_portal(
     return result
 
 
+@router.post("/webhook")
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,

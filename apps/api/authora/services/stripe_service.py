@@ -428,7 +428,12 @@ async def handle_webhook(db: AsyncSession, payload: bytes, sig_header: str) -> d
             await _handle_subscription_deleted(db, event)
         elif event_type == "invoice.payment_failed":
             await _handle_invoice_payment_failed(db, event)
-        elif event_type == "invoice.paid":
+        elif event_type in ("invoice.paid", "invoice.payment_succeeded"):
+            # Stripe's dashboard still lists the legacy name
+            # `invoice.payment_succeeded`, and that is the event this
+            # account subscribes to. Matching only `invoice.paid` meant
+            # every renewal verified, returned 200, was recorded as
+            # processed - and extended nothing.
             await _handle_invoice_paid(db, event)
     except Exception:
         await db.rollback()

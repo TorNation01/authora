@@ -27,14 +27,14 @@ async def test_auth_me_requires_auth(anon_client):
 
 
 @pytest.mark.asyncio
-async def test_auth_me_with_valid_token(auth_client):
+async def test_auth_me_with_valid_token(auth_client, test_user):
     """Auth /me returns user with valid token."""
     resp = await auth_client.get("/api/v1/auth/me")
     assert resp.status_code == 200
     data = resp.json()
     assert "id" in data
     assert "email" in data
-    assert data["email"] == "test@example.com"
+    assert data["email"] == test_user.email
 
 
 @pytest.mark.asyncio
@@ -72,10 +72,10 @@ async def test_rate_limit_skip_health(anon_client):
 
 
 @pytest.mark.asyncio
-async def test_admin_user_has_is_admin(admin_client):
+async def test_admin_user_has_is_admin(admin_client, admin_user):
     """Admin user can access /me and has admin role."""
     resp = await admin_client.get("/api/v1/auth/me")
     assert resp.status_code == 200
     # UserResponse doesn't include is_admin, but we verify admin can authenticate
     assert "email" in resp.json()
-    assert resp.json()["email"] == "admin@example.com"
+    assert resp.json()["email"] == admin_user.email

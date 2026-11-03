@@ -34,12 +34,12 @@ async def project(db, inviter):
 
 
 @pytest.fixture
-async def pending_invite(db, project, inviter):
-    """Pending invite for test_user (test@example.com)."""
+async def pending_invite(db, project, inviter, test_user):
+    """Pending invite addressed to the user the auth_client signs in as."""
     import secrets
 
     invite = ProjectInvite(
-        email="test@example.com",
+        email=test_user.email,
         project_id=project.id,
         role="beta_reader",
         token=secrets.token_urlsafe(32),
@@ -74,9 +74,8 @@ async def test_accept_invite_success(auth_client, db, project, pending_invite, t
     member = result.scalar_one()
     assert member.role == "beta_reader"
 
-    result = await db.execute(select(ProjectInvite).where(ProjectInvite.id == pending_invite.id))
-    invite = result.scalar_one()
-    assert invite.status == "accepted"
+    await db.refresh(pending_invite)
+    assert pending_invite.status == "accepted"
 
 
 @pytest.mark.asyncio
@@ -85,7 +84,7 @@ async def test_accept_invite_expired(auth_client, db, project, inviter):
     import secrets
 
     invite = ProjectInvite(
-        email="test@example.com",
+        email="someone-else@example.com",
         project_id=project.id,
         role="beta_reader",
         token=secrets.token_urlsafe(32),
