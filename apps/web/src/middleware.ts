@@ -9,6 +9,12 @@
  * - api.authora.studio = backend API (handled by reverse proxy)
  *
  * Local dev (localhost, 127.0.0.1): no redirects.
+ *
+ * Every response also carries a strict Content-Security-Policy. The nonce is
+ * generated per request and handed to Next through the request headers, so the
+ * framework's own script tags are the only inline scripts allowed to run. A
+ * token in localStorage is only as safe as the page that holds it: without CSP,
+ * one injected script reads it and walks away with a seven-day refresh token.
  */
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -21,15 +27,10 @@ const APP_HOST = process.env.NEXT_PUBLIC_APP_URL
   : 'app.authora.studio';
 
 // Additional hosts that should serve the marketing site
-const MARKETING_HOSTS = new Set([
-  MARKETING_HOST,
-  'www.authora.studio',
-]);
+const MARKETING_HOSTS = new Set([MARKETING_HOST, 'www.authora.studio']);
 
 // Standalone preview hosts — serve both marketing and app on one domain (no split-domain redirects)
-const STANDALONE_HOSTS = new Set([
-  'v2.authora.studio',
-]);
+const STANDALONE_HOSTS = new Set(['v2.authora.studio']);
 
 const MARKETING_PATHS = ['/', '/features', '/pricing', '/faq', '/contact', '/demo', '/terms', '/privacy'];
 const APP_PATHS = ['/dashboard', '/login', '/register', '/sso', '/setup', '/onboarding'];
@@ -41,6 +42,62 @@ function isMarketingPath(pathname: string): boolean {
 
 function isAppPath(pathname: string): boolean {
   return APP_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+}
+
+// --- Content Security Policy -------------------------------------------------
+// 'strict-dynamic' lets the nonced Next.js bootstrap load its own chunks while
+// still refusing any injected inline script. Stripe is allowed because checkout
+// and the billing portal run on its domains.
+function buildCsp(nonce: string, isDev: boolean): string {
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    isDev ? "'unsafe-eval'" : '',
+    'https://js.stripe.com',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    // Inline styles are how Next and Tailwind ship; style injection cannot read
+    // a token, so this is the one place 'unsafe-inline' is accepted.
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://api.authora.studio wss://api.authora.studio https://api.stripe.com",
+    "frame-src https://js.stripe.com https://hooks.stripe.com",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
+  ].join('; ');
+}
+
+function withCsp(response: NextResponse, csp: string): NextResponse {
+  response.headers.set('Content-Security-Policy', csp);
+  return response;
+}
+
+function secureNext(request: NextRequest): NextResponse {
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  const csp = buildCsp(nonce, process.env.NODE_ENV !== 'production');
+  const headers = new Headers(request.headers);
+  // Next reads the nonce back off the CSP request header and stamps it onto
+  // every script tag it renders.
+  headers.set('content-security-policy', csp);
+  headers.set('x-nonce', nonce);
+  return withCsp(NextResponse.next({ request: { headers } }), csp);
+}
+
+function secureRedirect(url: URL, status: number): NextResponse {
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  const csp = buildCsp(nonce, process.env.NODE_ENV !== 'production');
+  return withCsp(NextResponse.redirect(url, status), csp);
 }
 
 // --- Funnel instrumentation -------------------------------------------------
@@ -128,28 +185,28 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/favicon') ||
     pathname.includes('.')
   ) {
-    return NextResponse.next();
+    return secureNext(request);
   }
 
   // Local dev: no host-based redirects
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return NextResponse.next();
+    return secureNext(request);
   }
 
   const protocol = request.headers.get('x-forwarded-proto') || 'https';
 
   // Standalone preview hosts: serve everything — no split-domain redirects
   if (STANDALONE_HOSTS.has(hostname)) {
-    return withVisit(request, NextResponse.next(), hostname);
+    return withVisit(request, secureNext(request), hostname);
   }
 
   // On marketing host: redirect app paths to app subdomain
   if (MARKETING_HOSTS.has(hostname)) {
     if (isAppPath(pathname)) {
       const url = new URL(pathname + request.nextUrl.search, `${protocol}://${APP_HOST}`);
-      return NextResponse.redirect(url, 301);
+      return secureRedirect(url, 301);
     }
-    return withVisit(request, NextResponse.next(), hostname);
+    return withVisit(request, secureNext(request), hostname);
   }
 
   // On app host: redirect marketing paths to marketing subdomain; app root -> dashboard
@@ -157,15 +214,15 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (isMarketingPath(pathname)) {
       if (pathname === '/') {
         const url = new URL('/dashboard', `${protocol}://${APP_HOST}`);
-        return NextResponse.redirect(url, 302);
+        return secureRedirect(url, 302);
       }
       const url = new URL(pathname + request.nextUrl.search, `${protocol}://${MARKETING_HOST}`);
-      return NextResponse.redirect(url, 301);
+      return secureRedirect(url, 301);
     }
-    return withVisit(request, NextResponse.next(), hostname);
+    return withVisit(request, secureNext(request), hostname);
   }
 
-  return withVisit(request, NextResponse.next(), hostname);
+  return withVisit(request, secureNext(request), hostname);
 }
 
 export const config = {

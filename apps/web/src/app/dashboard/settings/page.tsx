@@ -118,8 +118,8 @@ export default function SettingsPage() {
       toast({ title: 'Passwords do not match', variant: 'destructive' });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ title: 'Password must be at least 8 characters', variant: 'destructive' });
+    if (newPassword.length < 12) {
+      toast({ title: 'Password must be at least 12 characters', variant: 'destructive' });
       return;
     }
     setSavingPassword(true);
@@ -298,7 +298,7 @@ export default function SettingsPage() {
         <Card variant="sanctuary">
           <CardHeader>
             <CardTitle>Change password</CardTitle>
-            <CardDescription>Update your password. Must be at least 8 characters.</CardDescription>
+            <CardDescription>Update your password. Must be at least 12 characters.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleChangePassword} className="space-y-4">

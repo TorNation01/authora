@@ -22,8 +22,8 @@ function ResetForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (password.length < 8) {
-      setError('Choose a password of at least 8 characters.');
+    if (password.length < 12) {
+      setError('Choose a password of at least 12 characters.');
       return;
     }
     if (password !== confirm) {

@@ -142,7 +142,7 @@ async def test_signup_records_attributed_signup_event(anon_client: AsyncClient, 
     email = f"funnel-{uuid.uuid4().hex[:8]}@example.com"
     res = await anon_client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "password123", "visitor_id": visitor},
+        json={"email": email, "password": "authora-test-pass-9", "visitor_id": visitor},
         headers={"cf-connecting-ip": unique_ip},
     )
     assert res.status_code == 200, res.text

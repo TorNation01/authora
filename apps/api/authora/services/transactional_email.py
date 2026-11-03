@@ -196,6 +196,35 @@ Need help? {support_email()}
 
 
 # --------------------------------------------------------------------------
+# Email verification
+# --------------------------------------------------------------------------
+async def send_email_verification(to: str, verify_url: str, display_name: str | None = None) -> bool:
+    name = (display_name or "").strip() or "there"
+    subject = "Confirm your Authora email address"
+    text = f"""Hi {name},
+
+Confirm this address so your Authora account is ready to publish and subscribe:
+
+{verify_url}
+
+The link works for 48 hours. If you did not create an Authora account, ignore this email and nothing happens.
+
+Need help? {support_email()}
+
+— Authora
+"""
+    html = _layout(
+        "Confirm your email",
+        f"""<p style="margin:0 0 14px 0;">Hi {escape(name)},</p>
+        <p style="margin:0 0 4px 0;">One click and your account is ready to publish and subscribe. This link works for 48 hours.</p>
+        {_button("Confirm my email", verify_url)}
+        <p style="margin:0 0 8px 0;color:#8C857D;font-size:13px;">If you did not create an Authora account, ignore this email — nothing has been set up in your name.</p>
+        <p style="margin:0;color:#8C857D;font-size:13px;">Link not working? Write to <a href="mailto:{support_email()}" style="color:#E2551B;text-decoration:none;">{support_email()}</a>.</p>""",
+    )
+    return await _send(to, subject, text, html)
+
+
+# --------------------------------------------------------------------------
 # Collaboration invite
 # --------------------------------------------------------------------------
 async def send_project_invite(

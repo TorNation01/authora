@@ -208,7 +208,17 @@ export function PricingPlanCards({ billingInterval }: PricingPlanCardsProps) {
               variant={isPro ? 'default' : 'outline'}
               className="mt-8 w-full h-11 font-medium"
             >
-              <Link href="/register">{plan.cta}</Link>
+              <Link
+                href={
+                  isFree
+                    ? '/register'
+                    : `/register?plan=${encodeURIComponent(slug)}&interval=${encodeURIComponent(
+                        isFounder ? 'lifetime' : billingInterval
+                      )}`
+                }
+              >
+                {plan.cta}
+              </Link>
             </Button>
           )
         )}

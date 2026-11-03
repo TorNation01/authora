@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   getBillingStatus,
   createCustomerPortalSession,
+  createCheckoutSession,
   createTemplatePackCheckout,
   clearBillingCache,
   type BillingStatus,
@@ -42,6 +43,64 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [packs, setPacks] = useState<TemplatePack[]>([]);
   const [purchasingSlug, setPurchasingSlug] = useState<string | null>(null);
+  // Plan intent carried through signup from /pricing (see register page). The
+  // trial is already running; this is the one-click path to the tier they
+  // actually asked for, instead of making them find pricing a second time.
+  const [intent, setIntent] = useState<{
+    slug: string;
+    interval: string;
+    name: string;
+    cents: number | null;
+  } | null>(null);
+  const [activating, setActivating] = useState(false);
+
+  useEffect(() => {
+    const paramSlug = searchParams.get('plan');
+    let slug = paramSlug;
+    let interval = searchParams.get('interval') || 'monthly';
+    if (!slug) {
+      try {
+        slug = window.localStorage.getItem('authora.intent.plan');
+        interval = window.localStorage.getItem('authora.intent.interval') || interval;
+      } catch {
+        slug = null;
+      }
+    }
+    if (!slug) return;
+    let cancelled = false;
+    api<Array<{ slug: string; name: string; price?: { monthly_cents?: number | null; yearly_cents?: number | null } }>>(
+      '/api/v1/billing/plans'
+    )
+      .then((plans) => {
+        if (cancelled) return;
+        const plan = plans.find((p) => p.slug === slug);
+        if (!plan) return;
+        const cents =
+          interval === 'yearly'
+            ? plan.price?.yearly_cents ?? null
+            : plan.price?.monthly_cents ?? null;
+        setIntent({ slug, interval, name: plan.name, cents });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  const handleActivateIntent = async () => {
+    if (!intent) return;
+    setActivating(true);
+    const result = await createCheckoutSession(intent.slug, intent.interval, {
+      successUrl: `${window.location.origin}/dashboard/billing?success=1`,
+      cancelUrl: `${window.location.origin}/dashboard/billing?canceled=1`,
+    });
+    if (result?.url) {
+      window.location.href = result.url;
+      return;
+    }
+    setActivating(false);
+    toast({ title: 'Failed to start checkout', variant: 'destructive' });
+  };
 
   useEffect(() => {
     const success = searchParams.get('success');
@@ -146,6 +205,43 @@ export default function BillingPage() {
         description="Manage your subscription and view usage"
       />
 
+      {intent && !isLifetime && status.access_source !== 'stripe' && (
+        <Card variant="sanctuary" data-analytics="intent-checkout">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              You picked {intent.name}
+            </CardTitle>
+            <CardDescription>
+              {trial?.active
+                ? `Your trial is running with ${trial.days_left === 1 ? '1 day' : `${trial.days_left} days`} left — activate ${intent.name} now and nothing changes except your limits.`
+                : `Activate ${intent.name} to keep full access.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold text-foreground">
+                {intent.cents != null ? `$${(intent.cents / 100).toFixed(0)}` : '—'}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                /{intent.interval === 'yearly' ? 'year' : intent.interval === 'lifetime' ? 'once' : 'month'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleActivateIntent} disabled={activating}>
+                {activating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  `Activate ${intent.name}`
+                )}
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard">Keep writing on the trial</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <Card variant="sanctuary">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

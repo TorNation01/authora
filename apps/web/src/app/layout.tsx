@@ -13,6 +13,12 @@ const inter = Inter({
   weight: ['400', '500', '600', '700'],
 });
 
+// The CSP nonce is minted per request in middleware. A prerendered page has no
+// nonce baked in, so its script tags would be refused by the policy — the app
+// must render per request for the nonce to reach the markup. Server rendering a
+// page whose whole job is "talk to the API as this user" is the right trade.
+export const dynamic = 'force-dynamic';
+
 export const viewport = {
   width: 'device-width',
   initialScale: 1,

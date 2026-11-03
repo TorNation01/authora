@@ -44,6 +44,10 @@ class Settings(BaseSettings):
 
     # Invite-only registration. Comma-separated list; empty = open signup.
     signup_invite_codes: str = ""
+    # Signup throttle: new accounts allowed per email domain per hour. Stops a
+    # farm rotating one domain's worth of addresses while leaving a real team
+    # (or a school) untouched.
+    signup_domain_limit_per_hour: int = 5
     # Bot protection for signup (Cloudflare Turnstile). Empty secret = off.
     # The pair is configured together; the site key is published to the browser
     # through GET /auth/signup-config so lifting the beta gate needs no rebuild.

@@ -1,12 +1,15 @@
 """Auth API routes."""
 
+from __future__ import annotations
+
 import uuid
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from authora.models import User
 from authora.models.analytics_event import AnalyticsEvent
@@ -25,8 +28,18 @@ from authora.schemas.auth import (
     UserLogin,
     UserResponse,
     UserUpdate,
+    VerifyEmailRequest,
+    VerifyEmailResponse,
 )
 from authora.core.audit import AuditLogger
+from authora.core.password_policy import validate_password
+from authora.services.email_verification import (
+    consume_verification,
+    issue_verification,
+    mark_verified,
+    verification_url,
+)
+from authora.services.transactional_email import send_email_verification
 from authora.services.turnstile import (
     TurnstileUnavailable,
     site_key_for_browser,
@@ -140,7 +153,28 @@ async def register(
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
+    # Domain throttle. Turnstile stops scripts; this stops a human with a list
+    # of addresses on one domain from farming trials. Five new accounts an hour
+    # is generous for a team and useless for a farm.
+    domain = data.email.rsplit("@", 1)[-1].lower()
+    recent = await db.execute(
+        select(func.count())
+        .select_from(User)
+        .where(
+            func.lower(func.split_part(User.email, "@", 2)) == domain,
+            User.created_at > datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+    )
+    limit = get_settings().signup_domain_limit_per_hour
+    if limit > 0 and (recent.scalar() or 0) >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many accounts created from that email domain in the last hour. Try again later.",
+        )
+
     user = await create_user(db, data.email, data.password, data.display_name)
+    display_name = user.display_name
+    verify_token = await issue_verification(db, user)
 
     # Signup funnel: a new account starts on a trial (Starter by default), so
     # the first chapter is written with real entitlements instead of Free-plan
@@ -233,11 +267,65 @@ async def register(
 
     background.add_task(send_welcome_and_record, user.id, user.email, user.display_name)
 
+    # Proof of inbox. Sent after the commit so a mail failure cannot cost the
+    # account; the link is the only thing standing between the address and
+    # checkout.
+    if verify_token:
+        background.add_task(
+            send_email_verification,
+            user.email,
+            verification_url(verify_token),
+            display_name,
+        )
+
     return Token(
         access_token=access_token,
         refresh_token=refresh_token,
         expires_in=int((expires.timestamp() - __import__("datetime").datetime.now(__import__("datetime").timezone.utc).timestamp())),
     )
+
+
+@router.post("/verify-email", response_model=VerifyEmailResponse)
+async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
+    """Consume a confirmation link. Safe to call twice, one use per token."""
+    user = await consume_verification(db, data.token)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That confirmation link is invalid or has expired. Sign in and request a new one.",
+        )
+
+    audit = AuditLogger(db)
+    await audit.log("verify_email", "user", str(user.id), user.id)
+    email = user.email
+    await db.commit()
+
+    return VerifyEmailResponse(verified=True, email=email)
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    current_user: CurrentUser,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a fresh confirmation link. One mail per five minutes per account."""
+    if current_user.email_verified:
+        return {"verified": True, "sent": False, "message": "This address is already confirmed."}
+
+    token = await issue_verification(db, current_user)
+    if token is None:
+        return {
+            "verified": False,
+            "sent": False,
+            "message": "A confirmation email went out moments ago. Check your inbox, then try again in five minutes.",
+        }
+
+    email = current_user.email
+    display_name = current_user.display_name
+    await db.commit()
+    background.add_task(send_email_verification, email, verification_url(token), display_name)
+    return {"verified": False, "sent": True, "message": "Confirmation email sent."}
 
 
 @router.post("/login", response_model=Token)
@@ -673,12 +761,6 @@ async def reset_password(
     from authora.models import Session as SessionModel
     from authora.services.auth import hash_password
 
-    if len(data.new_password or "") < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Choose a password of at least 8 characters.",
-        )
-
     settings = get_settings()
     try:
         payload = jwt.decode(data.token or "", settings.secret_key, algorithms=["HS256"])
@@ -700,6 +782,12 @@ async def reset_password(
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That reset link is not valid.")
 
+    from authora.core.password_policy import password_problem
+
+    problem = password_problem(data.new_password or "", user.email)
+    if problem:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
+
     if payload.get("pwf") != _reset_fingerprint(user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -707,6 +795,9 @@ async def reset_password(
         )
 
     user.hashed_password = hash_password(data.new_password)
+    # Following a reset link proves control of the inbox, so it doubles as
+    # email verification. No second hoop for someone who just proved it.
+    mark_verified(user)
     # A reset is a security event: every existing session is revoked.
     await db.execute(delete(SessionModel).where(SessionModel.user_id == user.id))
     await db.commit()

@@ -822,6 +822,14 @@ async def create_checkout(
     """Create Stripe Checkout session. Returns url and session_id when Stripe configured."""
     from authora.services.stripe_service import create_checkout_session
 
+    # An unconfirmed address cannot pay. This is the whole point of verification:
+    # a trial on a throwaway inbox must not become a chargeback or a resold seat.
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Confirm your email address before subscribing. We sent a link when you signed up; you can resend it from account settings.",
+        )
+
     # Lifetime is a limited-time offer. Enforce the window server-side so a
     # stale page or a hand-made request cannot buy it outside the window.
     if data.billing_interval == "lifetime":

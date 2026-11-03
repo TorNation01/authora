@@ -53,6 +53,7 @@ const adminNav = [
   { href: '/dashboard/admin/content', label: 'Content templates', icon: FileText },
   { href: '/dashboard/admin/onboarding', label: 'Onboarding', icon: Compass },
   { href: '/dashboard/admin/activation', label: 'Activation', icon: TrendingUp },
+  { href: '/dashboard/admin/metrics', label: 'Growth & funnel', icon: TrendingUp },
   { href: '/dashboard/admin/network-metrics', label: 'Network metrics', icon: TrendingUp },
   { href: '/dashboard/admin/templates', label: 'Templates', icon: BookOpen },
   { href: '/dashboard/admin/template-packs', label: 'Template packs', icon: Package },

@@ -22,6 +22,12 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCode = searchParams?.get('ref') || undefined;
+  // Plan intent carried from /pricing: a visitor who clicked "Start with Pro"
+  // must land on Pro's checkout after signup, not be dropped into the app and
+  // left to find pricing again. The trial is already running by the time this
+  // resolves — this only decides which plan they activate.
+  const intentPlan = searchParams?.get('plan') || undefined;
+  const intentInterval = searchParams?.get('interval') || 'monthly';
   const { toast } = useToast();
   const config = useConfig();
 
@@ -134,7 +140,21 @@ function RegisterForm() {
       );
       setTokens(res.access_token, res.refresh_token);
       toast({ title: 'Account created!', description: 'Welcome to AUTHORA.' });
-      router.push('/onboarding');
+      if (intentPlan) {
+        try {
+          window.localStorage.setItem('authora.intent.plan', intentPlan);
+          window.localStorage.setItem('authora.intent.interval', intentInterval);
+        } catch {
+          // Private mode / storage disabled: the query string still carries it.
+        }
+        router.push(
+          `/dashboard/billing?plan=${encodeURIComponent(intentPlan)}&interval=${encodeURIComponent(
+            intentInterval
+          )}&welcome=1`
+        );
+      } else {
+        router.push('/onboarding');
+      }
       router.refresh();
     } catch (err) {
       // Turnstile tokens are single-use: a retry needs a fresh one, or the
@@ -193,13 +213,13 @@ function RegisterForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password (min 8 characters)</Label>
+                <Label htmlFor="password">Password (min 12 characters)</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  minLength={8}
+                  minLength={12}
                   required
                   className="h-11"
                 />

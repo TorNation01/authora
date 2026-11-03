@@ -15,6 +15,7 @@ import { HelpProvider } from '@/contexts/HelpContext';
 import { TutorialProvider } from '@/contexts/TutorialContext';
 import { UpgradeTriggerProvider } from '@/contexts/UpgradeTriggerContext';
 import { HelpCenter, Walkthrough } from '@/components/help';
+import { VerifyEmailBanner } from '@/components/shell/VerifyEmailBanner';
 
 export default function DashboardLayout({
   children,
@@ -27,6 +28,7 @@ export default function DashboardLayout({
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
+  const [emailVerified, setEmailVerified] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
   const loginPath = config.feature_flags.sso_ready ? '/sso' : '/login';
@@ -43,9 +45,10 @@ export default function DashboardLayout({
 
     setBootError(null);
 
-    api<{ id: string; email: string; display_name: string | null; is_admin: boolean }>('/api/v1/auth/me')
+    api<{ id: string; email: string; display_name: string | null; is_admin: boolean; email_verified?: boolean }>('/api/v1/auth/me')
       .then((data) => {
         if (cancelled) return;
+        setEmailVerified(data?.email_verified !== false);
         setUser({
           id: String(data?.id ?? ''),
           email: String(data?.email ?? ''),
@@ -143,7 +146,10 @@ export default function DashboardLayout({
         <UpgradeTriggerProvider>
           <HelpProvider>
             <TutorialProvider>
-              <AppShell onLogout={handleLogout}>{children}</AppShell>
+              <AppShell onLogout={handleLogout}>
+                {!emailVerified && <VerifyEmailBanner email={user.email} />}
+                {children}
+              </AppShell>
               <HelpCenter />
               <Walkthrough />
             </TutorialProvider>

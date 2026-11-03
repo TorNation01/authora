@@ -3,7 +3,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from authora.core.password_policy import MIN_LENGTH, password_problem
 
 
 def _email_like(v: str) -> str:
@@ -18,7 +20,7 @@ class UserCreate(BaseModel):
     """User registration."""
 
     email: str = Field(..., min_length=3, max_length=255)
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=MIN_LENGTH, max_length=128)
     display_name: str | None = None
     referral_code: str | None = None
     affiliate_code: str | None = None
@@ -32,6 +34,13 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_email(cls, v: str) -> str:
         return _email_like(v)
+
+    @model_validator(mode="after")
+    def validate_password_strength(self) -> "UserCreate":
+        problem = password_problem(self.password, self.email)
+        if problem:
+            raise ValueError(problem)
+        return self
 
 
 class UserLogin(BaseModel):
@@ -54,8 +63,21 @@ class UserResponse(BaseModel):
     display_name: str | None
     created_at: datetime
     is_admin: bool = False
+    email_verified: bool = True
 
     model_config = {"from_attributes": True}
+
+
+class VerifyEmailRequest(BaseModel):
+    """Token from the verification link."""
+
+    token: str = Field(..., min_length=16, max_length=255)
+
+
+class VerifyEmailResponse(BaseModel):
+    verified: bool
+    already_verified: bool = False
+    email: str | None = None
 
 
 class Token(BaseModel):
@@ -97,4 +119,12 @@ class PasswordChange(BaseModel):
     """Password change request."""
 
     current_password: str
-    new_password: str = Field(..., min_length=8, max_length=128)
+    new_password: str = Field(..., min_length=MIN_LENGTH, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        problem = password_problem(v)
+        if problem:
+            raise ValueError(problem)
+        return v

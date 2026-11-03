@@ -67,7 +67,7 @@ def _email() -> str:
 async def _register(client, email: str, **extra):
     return await client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": "password123", **extra},
+        json={"email": email, "password": "authora-test-pass-9", **extra},
     )
 
 

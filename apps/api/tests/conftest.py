@@ -23,6 +23,9 @@ os.environ.setdefault("DEPLOYMENT_MODE", "standalone")
 # production brute-force ceiling. Without this the sixth registration is a
 # 429 and every test after it fails on a missing access_token.
 os.environ.setdefault("RATE_LIMIT_AUTH_ATTEMPTS", "1000")
+# The suite creates many accounts on @example.com; the per-domain signup
+# throttle is exercised in its own test with a small limit.
+os.environ.setdefault("SIGNUP_DOMAIN_LIMIT_PER_HOUR", "1000")
 
 from authora.database import Base, async_session_factory, engine, get_db
 from authora.main import app
